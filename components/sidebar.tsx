@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
+import { api, type CurrentUser } from "@/lib/api";
 
 const NAV_ITEMS = [
   {
@@ -100,6 +100,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const [pendingCount, setPendingCount] = useState<number | null>(null);
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
   useEffect(() => {
     // Check health and pending approvals
@@ -110,7 +111,27 @@ export function Sidebar() {
     api.approvals.pending()
       .then((list) => setPendingCount(list.length))
       .catch(() => setPendingCount(null));
+
+    // Fetch real authenticated identity from backend
+    api.auth.me()
+      .then((u) => setCurrentUser(u))
+      .catch(() => setCurrentUser(null));
   }, [pathname]);
+
+  const handleLogout = async () => {
+    try {
+      await api.auth.logout();
+    } catch {
+      // Ignored
+    } finally {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("sentinel_token");
+        localStorage.removeItem("sentinel_role");
+        localStorage.removeItem("sentinel_email");
+        window.location.href = "/";
+      }
+    }
+  };
 
   return (
     <aside
@@ -202,22 +223,83 @@ export function Sidebar() {
         <div className="flex items-center gap-3">
           <div
             className="w-7 h-7 rounded-full flex items-center justify-center font-bold text-white text-[11px]"
-            style={{ background: "#2563eb" }}
+            style={{
+              background:
+                currentUser?.role === "ADMIN"
+                  ? "#2563eb"
+                  : currentUser?.role === "APPROVER"
+                  ? "#d97706"
+                  : currentUser?.role === "SECURITY_ANALYST"
+                  ? "#7c3aed"
+                  : "#059669",
+            }}
           >
-            AD
+            {currentUser?.display_name
+              ? currentUser.display_name
+                  .split(" ")
+                  .map((w) => w[0])
+                  .join("")
+                  .slice(0, 2)
+                  .toUpperCase()
+              : "AD"}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-medium text-white truncate">Security Admin</div>
-            <div className="text-[10px] font-mono truncate" style={{ color: "var(--text-secondary)" }}>
-              admin@sentinel.test
+            <div className="font-medium text-white truncate">
+              {currentUser?.display_name || "Security Admin"}
+            </div>
+            <div
+              className="text-[10px] font-mono truncate"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {currentUser?.email || "admin@sentinel.test"}
             </div>
           </div>
-          <span
-            className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold"
-            style={{ background: "rgba(34, 197, 94, 0.15)", color: "#22c55e", border: "1px solid rgba(34, 197, 94, 0.3)" }}
-          >
-            ADMIN
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold"
+              style={{
+                background:
+                  currentUser?.role === "ADMIN"
+                    ? "rgba(34, 197, 94, 0.15)"
+                    : currentUser?.role === "APPROVER"
+                    ? "rgba(245, 158, 11, 0.15)"
+                    : "rgba(56, 189, 248, 0.15)",
+                color:
+                  currentUser?.role === "ADMIN"
+                    ? "#22c55e"
+                    : currentUser?.role === "APPROVER"
+                    ? "#f59e0b"
+                    : "#38bdf8",
+                border:
+                  currentUser?.role === "ADMIN"
+                    ? "1px solid rgba(34, 197, 94, 0.3)"
+                    : currentUser?.role === "APPROVER"
+                    ? "1px solid rgba(245, 158, 11, 0.3)"
+                    : "1px solid rgba(56, 189, 248, 0.3)",
+              }}
+            >
+              {currentUser?.role || "ADMIN"}
+            </span>
+            <button
+              onClick={handleLogout}
+              title="Sign Out / Revoke Session"
+              className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
     </aside>

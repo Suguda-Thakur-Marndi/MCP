@@ -33,10 +33,16 @@ async function apiFetch<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE}${path}`;
+  const isMutation = ["POST", "PUT", "DELETE", "PATCH"].includes(
+    (options.method || "GET").toUpperCase()
+  );
+
   const res = await fetch(url, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      ...(isMutation ? { "X-Requested-With": "XMLHttpRequest" } : {}),
       ...getAuthHeaders(),
       ...(options.headers || {}),
     },
@@ -59,6 +65,17 @@ export class ApiError extends Error {
     this.status = status;
     this.body = body;
   }
+}
+
+export interface CurrentUser {
+  id: string;
+  email: string;
+  display_name: string;
+  role: string;
+  department?: string | null;
+  organization?: string | null;
+  status: string;
+  permissions: string[];
 }
 
 // --------------------------------------------------------------------------
@@ -267,5 +284,16 @@ export const api = {
       }),
     status: (): Promise<{ status: string; agent_id: string; model: string }> =>
       apiFetch("/api/agent/status"),
+  },
+
+  // Authentication & Session Management
+  auth: {
+    me: (): Promise<CurrentUser> => apiFetch("/api/auth/me"),
+    logout: (): Promise<{ status: string }> =>
+      apiFetch("/api/auth/logout", { method: "POST" }),
+    loginUrl: (redirectUrl?: string): string => {
+      const q = redirectUrl ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : "";
+      return `${API_BASE}/api/auth/google/authorize${q}`;
+    },
   },
 };
