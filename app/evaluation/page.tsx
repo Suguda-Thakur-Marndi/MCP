@@ -54,7 +54,30 @@ export default function SecurityEvaluationPage() {
     }
   };
 
-  const categories = ["ALL", "READ", "WRITE", "DESTRUCTIVE", "ADVERSARIAL", "LIFECYCLE"];
+  const allCategories = [
+    "ALL",
+    "READ",
+    "WRITE",
+    "DESTRUCTIVE",
+    "ADVERSARIAL",
+    "AUTHENTICATION",
+    "AUTHORIZATION",
+    "APPROVAL",
+    "PROMPT_INJECTION",
+    "MCP_SECURITY",
+    "POLICY",
+    "LIFECYCLE",
+    "CONCURRENCY",
+    "INPUT_VALIDATION",
+  ];
+
+  const presentCategories = result?.results
+    ? Array.from(new Set(result.results.map((r) => r.category?.toUpperCase()).filter(Boolean)))
+    : [];
+
+  const categories = presentCategories.length > 0
+    ? ["ALL", ...presentCategories]
+    : allCategories;
 
   const filteredResults =
     result?.results.filter((r) =>
@@ -69,7 +92,7 @@ export default function SecurityEvaluationPage() {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-white">Security Evaluation Suite</h1>
             <span className="px-2.5 py-0.5 rounded text-xs font-mono bg-purple-950 text-purple-400 border border-purple-800">
-              {result ? `${result.summary.total} AUTOMATED SCENARIOS` : "25 AUTOMATED ATTACK & DEFENSE SCENARIOS"}
+              {result ? `${result.summary.total} AUTOMATED SCENARIOS` : "56 AUTOMATED ATTACK & DEFENSE SCENARIOS"}
             </span>
           </div>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
@@ -85,7 +108,7 @@ export default function SecurityEvaluationPage() {
           <svg className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
           </svg>
-          {loading ? "Running 25 Scenarios..." : "Trigger Security Evaluation"}
+          {loading ? "Running Security Evaluation..." : "Trigger Security Evaluation"}
         </button>
       </div>
 
