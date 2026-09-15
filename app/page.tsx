@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { api, DashboardStats } from "@/lib/api";
-import { decisionBadgeClass, formatDate, relativeTime } from "@/lib/utils";
+import { decisionBadgeClass, relativeTime } from "@/lib/utils";
 
 export default function DashboardPage() {
+  const [, startTransition] = useTransition();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,19 +16,56 @@ export default function DashboardPage() {
       setLoading(true);
       setError(null);
       const data = await api.dashboard.stats();
-      setStats(data);
+      startTransition(() => {
+        setStats(data);
+      });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to load dashboard metrics";
-      setError(msg);
+      startTransition(() => {
+        setError(msg);
+      });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchStats();
-    const interval = setInterval(fetchStats, 15000); // refresh every 15s
-    return () => clearInterval(interval);
+    let active = true;
+    api.dashboard.stats()
+      .then((data) => {
+        if (active) {
+          startTransition(() => {
+            setStats(data);
+            setLoading(false);
+          });
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          const msg = err instanceof Error ? err.message : "Failed to load dashboard metrics";
+          startTransition(() => {
+            setError(msg);
+            setLoading(false);
+          });
+        }
+      });
+
+    const interval = setInterval(() => {
+      api.dashboard.stats()
+        .then((data) => {
+          if (active) {
+            startTransition(() => {
+              setStats(data);
+            });
+          }
+        })
+        .catch(() => {});
+    }, 15000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, []);
 
   return (

@@ -1,20 +1,42 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api, PolicyInfo } from "@/lib/api";
+import { useEffect, useState, useTransition } from "react";
+import { api, PolicyResponse } from "@/lib/api";
 import { decisionBadgeClass } from "@/lib/utils";
 
 export default function PolicyEnginePage() {
-  const [policies, setPolicies] = useState<PolicyInfo[]>([]);
+  const [policyData, setPolicyData] = useState<PolicyResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
-    api.policies.list()
-      .then((data) => setPolicies(data))
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Failed to load policies"))
-      .finally(() => setLoading(false));
+    let isMounted = true;
+    api.policies
+      .list()
+      .then((data) => {
+        if (isMounted) {
+          startTransition(() => {
+            setPolicyData(data);
+            setLoading(false);
+          });
+        }
+      })
+      .catch((err: unknown) => {
+        if (isMounted) {
+          startTransition(() => {
+            setError(err instanceof Error ? err.message : "Failed to load policies");
+            setLoading(false);
+          });
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  const rules = policyData?.rules ? [...policyData.rules].sort((a, b) => a.priority - b.priority) : [];
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -23,7 +45,7 @@ export default function PolicyEnginePage() {
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold tracking-tight text-white">Policy Engine & Risk Matrix</h1>
           <span className="px-2.5 py-0.5 rounded text-xs font-mono bg-sky-950 text-sky-400 border border-sky-800">
-            DETERMINISTIC EVALUATION
+            {policyData ? `${policyData.policy_id.toUpperCase()} v${policyData.policy_version}` : "DETERMINISTIC EVALUATION"}
           </span>
         </div>
         <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
@@ -89,10 +111,10 @@ export default function PolicyEnginePage() {
       <div className="glass-card p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white font-mono uppercase tracking-wider">
-            Active Security Policy Rules
+            Active Security Policy Rules ({rules.length})
           </h2>
           <span className="text-xs font-mono text-slate-400">
-            Precedence: Highest Priority First
+            Precedence: {policyData?.precedence.join(" → ") || "DENY → REQUIRE_MFA → REQUIRE_APPROVAL → ALLOW"}
           </span>
         </div>
 
@@ -114,7 +136,14 @@ export default function PolicyEnginePage() {
                   </td>
                 </tr>
               )}
-              {policies.flatMap((p) => p.rules).sort((a, b) => a.priority - b.priority).map((r) => (
+              {!loading && rules.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="text-center py-8 text-xs text-slate-400">
+                    No active policy rules loaded from server.
+                  </td>
+                </tr>
+              )}
+              {rules.map((r) => (
                 <tr key={r.rule_id}>
                   <td className="font-mono text-xs font-bold text-sky-400">
                     #{r.priority}

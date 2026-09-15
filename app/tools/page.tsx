@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { api, ToolInfo } from "@/lib/api";
 import { riskBadgeClass } from "@/lib/utils";
 
@@ -9,12 +9,32 @@ export default function ToolsRegistryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
-    api.policies.tools()
-      .then((data) => setTools(data))
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Failed to load MCP tools"))
-      .finally(() => setLoading(false));
+    let isMounted = true;
+    api.policies
+      .tools()
+      .then((data) => {
+        if (isMounted) {
+          startTransition(() => {
+            setTools(data);
+            setLoading(false);
+          });
+        }
+      })
+      .catch((err: unknown) => {
+        if (isMounted) {
+          startTransition(() => {
+            setError(err instanceof Error ? err.message : "Failed to load MCP tools");
+            setLoading(false);
+          });
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const filteredTools = tools.filter(
@@ -31,7 +51,7 @@ export default function ToolsRegistryPage() {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-white">MCP Tool Registry</h1>
             <span className="px-2.5 py-0.5 rounded text-xs font-mono bg-sky-950 text-sky-400 border border-sky-800">
-              8 ACTIVE ENTERPRISE TOOLS
+              {loading ? "CHECKING TOOLS..." : `${tools.length} ACTIVE ENTERPRISE TOOLS`}
             </span>
           </div>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>

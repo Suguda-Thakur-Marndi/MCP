@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
 import { api, type CurrentUser } from "@/lib/api";
 
 const NAV_ITEMS = [
@@ -98,6 +98,8 @@ const NAV_ITEMS = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [, startTransition] = useTransition();
   const [pendingCount, setPendingCount] = useState<number | null>(null);
   const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
@@ -105,17 +107,41 @@ export function Sidebar() {
   useEffect(() => {
     // Check health and pending approvals
     api.health()
-      .then((h) => setIsHealthy(h.status === "ok" || h.status === "healthy"))
-      .catch(() => setIsHealthy(false));
+      .then((h) => {
+        startTransition(() => {
+          setIsHealthy(h.status === "ok" || h.status === "healthy");
+        });
+      })
+      .catch(() => {
+        startTransition(() => {
+          setIsHealthy(false);
+        });
+      });
 
     api.approvals.pending()
-      .then((list) => setPendingCount(list.length))
-      .catch(() => setPendingCount(null));
+      .then((list) => {
+        startTransition(() => {
+          setPendingCount(list.length);
+        });
+      })
+      .catch(() => {
+        startTransition(() => {
+          setPendingCount(null);
+        });
+      });
 
     // Fetch real authenticated identity from backend
     api.auth.me()
-      .then((u) => setCurrentUser(u))
-      .catch(() => setCurrentUser(null));
+      .then((u) => {
+        startTransition(() => {
+          setCurrentUser(u);
+        });
+      })
+      .catch(() => {
+        startTransition(() => {
+          setCurrentUser(null);
+        });
+      });
   }, [pathname]);
 
   const handleLogout = async () => {
@@ -128,7 +154,7 @@ export function Sidebar() {
         localStorage.removeItem("sentinel_token");
         localStorage.removeItem("sentinel_role");
         localStorage.removeItem("sentinel_email");
-        window.location.href = "/";
+        router.push("/");
       }
     }
   };
@@ -234,8 +260,8 @@ export function Sidebar() {
                   : "#059669",
             }}
           >
-            {currentUser?.display_name
-              ? currentUser.display_name
+            {(currentUser?.display_name || currentUser?.name)
+              ? (currentUser.display_name || currentUser.name || "")
                   .split(" ")
                   .map((w) => w[0])
                   .join("")
@@ -245,7 +271,7 @@ export function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-medium text-white truncate">
-              {currentUser?.display_name || "Security Admin"}
+              {currentUser?.display_name || currentUser?.name || "Security Admin"}
             </div>
             <div
               className="text-[10px] font-mono truncate"

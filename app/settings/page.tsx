@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { api, HealthStatus } from "@/lib/api";
 
 export default function SettingsPage() {
+  const [, startTransition] = useTransition();
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeRole, setActiveRole] = useState<string>("ADMIN");
@@ -12,15 +13,26 @@ export default function SettingsPage() {
 
   useEffect(() => {
     api.health()
-      .then((h) => setHealth(h))
-      .catch(() => setHealth({ status: "disconnected" }))
-      .finally(() => setLoading(false));
+      .then((h) => {
+        startTransition(() => {
+          setHealth(h);
+          setLoading(false);
+        });
+      })
+      .catch(() => {
+        startTransition(() => {
+          setHealth({ status: "disconnected" });
+          setLoading(false);
+        });
+      });
 
     if (typeof window !== "undefined") {
       const savedRole = localStorage.getItem("sentinel_role") || "ADMIN";
       const savedEmail = localStorage.getItem("sentinel_email") || "admin@sentinel.test";
-      setActiveRole(savedRole);
-      setActiveEmail(savedEmail);
+      startTransition(() => {
+        setActiveRole(savedRole);
+        setActiveEmail(savedEmail);
+      });
     }
   }, []);
 
@@ -130,7 +142,7 @@ export default function SettingsPage() {
               Local RBAC Identity Switcher
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Simulate requests under different roles to verify server-side permission enforcement and privilege boundaries.
+              Simulate requests under different roles to verify server-side permission enforcement and privilege boundaries. Active identity: <code className="text-sky-300">{activeEmail}</code>
             </p>
           </div>
           {roleSaved && (

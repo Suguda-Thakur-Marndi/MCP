@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api, ApprovalRecord } from "@/lib/api";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { api, ApprovalRecord, CurrentUser, ApiError } from "@/lib/api";
 import {
   statusBadgeClass,
   riskBadgeClass,
@@ -10,7 +10,9 @@ import {
 } from "@/lib/utils";
 
 export default function ApprovalsPage() {
+  const [, startTransition] = useTransition();
   const [approvals, setApprovals] = useState<ApprovalRecord[]>([]);
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("PENDING");
@@ -19,43 +21,100 @@ export default function ApprovalsPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
-  const fetchApprovals = async (status?: string) => {
+  const fetchApprovals = useCallback(async (status?: string) => {
     try {
       setLoading(true);
       setError(null);
       const res = await api.approvals.list({
         status: status && status !== "ALL" ? status : undefined,
       });
-      setApprovals(res);
-      if (res.length > 0 && !selectedTicket) {
-        setSelectedTicket(res[0]);
-      } else if (res.length > 0 && selectedTicket) {
-        const found = res.find((r) => r.ticket_id === selectedTicket.ticket_id);
-        setSelectedTicket(found || res[0]);
-      } else {
-        setSelectedTicket(null);
-      }
+      startTransition(() => {
+        setApprovals(res);
+        if (res.length > 0) {
+          setSelectedTicket((curr) => {
+            if (!curr) return res[0];
+            const found = res.find((r) => r.ticket_id === curr.ticket_id);
+            return found || res[0];
+          });
+        } else {
+          setSelectedTicket(null);
+        }
+      });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load approvals");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchApprovals(filterStatus);
+    let active = true;
+    api.approvals.list({
+      status: filterStatus && filterStatus !== "ALL" ? filterStatus : undefined,
+    }).then((res) => {
+      if (active) {
+        startTransition(() => {
+          setApprovals(res);
+          setLoading(false);
+          if (res.length > 0) {
+            setSelectedTicket((curr) => {
+              if (!curr) return res[0];
+              const found = res.find((r) => r.ticket_id === curr.ticket_id);
+              return found || res[0];
+            });
+          } else {
+            setSelectedTicket(null);
+          }
+        });
+      }
+    }).catch((err: unknown) => {
+      if (active) {
+        startTransition(() => {
+          setError(err instanceof Error ? err.message : "Failed to load approvals");
+          setLoading(false);
+        });
+      }
+    });
+
+    api.auth.me()
+      .then((user) => {
+        if (active) {
+          startTransition(() => {
+            setCurrentUser(user);
+          });
+        }
+      })
+      .catch(() => {
+        if (active) {
+          startTransition(() => {
+            setCurrentUser(null);
+          });
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, [filterStatus]);
 
   const handleApprove = async (ticketId: string) => {
     try {
       setActionLoading(true);
       setActionSuccess(null);
+      setError(null);
       await api.approvals.approve(ticketId, actionNotes || "Approved via Security Console");
       setActionSuccess(`Ticket ${ticketId} approved successfully`);
       setActionNotes("");
       await fetchApprovals(filterStatus);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Approval failed");
+      if (err instanceof ApiError && err.status === 409) {
+        setError(`Conflict: ${err.message}. The ticket state was already changed.`);
+      } else if (err instanceof ApiError && err.status === 403) {
+        setError(`Forbidden: ${err.message}`);
+      } else {
+        setError(err instanceof Error ? err.message : "Approval failed");
+      }
+      await fetchApprovals(filterStatus);
     } finally {
       setActionLoading(false);
     }
@@ -65,12 +124,41 @@ export default function ApprovalsPage() {
     try {
       setActionLoading(true);
       setActionSuccess(null);
+      setError(null);
       await api.approvals.deny(ticketId, actionNotes || "Denied by Security Admin via Console");
       setActionSuccess(`Ticket ${ticketId} denied`);
       setActionNotes("");
       await fetchApprovals(filterStatus);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Denial failed");
+      if (err instanceof ApiError && err.status === 409) {
+        setError(`Conflict: ${err.message}. The ticket state was already changed.`);
+      } else if (err instanceof ApiError && err.status === 403) {
+        setError(`Forbidden: ${err.message}`);
+      } else {
+        setError(err instanceof Error ? err.message : "Denial failed");
+      }
+      await fetchApprovals(filterStatus);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancel = async (ticketId: string) => {
+    try {
+      setActionLoading(true);
+      setActionSuccess(null);
+      setError(null);
+      await api.approvals.cancel(ticketId, actionNotes || "Cancelled via Console");
+      setActionSuccess(`Ticket ${ticketId} cancelled`);
+      setActionNotes("");
+      await fetchApprovals(filterStatus);
+    } catch (err: unknown) {
+      if (err instanceof ApiError && err.status === 409) {
+        setError(`Conflict: ${err.message}. The ticket state was already changed.`);
+      } else {
+        setError(err instanceof Error ? err.message : "Cancellation failed");
+      }
+      await fetchApprovals(filterStatus);
     } finally {
       setActionLoading(false);
     }
@@ -219,7 +307,7 @@ export default function ApprovalsPage() {
               </div>
 
               {/* Metadata Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
                 <div className="p-3 rounded-lg" style={{ background: "var(--bg-secondary)" }}>
                   <div style={{ color: "var(--text-muted)" }}>Target ID</div>
                   <div className="font-mono font-medium text-white mt-0.5 truncate">{selectedTicket.target_id}</div>
@@ -231,12 +319,20 @@ export default function ApprovalsPage() {
                 <div className="p-3 rounded-lg" style={{ background: "var(--bg-secondary)" }}>
                   <div style={{ color: "var(--text-muted)" }}>Risk Score</div>
                   <div className="font-mono font-bold mt-0.5 text-amber-400">
-                    {selectedTicket.risk_score} / 100
+                    {selectedTicket.risk_score} / 100 ({selectedTicket.risk_level})
                   </div>
+                </div>
+                <div className="p-3 rounded-lg" style={{ background: "var(--bg-secondary)" }}>
+                  <div style={{ color: "var(--text-muted)" }}>Requester ID</div>
+                  <div className="font-mono font-medium text-white mt-0.5 truncate">{selectedTicket.requester_id}</div>
                 </div>
                 <div className="p-3 rounded-lg" style={{ background: "var(--bg-secondary)" }}>
                   <div style={{ color: "var(--text-muted)" }}>Policy Rule</div>
                   <div className="font-mono font-medium text-white mt-0.5 truncate">{selectedTicket.policy_id}</div>
+                </div>
+                <div className="p-3 rounded-lg" style={{ background: "var(--bg-secondary)" }}>
+                  <div style={{ color: "var(--text-muted)" }}>Expires At</div>
+                  <div className="font-mono font-medium text-white mt-0.5 truncate">{formatDate(selectedTicket.expires_at)}</div>
                 </div>
               </div>
 
@@ -279,24 +375,43 @@ export default function ApprovalsPage() {
               {/* Decision Action Area (If Pending) */}
               {selectedTicket.status === "PENDING" ? (
                 <div className="p-4 rounded-xl space-y-3" style={{ background: "rgba(17, 24, 39, 0.6)", border: "1px solid var(--border-accent)" }}>
-                  <div className="text-xs font-semibold text-white">
-                    Approver Action Required
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-semibold text-white">
+                      Approver Action Required
+                    </div>
+                    {currentUser && (
+                      <span className="text-[11px] font-mono text-slate-400">
+                        Acting as: <span className="text-sky-300">{currentUser.name || currentUser.display_name}</span> ({currentUser.role})
+                      </span>
+                    )}
                   </div>
+
+                  {currentUser?.id === selectedTicket.requester_id && (
+                    <div className="p-3 rounded-lg text-xs font-mono" style={{ background: "rgba(245, 158, 11, 0.1)", border: "1px solid rgba(245, 158, 11, 0.3)", color: "#f59e0b" }}>
+                      <strong>Self-Approval Defense:</strong> You requested this ticket ({currentUser.id}). Independent sign-off is enforced by backend policy.
+                    </div>
+                  )}
+
+                  {currentUser?.role === "VIEWER" && (
+                    <div className="p-3 rounded-lg text-xs font-mono" style={{ background: "rgba(148, 163, 184, 0.1)", border: "1px solid rgba(148, 163, 184, 0.3)", color: "var(--text-secondary)" }}>
+                      <strong>Read-Only Access:</strong> Viewer accounts are not authorized to decide tickets.
+                    </div>
+                  )}
 
                   <input
                     type="text"
-                    placeholder="Decision rationale notes (required for audit log)..."
+                    placeholder="Decision rationale notes (recorded in immutable audit log)..."
                     value={actionNotes}
                     onChange={(e) => setActionNotes(e.target.value)}
                     className="w-full px-3 py-2 text-xs rounded-lg text-white font-sans focus:outline-none"
                     style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
                   />
 
-                  <div className="flex items-center gap-3 pt-1">
+                  <div className="flex items-center gap-3 pt-1 flex-wrap">
                     <button
                       onClick={() => handleApprove(selectedTicket.ticket_id)}
-                      disabled={actionLoading}
-                      className="btn-primary text-xs flex-1 flex items-center justify-center gap-1.5"
+                      disabled={actionLoading || currentUser?.role === "VIEWER" || currentUser?.id === selectedTicket.requester_id}
+                      className="btn-primary text-xs flex-1 min-w-[140px] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M20 6 9 17l-5-5" />
@@ -305,8 +420,8 @@ export default function ApprovalsPage() {
                     </button>
                     <button
                       onClick={() => handleDeny(selectedTicket.ticket_id)}
-                      disabled={actionLoading}
-                      className="btn-danger text-xs flex-1 flex items-center justify-center gap-1.5"
+                      disabled={actionLoading || currentUser?.role === "VIEWER" || currentUser?.id === selectedTicket.requester_id}
+                      className="btn-danger text-xs flex-1 min-w-[140px] flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <line x1="18" y1="6" x2="6" y2="18" />
@@ -314,6 +429,21 @@ export default function ApprovalsPage() {
                       </svg>
                       Deny & Fail Closed
                     </button>
+                    {(currentUser?.role === "ADMIN" || currentUser?.id === selectedTicket.requester_id) && (
+                      <button
+                        onClick={() => handleCancel(selectedTicket.ticket_id)}
+                        disabled={actionLoading}
+                        className="text-xs px-3 py-2 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                        title="Cancel this pending approval ticket"
+                      >
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="15" y1="9" x2="9" y2="15" />
+                          <line x1="9" y1="9" x2="15" y2="15" />
+                        </svg>
+                        Cancel
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -328,7 +458,7 @@ export default function ApprovalsPage() {
                     )}
                   </div>
                   {selectedTicket.decision_notes && (
-                    <div className="mt-1 text-slate-300 italic">"{selectedTicket.decision_notes}"</div>
+                    <div className="mt-1 text-slate-300 italic">&ldquo;{selectedTicket.decision_notes}&rdquo;</div>
                   )}
                 </div>
               )}

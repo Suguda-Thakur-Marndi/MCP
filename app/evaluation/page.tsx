@@ -1,33 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { api, SecurityEvalResult } from "@/lib/api";
 import { decisionBadgeClass } from "@/lib/utils";
 
 export default function SecurityEvaluationPage() {
   const [result, setResult] = useState<SecurityEvalResult | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterCat, setFilterCat] = useState<string>("ALL");
+  const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    let isMounted = true;
+    api.security
+      .getLatest()
+      .then((data) => {
+        if (isMounted) {
+          startTransition(() => {
+            setResult(data);
+            setInitialLoading(false);
+          });
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          startTransition(() => {
+            setInitialLoading(false);
+          });
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleRunEval = async () => {
     try {
       setLoading(true);
       setError(null);
       const data = await api.security.runEval();
-      setResult(data);
+      startTransition(() => {
+        setResult(data);
+        setLoading(false);
+      });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Security evaluation failed to run");
-    } finally {
-      setLoading(false);
+      startTransition(() => {
+        setError(err instanceof Error ? err.message : "Security evaluation failed to run");
+        setLoading(false);
+      });
     }
   };
 
   const categories = ["ALL", "READ", "WRITE", "DESTRUCTIVE", "ADVERSARIAL", "LIFECYCLE"];
 
-  const filteredResults = result?.results.filter((r) =>
-    filterCat === "ALL" ? true : r.category?.toUpperCase() === filterCat
-  ) || [];
+  const filteredResults =
+    result?.results.filter((r) =>
+      filterCat === "ALL" ? true : r.category?.toUpperCase() === filterCat
+    ) || [];
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
@@ -37,7 +69,7 @@ export default function SecurityEvaluationPage() {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-white">Security Evaluation Suite</h1>
             <span className="px-2.5 py-0.5 rounded text-xs font-mono bg-purple-950 text-purple-400 border border-purple-800">
-              25 AUTOMATED ATTACK & DEFENSE SCENARIOS
+              {result ? `${result.summary.total} AUTOMATED SCENARIOS` : "25 AUTOMATED ATTACK & DEFENSE SCENARIOS"}
             </span>
           </div>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
@@ -75,7 +107,7 @@ export default function SecurityEvaluationPage() {
           <div className="glass-card p-4 space-y-1">
             <div className="text-xs font-mono text-slate-400">SCENARIOS PASSED</div>
             <div className="text-2xl font-bold text-green-400 font-mono">{result.summary.passed}</div>
-            <div className="text-[11px] text-green-500 font-mono">100% Pass Rate</div>
+            <div className="text-[11px] text-green-500 font-mono">{result.summary.pass_rate.toFixed(1)}% Pass Rate</div>
           </div>
 
           <div className="glass-card p-4 space-y-1">
@@ -127,10 +159,10 @@ export default function SecurityEvaluationPage() {
           </div>
         </div>
 
-        {!result && !loading && (
+        {!result && !loading && !initialLoading && (
           <div className="text-center py-20 space-y-3">
             <div className="text-slate-400 text-xs font-mono">
-              Click "Trigger Security Evaluation" to execute the 25 automated attack & defense verification scenarios against the live database.
+              Click &quot;Trigger Security Evaluation&quot; to execute the 25 automated attack &amp; defense verification scenarios against the live database.
             </div>
             <button
               onClick={handleRunEval}
@@ -141,16 +173,16 @@ export default function SecurityEvaluationPage() {
           </div>
         )}
 
-        {loading && (
+        {(loading || initialLoading) && (
           <div className="text-center py-20 space-y-3">
             <div className="w-8 h-8 rounded-full border-2 border-purple-500 border-t-transparent animate-spin mx-auto" />
             <div className="text-xs font-mono text-slate-300">
-              Simulating adversarial attacks, hash mutations, and lifecycle flows...
+              {loading ? "Simulating adversarial attacks, hash mutations, and lifecycle flows..." : "Loading evaluation report from server..."}
             </div>
           </div>
         )}
 
-        {result && !loading && (
+        {result && !loading && !initialLoading && (
           <div className="overflow-x-auto">
             <table className="data-table">
               <thead>
@@ -168,7 +200,7 @@ export default function SecurityEvaluationPage() {
                 {filteredResults.map((sc) => (
                   <tr key={sc.scenario_id}>
                     <td className="font-mono text-xs font-bold text-slate-500">
-                      {String(sc.scenario_id).padStart(2, "0")}
+                      {String(sc.scenario_id)}
                     </td>
                     <td className="text-xs font-medium text-white">
                       {sc.name}
@@ -179,17 +211,17 @@ export default function SecurityEvaluationPage() {
                       </span>
                     </td>
                     <td>
-                      <span className={decisionBadgeClass(sc.expected)}>
-                        {sc.expected}
+                      <span className={decisionBadgeClass(sc.expected || "ALLOW")}>
+                        {sc.expected || "ALLOW"}
                       </span>
                     </td>
                     <td>
-                      <span className={decisionBadgeClass(sc.actual)}>
-                        {sc.actual}
+                      <span className={decisionBadgeClass(sc.actual || "ALLOW")}>
+                        {sc.actual || "ALLOW"}
                       </span>
                     </td>
                     <td className="font-mono text-xs text-slate-400">
-                      {sc.duration_ms}ms
+                      {(sc.duration_ms ?? sc.latency_ms ?? 0).toFixed(1)}ms
                     </td>
                     <td>
                       {sc.passed ? (
