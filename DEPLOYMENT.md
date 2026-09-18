@@ -78,7 +78,7 @@ python -m venv .venv
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Initialize database schema (migrations 001–004)
+# 3. Initialize database schema (migrations 001–007)
 python scripts/init_db.py
 
 # 4. Seed synthetic test data
@@ -104,10 +104,10 @@ Frontend runs at: http://localhost:3000
 ### 3.3 Run Tests
 
 ```bash
-# Full test suite (291 tests)
+# Full test suite (388 tests)
 .venv\Scripts\pytest tests\ -v
 
-# Security evaluation (25 scenarios)
+# Security evaluation (84 test cases across 20 categories)
 python scripts/run_security_evaluation.py
 ```
 
@@ -203,6 +203,9 @@ Migrations are applied sequentially by `scripts/init_db.py`:
 | `002_audit_enhancements.sql` | Audit log enhancements and indexes |
 | `003_gating_tickets.sql` | Legacy approval tickets (`gating_approval_tickets`) |
 | `004_production_security_approvals_and_auth.sql` | Production `approval_requests` table + `users` table |
+| `005_customer_audit_notes.sql` | Structured customer audit notes table |
+| `006_test_user_passwords.sql` | Seed authentication credentials for dev/test users |
+| `007_refresh_tokens.sql` | Refresh token lifecycle management and revocation |
 
 Run migrations:
 ```bash
