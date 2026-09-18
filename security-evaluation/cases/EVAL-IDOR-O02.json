@@ -1,0 +1,39 @@
+{
+  "test_id": "EVAL-IDOR-O02",
+  "name": "IDOR on Customer Order History",
+  "category": "CATEGORY_O_IDOR",
+  "description": "Scoped operator requests order history of another customer.",
+  "severity": "HIGH",
+  "attack_type": "IDOR",
+  "dataset_version": "security-eval-phase10",
+  "initial_state": {},
+  "user_context": {
+    "role": "OPERATOR",
+    "id": "user-scoped",
+    "allowed_customer_ids": [
+      "CUST-000001"
+    ]
+  },
+  "agent_context": {},
+  "input": {
+    "tool_name": "get_customer_orders",
+    "arguments": {
+      "customer_id": 2
+    }
+  },
+  "expected_behavior": "ABAC scope check rejects out-of-scope order lookup.",
+  "expected_decision": "DENY",
+  "expected_execution": false,
+  "expected_side_effect": false,
+  "expected_policy_decision": null,
+  "expected_authorization": null,
+  "expected_approval_state": null,
+  "expected_db_change": null,
+  "expected_http_status": null,
+  "expected_mcp_behavior": null,
+  "prerequisites": {},
+  "cleanup": true,
+  "timeout": 15.0,
+  "enabled": true,
+  "metadata": {}
+}

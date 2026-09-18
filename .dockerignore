@@ -1,0 +1,49 @@
+# ============================================================
+# Docker Build Ignore for MCP-Sentinel
+# Prevents sensitive local state, secrets, and caches from entering build contexts
+# ============================================================
+
+# Secret and configuration files
+.env*
+!.env.example
+*.pem
+*.key
+*.cert
+*.pfx
+
+# Git metadata
+.git/
+.gitignore
+
+# Python caches and virtual environments
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+test-results*.xml
+test-results*.json
+
+# Evaluation results and artifacts
+eval_results.json
+SECURITY_EVALUATION_REPORT.md
+PHASE*_TEST_REPORT.md
+
+# Node / frontend builds in subdirectories
+node_modules/
+web/.next/
+web/node_modules/
+
+# OS and IDE temporary files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.bak

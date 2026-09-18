@@ -1,0 +1,34 @@
+{
+  "test_id": "EVAL-LIFE-Q02",
+  "name": "Approval Ticket Cancellation Lifecycle",
+  "category": "CATEGORY_Q_REPLAY_LIFECYCLE",
+  "description": "Ticket created by Operator, cancelled before execution; status is CANCELLED.",
+  "severity": "MEDIUM",
+  "attack_type": "NONE",
+  "dataset_version": "security-eval-phase10",
+  "initial_state": {},
+  "user_context": {
+    "role": "OPERATOR",
+    "id": "user-operator-001"
+  },
+  "agent_context": {},
+  "input": {
+    "action": "cancel",
+    "reason": "Requester aborted operation"
+  },
+  "expected_behavior": "Ticket status transitions to CANCELLED.",
+  "expected_decision": "ALLOW",
+  "expected_execution": true,
+  "expected_side_effect": false,
+  "expected_policy_decision": null,
+  "expected_authorization": null,
+  "expected_approval_state": null,
+  "expected_db_change": null,
+  "expected_http_status": null,
+  "expected_mcp_behavior": null,
+  "prerequisites": {},
+  "cleanup": true,
+  "timeout": 15.0,
+  "enabled": true,
+  "metadata": {}
+}

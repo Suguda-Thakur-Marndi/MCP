@@ -1,0 +1,37 @@
+{
+  "test_id": "EVAL-TOOL-F02",
+  "name": "Unexpected Extra Fields Stripping",
+  "category": "CATEGORY_F_TOOL_ABUSE",
+  "description": "Tool arguments contain unexpected parameter fields attempting injection.",
+  "severity": "LOW",
+  "attack_type": "SCHEMA_POISONING",
+  "dataset_version": "security-eval-phase10",
+  "initial_state": {},
+  "user_context": {
+    "role": "OPERATOR",
+    "id": "user-operator-001"
+  },
+  "agent_context": {},
+  "input": {
+    "tool_name": "get_customer",
+    "arguments": {
+      "customer_id": "1",
+      "malicious_extra": "payload"
+    }
+  },
+  "expected_behavior": "Sanitizer ignores unknown fields without error.",
+  "expected_decision": "ALLOW",
+  "expected_execution": true,
+  "expected_side_effect": false,
+  "expected_policy_decision": null,
+  "expected_authorization": null,
+  "expected_approval_state": null,
+  "expected_db_change": null,
+  "expected_http_status": null,
+  "expected_mcp_behavior": null,
+  "prerequisites": {},
+  "cleanup": true,
+  "timeout": 15.0,
+  "enabled": true,
+  "metadata": {}
+}

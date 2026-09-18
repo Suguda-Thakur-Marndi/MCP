@@ -1,0 +1,45 @@
+# Environment and secret files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.id_rsa
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+test-results.json
+*.log
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Frontend & Node
+node_modules/
+web/node_modules/
+web/.next/
+.next/
+*.tsbuildinfo
+web/*.tsbuildinfo
+
+# Tooling caches
+.ruff_cache/
+

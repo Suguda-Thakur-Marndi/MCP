@@ -1,0 +1,146 @@
+[
+  {
+    "id": "SQLI-001",
+    "category": "sql_injection",
+    "description": "Attempt classical boolean OR bypass in query_filter",
+    "input": {"query_filter": "1=1 OR 1=1"},
+    "expected": "DENY",
+    "severity": "CRITICAL"
+  },
+  {
+    "id": "SQLI-002",
+    "category": "sql_injection",
+    "description": "Attempt statement stacking with DROP TABLE in status",
+    "input": {"filters": {"status": "inactive; DROP TABLE customers;--"}},
+    "expected": "DENY",
+    "severity": "CRITICAL"
+  },
+  {
+    "id": "SQLI-003",
+    "category": "sql_injection",
+    "description": "Attempt UNION SELECT credential extraction in status field",
+    "input": {"filters": {"status": "' UNION SELECT 1, 'admin', 'hacked@evil.test', 'super', 'active', 'US', NOW()--"}},
+    "expected": "DENY",
+    "severity": "CRITICAL"
+  },
+  {
+    "id": "SQLI-004",
+    "category": "sql_injection",
+    "description": "Attempt comment breakout in customer_id field",
+    "input": {"filters": {"customer_id": "1; DROP TABLE customers;"}},
+    "expected": "DENY",
+    "severity": "CRITICAL"
+  },
+  {
+    "id": "SQLI-005",
+    "category": "sql_injection",
+    "description": "Attempt SQL injection through sort_by column parameter",
+    "input": {"sort_by": "created_at; DROP TABLE customers;"},
+    "expected": "DENY",
+    "severity": "CRITICAL"
+  },
+  {
+    "id": "SQLI-006",
+    "category": "sql_injection",
+    "description": "Attempt SQL injection through sort_order parameter",
+    "input": {"sort_order": "DESC; DELETE FROM customers;"},
+    "expected": "DENY",
+    "severity": "CRITICAL"
+  },
+  {
+    "id": "VAL-001",
+    "category": "input_validation",
+    "description": "Reject negative limit in query",
+    "input": {"limit": -10},
+    "expected": "DENY",
+    "severity": "HIGH"
+  },
+  {
+    "id": "VAL-002",
+    "category": "input_validation",
+    "description": "Reject excessive limit exceeding max boundary",
+    "input": {"limit": 99999},
+    "expected": "DENY",
+    "severity": "HIGH"
+  },
+  {
+    "id": "VAL-003",
+    "category": "input_validation",
+    "description": "Reject empty or whitespace audit note text",
+    "input": {"customer_id": 1, "author_id": "admin", "note_text": "   "},
+    "expected": "DENY",
+    "severity": "MEDIUM"
+  },
+  {
+    "id": "VAL-004",
+    "category": "input_validation",
+    "description": "Reject oversized audit note exceeding 2000 chars",
+    "input": {"customer_id": 1, "author_id": "admin", "note_text": "OVERSIZED_3000"},
+    "expected": "DENY",
+    "severity": "MEDIUM"
+  },
+  {
+    "id": "VAL-005",
+    "category": "input_validation",
+    "description": "Reject invalid country code format",
+    "input": {"filters": {"country": "USA"}},
+    "expected": "DENY",
+    "severity": "MEDIUM"
+  },
+  {
+    "id": "AUTH-001",
+    "category": "authorization",
+    "description": "Purge call without approval ticket must fail closed",
+    "input": {"customer_id": 3, "approval_ticket": "", "reason": "Test purge"},
+    "expected": "DENY",
+    "severity": "CRITICAL"
+  },
+  {
+    "id": "AUTH-002",
+    "category": "authorization",
+    "description": "Purge call with fabricated / non-existent ticket must fail closed",
+    "input": {"customer_id": 3, "approval_ticket": "TICKET-FABRICATED-999", "reason": "Test purge"},
+    "expected": "DENY",
+    "severity": "CRITICAL"
+  },
+  {
+    "id": "AUTH-003",
+    "category": "authorization",
+    "description": "Purge call with unapproved ticket must fail closed",
+    "input": {"customer_id": 5, "approval_ticket": "TICKET-UNAPPROVED-005", "reason": "Test purge"},
+    "expected": "DENY",
+    "severity": "CRITICAL"
+  },
+  {
+    "id": "AUTH-004",
+    "category": "authorization",
+    "description": "Purge call with already consumed ticket must fail closed (replay defense)",
+    "input": {"customer_id": 1, "approval_ticket": "TICKET-CONSUMED-001", "reason": "Test purge"},
+    "expected": "DENY",
+    "severity": "CRITICAL"
+  },
+  {
+    "id": "AUTH-005",
+    "category": "authorization",
+    "description": "Purge call with expired ticket must fail closed",
+    "input": {"customer_id": 7, "approval_ticket": "TICKET-EXPIRED-007", "reason": "Test purge"},
+    "expected": "DENY",
+    "severity": "CRITICAL"
+  },
+  {
+    "id": "AUTH-006",
+    "category": "authorization",
+    "description": "Purge call with ticket issued for a different customer ID must fail closed",
+    "input": {"customer_id": 4, "approval_ticket": "TICKET-VALID-PURGE-003", "reason": "Test purge"},
+    "expected": "DENY",
+    "severity": "CRITICAL"
+  },
+  {
+    "id": "AUTH-007",
+    "category": "authorization",
+    "description": "Purge call with ticket issued for a different action must fail closed",
+    "input": {"customer_id": 3, "approval_ticket": "TICKET-WRONG-ACTION-003", "reason": "Test purge"},
+    "expected": "DENY",
+    "severity": "CRITICAL"
+  }
+]

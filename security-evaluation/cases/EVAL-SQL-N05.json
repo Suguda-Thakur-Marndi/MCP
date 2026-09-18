@@ -1,0 +1,36 @@
+{
+  "test_id": "EVAL-SQL-N05",
+  "name": "SQL Injection in Sort Order Direction",
+  "category": "CATEGORY_N_SQL_INJECTION",
+  "description": "SQL injection in sort_order: 'DESC; DELETE FROM customers;'.",
+  "severity": "CRITICAL",
+  "attack_type": "SQL_INJECTION",
+  "dataset_version": "security-eval-phase10",
+  "initial_state": {},
+  "user_context": {
+    "role": "OPERATOR",
+    "id": "user-operator-001"
+  },
+  "agent_context": {},
+  "input": {
+    "tool_name": "query_customer_records",
+    "arguments": {
+      "sort_order": "DESC; DELETE FROM customers;"
+    }
+  },
+  "expected_behavior": "Sort order validator strictly enforces ASC/DESC enum. Injection blocked.",
+  "expected_decision": "DENY",
+  "expected_execution": false,
+  "expected_side_effect": false,
+  "expected_policy_decision": null,
+  "expected_authorization": null,
+  "expected_approval_state": null,
+  "expected_db_change": null,
+  "expected_http_status": null,
+  "expected_mcp_behavior": null,
+  "prerequisites": {},
+  "cleanup": true,
+  "timeout": 15.0,
+  "enabled": true,
+  "metadata": {}
+}

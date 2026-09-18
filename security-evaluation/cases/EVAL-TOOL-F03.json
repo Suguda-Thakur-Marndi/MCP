@@ -1,0 +1,38 @@
+{
+  "test_id": "EVAL-TOOL-F03",
+  "name": "Prohibited Argument Types Injection",
+  "category": "CATEGORY_F_TOOL_ABUSE",
+  "description": "Attacker passes nested object or array into integer parameter field.",
+  "severity": "MEDIUM",
+  "attack_type": "TYPE_CONFUSION",
+  "dataset_version": "security-eval-phase10",
+  "initial_state": {},
+  "user_context": {
+    "role": "OPERATOR",
+    "id": "user-operator-001"
+  },
+  "agent_context": {},
+  "input": {
+    "tool_name": "get_customer",
+    "arguments": {
+      "customer_id": {
+        "$gt": ""
+      }
+    }
+  },
+  "expected_behavior": "Type validation rejects argument payload before database execution.",
+  "expected_decision": "DENY",
+  "expected_execution": false,
+  "expected_side_effect": false,
+  "expected_policy_decision": null,
+  "expected_authorization": null,
+  "expected_approval_state": null,
+  "expected_db_change": null,
+  "expected_http_status": null,
+  "expected_mcp_behavior": null,
+  "prerequisites": {},
+  "cleanup": true,
+  "timeout": 15.0,
+  "enabled": true,
+  "metadata": {}
+}
