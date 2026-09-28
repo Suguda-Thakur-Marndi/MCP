@@ -17,6 +17,7 @@ import asyncio
 import os
 import sys
 from urllib.parse import urlparse
+
 import asyncpg
 
 # Add repository root to path
@@ -24,8 +25,8 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
-from mcp_sentinel.config.settings import get_settings
-from scripts.seed_database import seed_data
+from mcp_sentinel.config.settings import get_settings  # noqa: E402
+from scripts.seed_database import seed_data  # noqa: E402
 
 
 def verify_safety_guards(db_url: str, app_env: str) -> None:

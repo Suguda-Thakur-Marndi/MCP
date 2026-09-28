@@ -199,6 +199,12 @@ async def run_demos():
         c_row = await conn.fetchrow(
             "SELECT customer_code FROM customers WHERE id > 10 ORDER BY id ASC LIMIT 1"
         )
+        if not c_row:
+            c_row = await conn.fetchrow(
+                "SELECT customer_code FROM customers ORDER BY id DESC LIMIT 1"
+            )
+        if not c_row:
+            raise RuntimeError("Cannot run destructive demo: no customer records found in database.")
         target_cust_id = c_row["customer_code"]
     try:
         # Step A: Attempt destructive delete without approval
