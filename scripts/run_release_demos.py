@@ -204,7 +204,9 @@ async def run_demos():
                 "SELECT customer_code FROM customers ORDER BY id DESC LIMIT 1"
             )
         if not c_row:
-            raise RuntimeError("Cannot run destructive demo: no customer records found in database.")
+            raise RuntimeError(
+                "Cannot run destructive demo: no customer records found in database."
+            )
         target_cust_id = c_row["customer_code"]
     try:
         # Step A: Attempt destructive delete without approval
