@@ -1,5 +1,3 @@
-version: "3.8"
-
 # ============================================================
 # MCP-Sentinel – Production-Hardened Multi-Container Stack
 #   postgres  : PostgreSQL 16 (isolated internal network)

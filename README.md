@@ -386,7 +386,7 @@ mcp-sentinel/
 │   ├── assertions/                  # Quantitative assertion engine (SGR, ASR, FPR)
 │   ├── runners/                     # Headless and comparative evaluation runners
 │   └── reports/                     # FINAL_SECURITY_VALIDATION_REPORT.md & eval_results.json
-├── tests/                           # Comprehensive Pytest Suite (48 test modules, 290+ tests)
+├── tests/                           # Comprehensive Pytest Suite (48 test modules, 388 tests)
 ├── web/                             # Next.js 16 Dark-Themed Security Console
 │   ├── app/                         # App router (dashboard, approvals, audit, eval)
 │   ├── components/                  # Tailwind + Radix UI interactive dashboard components
@@ -409,7 +409,7 @@ mcp-sentinel/
 Run the full automated test suite, security evaluation, and static analyzers:
 
 ```bash
-# 1. Run all unit and integration tests (290+ test scenarios)
+# 1. Run all unit and integration tests (388 test scenarios)
 pytest tests/ -v
 
 # 2. Run the Phase 10 security validation suite
@@ -451,6 +451,7 @@ print('Secret audit passed: Zero leaked credentials.')
 ## Production Deployment & Operations
 
 MCP-Sentinel is designed for cloud-native deployment with enterprise resiliency and observability:
+- **Technical Demonstration**: 5-minute technical presentation & interview walkthrough guide in [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md).
 - **AWS Deployment**: Complete architecture guide for AWS ECS Fargate, AWS RDS PostgreSQL, Application Load Balancers, and AWS Secrets Manager in [docs/AWS_DEPLOYMENT.md](docs/AWS_DEPLOYMENT.md).
 - **Operations Runbook**: Emergency response procedures, key rotation, incident response workflows, and connection pool tuning in [docs/OPERATIONS_RUNBOOK.md](docs/OPERATIONS_RUNBOOK.md).
 - **Prometheus & Grafana**: Pre-configured alert rules for high risk rates, gating bypass attempts, and database pool saturation in [monitoring/alerts.md](monitoring/alerts.md) and [monitoring/grafana_dashboard.json](monitoring/grafana_dashboard.json).
