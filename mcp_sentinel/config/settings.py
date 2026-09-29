@@ -7,7 +7,7 @@ Uses Pydantic Settings for strongly-typed, environment-driven configuration.
 import urllib.parse
 from typing import Any, Literal, Optional
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -217,6 +217,18 @@ class Settings(BaseSettings):
         ],
         description="Explicit allowed CORS origins. Wildcards combined with credentials are prohibited.",
     )
+    FRONTEND_URL: str = Field(
+        default="http://localhost:3000",
+        description="Base URL for the Next.js frontend web console.",
+    )
+    BACKEND_URL: str = Field(
+        default="http://localhost:8000",
+        description="Base URL for the FastAPI backend gateway.",
+    )
+    SESSION_SECRET: str | None = Field(
+        default=None,
+        description="Optional alias for JWT_SECRET_KEY.",
+    )
 
     # Phase 4: Policy & Risk Engine Configuration
     RISK_LOW_MAX: int = Field(
@@ -275,6 +287,19 @@ class Settings(BaseSettings):
         if not parsed.hostname:
             raise ValueError("DATABASE_URL must specify a valid hostname.")
         return v.strip()
+
+    @model_validator(mode="after")
+    def sync_session_and_cors(self) -> "Settings":
+        if self.SESSION_SECRET:
+            default_keys = {
+                "sentinel-production-jwt-secret-key-change-me-32chars",
+                "change-me-in-production-min-32-chars",
+            }
+            if not self.JWT_SECRET_KEY or self.JWT_SECRET_KEY in default_keys:
+                self.JWT_SECRET_KEY = self.SESSION_SECRET
+        if self.FRONTEND_URL and self.FRONTEND_URL not in self.ALLOWED_CORS_ORIGINS:
+            self.ALLOWED_CORS_ORIGINS.append(self.FRONTEND_URL)
+        return self
 
     @property
     def masked_database_url(self) -> str:
@@ -409,6 +434,8 @@ class Settings(BaseSettings):
             "agent_id": self.AGENT_ID,
             "gemini_model": self.GEMINI_MODEL,
             "google_client_id": self.GOOGLE_CLIENT_ID,
+            "frontend_url": self.FRONTEND_URL,
+            "backend_url": self.BACKEND_URL,
             "allowed_cors_origins": self.ALLOWED_CORS_ORIGINS,
             "csrf_protection_enabled": self.CSRF_PROTECTION_ENABLED,
             "session_cookie_samesite": self.SESSION_COOKIE_SAMESITE,

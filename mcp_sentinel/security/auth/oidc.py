@@ -105,9 +105,9 @@ def verify_oauth_state(state: str, max_age_seconds: int = 600) -> OAuthStatePayl
     )
 
 
-def build_google_authorization_url(state: str) -> str:
+def build_google_authorization_url(state: str, nonce: Optional[str] = None) -> str:
     """
-    Constructs the Google OAuth 2.0 authorization redirect URL.
+    Constructs the Google OAuth 2.0 authorization redirect URL with state and optional nonce.
     """
     settings = get_settings()
     client_id = settings.GOOGLE_CLIENT_ID or "development-placeholder-client-id"
@@ -122,6 +122,8 @@ def build_google_authorization_url(state: str) -> str:
         "access_type": "offline",
         "prompt": "select_account",
     }
+    if nonce:
+        params["nonce"] = nonce
     return f"https://accounts.google.com/o/oauth2/v2/auth?{urllib.parse.urlencode(params)}"
 
 
@@ -169,12 +171,12 @@ async def exchange_google_authorization_code(code: str, redirect_uri: str) -> di
         raise AuthorizationDeniedError(f"Network error during Google token exchange: {exc!s}")
 
 
-async def verify_google_id_token(id_token: str) -> AuthUser:
+async def verify_google_id_token(id_token: str, expected_nonce: Optional[str] = None) -> AuthUser:
     """
     Verifies a Google ID token and returns an authoritative AuthUser.
     Validates:
     1. Offline test/dev tokens when ENABLE_TEST_AUTH is True
-    2. Issuer, Audience, Expiration, and Domain verification in production
+    2. Token signature, Issuer, Audience, Expiry, Nonce, and Domain verification in production
     """
     settings = get_settings()
     clean_token = id_token.strip() if id_token else ""
@@ -193,60 +195,95 @@ async def verify_google_id_token(id_token: str) -> AuthUser:
     ):
         return _parse_test_token(clean_token)
 
-    # 2. Production Google Token Verification via Google TokenInfo Endpoint
-    url = f"https://oauth2.googleapis.com/tokeninfo?id_token={clean_token}"
+    # 2. Production Google Token Verification
+    claims: dict[str, Any] = {}
+    verified = False
+
+    # Attempt cryptographic signature and claim verification using official google-auth SDK
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url)
-            if resp.status_code != 200:
-                raise AuthorizationDeniedError(
-                    "Google ID token validation failed or token is expired."
-                )
-            claims = resp.json()
+        from google.auth.transport import requests as google_requests
+        from google.oauth2 import id_token as google_id_token
 
-        # Validate issuer
-        issuer = claims.get("iss")
-        if issuer not in ("accounts.google.com", "https://accounts.google.com"):
-            raise AuthorizationDeniedError(f"Invalid token issuer: '{issuer}'.")
-
-        # Validate audience if client ID is configured
-        if settings.GOOGLE_CLIENT_ID:
-            aud = claims.get("aud")
-            if aud != settings.GOOGLE_CLIENT_ID:
-                raise AuthorizationDeniedError(
-                    "Token audience does not match configured GOOGLE_CLIENT_ID."
-                )
-
-        # Validate email verification
-        if claims.get("email_verified") not in (True, "true"):
-            raise AuthorizationDeniedError("Google account email is not verified.")
-
-        email = claims.get("email", "")
-        if not email:
-            raise AuthorizationDeniedError("Google ID token claims missing email.")
-
-        # Enforce domain allowlist policy
-        _validate_domain_policy(email, claims.get("hd"))
-
-        sub = claims.get("sub") or f"goog-{email}"
-        name = claims.get("name") or email.split("@")[0]
-
-        # New users default to least-privilege VIEWER
-        role = UserRoleEnum.VIEWER
-
-        return AuthUser(
-            id=f"user-{sub[:16]}",
-            google_subject_id=sub,
-            email=email,
-            name=name,
-            role=role,
-            status=UserStatusEnum.ACTIVE,
-            is_active=True,
+        req = google_requests.Request()
+        claims = google_id_token.verify_oauth2_token(
+            clean_token,
+            req,
+            audience=settings.GOOGLE_CLIENT_ID,
         )
-    except AuthorizationDeniedError:
-        raise
-    except Exception as exc:
-        raise AuthorizationDeniedError(f"Google OIDC verification network error: {exc!s}")
+        verified = True
+    except Exception:
+        pass
+
+    # Fallback to Google TokenInfo endpoint verification
+    if not verified:
+        url = f"https://oauth2.googleapis.com/tokeninfo?id_token={clean_token}"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url)
+                if resp.status_code != 200:
+                    raise AuthorizationDeniedError(
+                        "Google ID token validation failed or token is expired."
+                    )
+                claims = resp.json()
+        except AuthorizationDeniedError:
+            raise
+        except Exception as exc:
+            raise AuthorizationDeniedError(f"Google OIDC verification network error: {exc!s}")
+
+    # Validate issuer
+    issuer = claims.get("iss")
+    if issuer not in ("accounts.google.com", "https://accounts.google.com"):
+        raise AuthorizationDeniedError(f"Invalid token issuer: '{issuer}'.")
+
+    # Validate audience if client ID is configured
+    if settings.GOOGLE_CLIENT_ID:
+        aud = claims.get("aud")
+        if aud != settings.GOOGLE_CLIENT_ID:
+            raise AuthorizationDeniedError(
+                "Token audience does not match configured GOOGLE_CLIENT_ID."
+            )
+
+    # Validate expiry
+    exp = claims.get("exp")
+    if exp is not None:
+        try:
+            if time.time() > float(exp):
+                raise AuthorizationDeniedError("Google ID token has expired.")
+        except (ValueError, TypeError):
+            pass
+
+    # Validate nonce where applicable
+    if expected_nonce:
+        token_nonce = claims.get("nonce")
+        if token_nonce and token_nonce != expected_nonce:
+            raise AuthorizationDeniedError("Token nonce mismatch.")
+
+    # Validate email verification
+    if claims.get("email_verified") not in (True, "true"):
+        raise AuthorizationDeniedError("Google account email is not verified.")
+
+    email = claims.get("email", "")
+    if not email:
+        raise AuthorizationDeniedError("Google ID token claims missing email.")
+
+    # Enforce domain allowlist policy
+    _validate_domain_policy(email, claims.get("hd"))
+
+    sub = claims.get("sub") or f"goog-{email}"
+    name = claims.get("name") or email.split("@")[0]
+
+    # New users default to least-privilege VIEWER (Never grant admin privileges by default)
+    role = UserRoleEnum.VIEWER
+
+    return AuthUser(
+        id=f"user-{sub[:16]}",
+        google_subject_id=sub,
+        email=email,
+        name=name,
+        role=role,
+        status=UserStatusEnum.ACTIVE,
+        is_active=True,
+    )
 
 
 def _validate_domain_policy(email: str, hosted_domain: Optional[str] = None) -> None:

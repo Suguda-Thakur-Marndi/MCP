@@ -56,6 +56,7 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 )
 async def google_authorize(
     next_path: Optional[str] = Query(None, alias="next"),
+    redirect_url: Optional[str] = Query(None),
 ) -> RedirectResponse:
     """
     Constructs a signed OAuth state token with nonce and safe next_path,
@@ -64,9 +65,11 @@ async def google_authorize(
     settings = get_settings()
     rid = get_request_id()
 
-    safe_path = validate_safe_redirect(next_path)
+    target_next = next_path or redirect_url
+    safe_path = validate_safe_redirect(target_next)
     state = generate_oauth_state(redirect_uri=settings.GOOGLE_REDIRECT_URI, next_path=safe_path)
-    auth_url = build_google_authorization_url(state)
+    state_payload = verify_oauth_state(state)
+    auth_url = build_google_authorization_url(state, nonce=state_payload.nonce)
 
     log_security_event(
         event_type=LOGIN_STARTED,
@@ -146,7 +149,9 @@ async def google_callback(
         raw_id_token = tokens.get("id_token")
         if not raw_id_token:
             raise AuthorizationDeniedError("Google token response did not contain an id_token.")
-        verified_user = await verify_google_id_token(raw_id_token)
+        verified_user = await verify_google_id_token(
+            raw_id_token, expected_nonce=state_payload.nonce
+        )
     except AuthorizationDeniedError as ade:
         log_security_event(
             event_type=LOGIN_FAILURE,

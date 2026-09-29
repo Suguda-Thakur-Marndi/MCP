@@ -40,7 +40,39 @@ async def get_current_user(
     settings = get_settings()
     session_handler = get_session_handler()
 
-    # 1. Dev / Test Header Shortcut (Strictly restricted by ENABLE_TEST_AUTH)
+    # 1. Extract token from Bearer header or Session Cookie
+    raw_token: Optional[str] = None
+    if credentials and credentials.credentials:
+        raw_token = credentials.credentials.strip()
+    elif request.cookies.get(settings.SESSION_COOKIE_NAME):
+        raw_token = request.cookies.get(settings.SESSION_COOKIE_NAME, "").strip()
+
+    # 2. If session token or cookie is provided, authoritative session validation MUST take precedence
+    if raw_token:
+        try:
+            user = await session_handler.validate_session(raw_token)
+            ABACEvaluator.check_account_status(user)
+            set_current_user_context(user)
+            return user
+        except AuthorizationDeniedError as ade:
+            status_code = (
+                status.HTTP_403_FORBIDDEN
+                if "disabled" in ade.safe_message.lower()
+                else status.HTTP_401_UNAUTHORIZED
+            )
+            raise HTTPException(
+                status_code=status_code,
+                detail=ade.safe_message,
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        except Exception:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired authentication session.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+
+    # 3. Dev / Test Header Shortcut (Strictly fallback when no session token is present and ENABLE_TEST_AUTH is True)
     if settings.ENABLE_TEST_AUTH and (x_test_role or x_test_email):
         role_str = (x_test_role or "OPERATOR").upper()
         role = (
@@ -61,42 +93,12 @@ async def get_current_user(
         set_current_user_context(user)
         return user
 
-    # 2. Extract token from Bearer header or Session Cookie
-    raw_token: Optional[str] = None
-    if credentials and credentials.credentials:
-        raw_token = credentials.credentials.strip()
-    elif request.cookies.get(settings.SESSION_COOKIE_NAME):
-        raw_token = request.cookies.get(settings.SESSION_COOKIE_NAME, "").strip()
-
-    if not raw_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required. Missing session cookie or Bearer authorization header.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    try:
-        user = await session_handler.validate_session(raw_token)
-        ABACEvaluator.check_account_status(user)
-        set_current_user_context(user)
-        return user
-    except AuthorizationDeniedError as ade:
-        status_code = (
-            status.HTTP_403_FORBIDDEN
-            if "disabled" in ade.safe_message.lower()
-            else status.HTTP_401_UNAUTHORIZED
-        )
-        raise HTTPException(
-            status_code=status_code,
-            detail=ade.safe_message,
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired authentication session.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    # 4. Unauthenticated request rejection
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required. Missing session cookie or Bearer authorization header.",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def require_permission(permission: str) -> Callable[[AuthUser], AuthUser]:
