@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/sidebar";
+import { AppShell } from "@/components/layout/AppShell";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -16,10 +16,10 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MCP-Sentinel Security Console",
+  title: "MCP-SENTINEL — Secure AI Agent & MCP Gatekeeper",
   description:
-    "Enterprise MCP Security Platform — real-time AI agent monitoring, human approval gating, policy governance, and cryptographic audit logging.",
-  keywords: ["MCP", "security", "AI", "agent", "approval", "RBAC", "audit"],
+    "Enterprise MCP Security Platform — real-time AI agent monitoring, human-in-the-loop approval gating, policy governance, and cryptographic audit logging.",
+  keywords: ["MCP", "security", "AI", "agent", "approval", "RBAC", "audit", "governance"],
 };
 
 export default function RootLayout({
@@ -28,17 +28,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
-      <body className={inter.className}>
-        <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-primary)" }}>
-          <Sidebar />
-          <main
-            className="flex-1 overflow-y-auto"
-            style={{ background: "var(--bg-primary)" }}
-          >
-            {children}
-          </main>
-        </div>
+    <html
+      lang="en"
+      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
+      suppressHydrationWarning
+    >
+      <body className="min-h-full flex flex-col bg-[#0B0F14] text-slate-100 font-sans selection:bg-sky-500/30 selection:text-sky-200">
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
