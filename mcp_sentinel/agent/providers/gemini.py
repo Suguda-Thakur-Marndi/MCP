@@ -123,8 +123,12 @@ class GeminiProvider(LLMProvider):
 
         for m in messages:
             role = getattr(m, "role", None) or (m.get("role") if isinstance(m, dict) else "user")
-            content = getattr(m, "content", None) or (m.get("content") if isinstance(m, dict) else "")
-            tool_calls = getattr(m, "tool_calls", None) or (m.get("tool_calls") if isinstance(m, dict) else [])
+            content = getattr(m, "content", None) or (
+                m.get("content") if isinstance(m, dict) else ""
+            )
+            tool_calls = getattr(m, "tool_calls", None) or (
+                m.get("tool_calls") if isinstance(m, dict) else []
+            )
             name = getattr(m, "name", None) or (m.get("name") if isinstance(m, dict) else None)
 
             if role == "user":
@@ -137,8 +141,12 @@ class GeminiProvider(LLMProvider):
                     parts.append(types.Part.from_text(text=content))
                 if tool_calls:
                     for tc in tool_calls:
-                        tc_name = getattr(tc, "name", None) or (tc.get("name") if isinstance(tc, dict) else str(tc))
-                        tc_args = getattr(tc, "args", None) or (tc.get("args") if isinstance(tc, dict) else {})
+                        tc_name = getattr(tc, "name", None) or (
+                            tc.get("name") if isinstance(tc, dict) else str(tc)
+                        )
+                        tc_args = getattr(tc, "args", None) or (
+                            tc.get("args") if isinstance(tc, dict) else {}
+                        )
                         parts.append(types.Part.from_function_call(name=tc_name, args=tc_args))
                 if parts:
                     contents.append(types.Content(role="model", parts=parts))
