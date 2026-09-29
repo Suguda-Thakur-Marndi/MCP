@@ -45,6 +45,7 @@ Cleanup actions were executed strictly according to fail-safe principles:
 | 13 | `web/public/next.svg` | Boilerplate Asset | Default SVG asset from `create-next-app` initialization. Zero references in frontend code or stylesheets. |
 | 14 | `web/public/vercel.svg` | Boilerplate Asset | Default SVG asset from `create-next-app` initialization. Zero references in frontend code or stylesheets. |
 | 15 | `web/public/window.svg` | Boilerplate Asset | Default SVG asset from `create-next-app` initialization. Zero references in frontend code or stylesheets. |
+| 16 | `docs/release-validation-report.md` | Outdated Report | Preliminary validation report from Sept 18 (commit `93b9ac3`). Fully superseded by `SYSTEM-VERIFICATION-REPORT.md` (Sept 28) and `FINAL-AUDIT.md`. |
 
 ---
 
@@ -142,6 +143,8 @@ An audit of `pyproject.toml`, `requirements.txt`, and `web/package.json` reveale
 | `web/.gitignore` | Configuration | Added `!.env.example` exception so that `web/.env.example` is tracked as a template while keeping real `.env` files safely ignored. |
 | `web/.env.example` | Tracked | Added frontend environment variable template to Git tracking. |
 | `mcp_sentinel/agent/providers/gemini.py` | Code Hygiene | Reformatted 2 long lines to ensure 100% compliance with `ruff format --check`. |
+| `.dockerignore` | Configuration | Removed references to deleted `PHASE*_TEST_REPORT.md` files. |
+| `security-evaluation/reports/eval_results.json` | Synchronized | Synchronized historical report artifact with active canonical evaluation run (84/84 passing). |
 
 ---
 
@@ -167,9 +170,8 @@ All checks were executed live in the local environment and confirmed:
 
 The following files were reviewed and deliberately retained. If desired, you may choose whether to keep or archive them:
 
-1. **`docs/release-validation-report.md`**: An earlier validation report (Sept 18) that preceded the comprehensive `SYSTEM-VERIFICATION-REPORT.md` (Sept 28). It is retained as historical release validation evidence.
-2. **`web/AGENTS.md` and `web/CLAUDE.md`**: Next.js 16 development files auto-managed by Next.js (`node_modules/next/dist/server/lib/generate-agent-files.js`). Retained to prevent Next.js from re-creating uncommitted diffs whenever `npm run dev` is executed.
-3. **Presentation & Viva Documentation in `docs/`** (`presentation.md`, `viva.md`, `project-pitch.md`, `project-summary.md`, `portfolio-description.md`, `resume-version.md`): Retained because they provide valuable speaking points, elevator pitches, and technical defense Q&A for demonstrations and reviews.
+1. **`web/AGENTS.md` and `web/CLAUDE.md`**: Next.js 16 development files auto-managed by Next.js (`node_modules/next/dist/server/lib/generate-agent-files.js`). Retained to prevent Next.js from re-creating uncommitted diffs whenever `npm run dev` is executed.
+2. **Presentation & Viva Documentation in `docs/`** (`presentation.md`, `viva.md`, `project-pitch.md`, `project-summary.md`, `portfolio-description.md`, `resume-version.md`): Retained because they provide valuable speaking points, elevator pitches, and technical defense Q&A for demonstrations and reviews.
 
 ---
 
@@ -186,26 +188,9 @@ On branch release-candidate
 Your branch is up to date with 'origin/release-candidate'.
 
 Changes to be committed:
-	deleted:    FINAL_SECURITY_VALIDATION_REPORT.md
-	deleted:    PHASE1_TEST_REPORT.md
-	deleted:    PHASE2_TEST_REPORT.md
-	deleted:    PHASE3_TEST_REPORT.md
-	deleted:    PHASE4_TEST_REPORT.md
-	deleted:    docs/runbook.md
-	modified:   mcp_sentinel/agent/providers/gemini.py
-	deleted:    scripts/run_phase2_report.py
-	deleted:    scripts/run_phase3_report.py
-	deleted:    scripts/run_phase4_report.py
-	deleted:    scripts/run_security_report.py
-	new file:   web/.env.example
-	modified:   web/.gitignore
-	modified:   web/README.md
-	deleted:    web/public/file.svg
-	deleted:    web/public/globe.svg
-	deleted:    web/public/next.svg
-	deleted:    web/public/vercel.svg
-	deleted:    web/public/window.svg
-	modified:   SECURITY_EVALUATION_REPORT.md
-	modified:   eval_results.json
-	new file:   CLEANUP-REPORT.md
+	modified:   .dockerignore
+	modified:   CLEANUP-REPORT.md
+	deleted:    docs/release-validation-report.md
+	modified:   security-evaluation/reports/eval_results.json
 ```
+

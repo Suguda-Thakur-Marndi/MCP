@@ -33,7 +33,6 @@ test-results*.json
 # Evaluation results and artifacts
 eval_results.json
 SECURITY_EVALUATION_REPORT.md
-PHASE*_TEST_REPORT.md
 
 # Node / frontend builds in subdirectories
 node_modules/
