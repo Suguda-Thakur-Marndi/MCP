@@ -29,32 +29,32 @@ export function RiskBadge({
 }) {
   const norm = (severity || "LOW").toUpperCase();
 
-  let colors = "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700/80";
+  let colors = "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border)]";
   let Icon = Info;
 
   if (norm === "CRITICAL") {
-    colors = "bg-red-50 text-[#D64541] border-red-300 dark:bg-[#D64541]/15 dark:text-[#EF5350] dark:border-[#D64541]/40";
+    colors = "bg-[var(--risk-critical-bg)] text-[var(--risk-critical)] border-[var(--risk-critical-border)]";
     Icon = AlertCircle;
   } else if (norm === "HIGH") {
-    colors = "bg-orange-50 text-[#D05A40] border-orange-300 dark:bg-[#D05A40]/15 dark:text-[#F08060] dark:border-[#D05A40]/40";
+    colors = "bg-[var(--risk-high-bg)] text-[var(--risk-high)] border-[var(--risk-high-border)]";
     Icon = AlertTriangle;
   } else if (norm === "MEDIUM") {
-    colors = "bg-amber-50 text-[#B87000] border-amber-300 dark:bg-[#E3A03E]/15 dark:text-[#F3BA63] dark:border-[#E3A03E]/40";
+    colors = "bg-[var(--risk-medium-bg)] text-[var(--risk-medium)] border-[var(--risk-medium-border)]";
     Icon = Activity;
   } else if (norm === "LOW") {
-    colors = "bg-teal-50 text-[#2C6E65] border-teal-300 dark:bg-[#3A8A7F]/15 dark:text-[#4EA699] dark:border-[#3A8A7F]/40";
+    colors = "bg-[var(--risk-low-bg)] text-[var(--risk-low)] border-[var(--risk-low-border)]";
     Icon = CheckCircle2;
   }
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium border font-mono-tnum ${colors} ${className}`}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium border font-mono-tnum ${colors} ${className}`}
       title={score !== undefined && score !== null ? `Risk Score: ${score}/100` : norm}
     >
-      <Icon className="w-3.5 h-3.5 flex-shrink-0" />
+      <Icon className="w-3 h-3 flex-shrink-0" />
       <span>{norm}</span>
       {score !== undefined && score !== null && (
-        <span className="opacity-75 font-mono text-[10px]">({Math.round(score)})</span>
+        <span className="opacity-80 text-[10px]">({Math.round(score)})</span>
       )}
     </span>
   );
@@ -72,12 +72,12 @@ export function StatusBadge({
 }) {
   const norm = (status || "PENDING").toUpperCase();
 
-  if (norm === "APPROVED" || norm === "COMPLETED") {
+  if (norm === "APPROVED" || norm === "COMPLETED" || norm === "EXECUTED") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-teal-50 text-[#2C6E65] border border-teal-300 dark:bg-[#3A8A7F]/15 dark:text-[#4EA699] dark:border-[#3A8A7F]/40 font-mono ${className}`}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--risk-low-bg)] text-[var(--risk-low)] border border-[var(--risk-low-border)] font-mono-tnum ${className}`}
       >
-        <CheckCircle2 className="w-3.5 h-3.5 text-[#3A8A7F] dark:text-[#4EA699]" />
+        <CheckCircle2 className="w-3 h-3 text-[var(--risk-low)]" />
         <span>{norm}</span>
       </span>
     );
@@ -86,20 +86,20 @@ export function StatusBadge({
   if (norm === "PENDING") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-[#B87000] border border-amber-300 dark:bg-[#E3A03E]/15 dark:text-[#F3BA63] dark:border-[#E3A03E]/40 font-mono ${className}`}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--risk-medium-bg)] text-[var(--risk-medium)] border border-[var(--risk-medium-border)] font-mono-tnum ${className}`}
       >
-        <Clock className="w-3.5 h-3.5 text-[#E3A03E] animate-pulse" />
+        <Clock className="w-3 h-3 text-[var(--risk-medium)]" />
         <span>PENDING</span>
       </span>
     );
   }
 
-  if (norm === "DENIED" || norm === "FAILED" || norm === "REJECTED") {
+  if (norm === "DENIED" || norm === "FAILED" || norm === "REJECTED" || norm === "EXPIRED") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-red-50 text-[#D64541] border border-red-300 dark:bg-[#D64541]/15 dark:text-[#EF5350] dark:border-[#D64541]/40 font-mono ${className}`}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--risk-critical-bg)] text-[var(--risk-critical)] border border-[var(--risk-critical-border)] font-mono-tnum ${className}`}
       >
-        <XCircle className="w-3.5 h-3.5 text-[#D64541] dark:text-[#EF5350]" />
+        <XCircle className="w-3 h-3 text-[var(--risk-critical)]" />
         <span>{norm}</span>
       </span>
     );
@@ -108,9 +108,9 @@ export function StatusBadge({
   if (norm === "EXECUTING") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-sky-50 text-sky-700 border border-sky-300 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-700/60 font-mono ${className}`}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--info)]/10 text-[var(--info)] border border-[var(--info)]/30 font-mono-tnum ${className}`}
       >
-        <Activity className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 animate-spin" />
+        <Activity className="w-3 h-3 text-[var(--info)] animate-pulse" />
         <span>EXECUTING</span>
       </span>
     );
@@ -118,9 +118,9 @@ export function StatusBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-300 dark:bg-slate-800/60 dark:text-slate-400 dark:border-slate-700/60 font-mono ${className}`}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border)] font-mono-tnum ${className}`}
     >
-      <Clock className="w-3.5 h-3.5 text-slate-400" />
+      <Clock className="w-3 h-3 text-[var(--text-muted)]" />
       <span>{norm}</span>
     </span>
   );
@@ -141,9 +141,9 @@ export function DecisionBadge({
   if (norm === "ALLOW" || norm === "ALLOWED" || norm === "PASS") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-teal-50 text-[#2C6E65] border border-teal-300 dark:bg-[#3A8A7F]/15 dark:text-[#4EA699] dark:border-[#3A8A7F]/40 font-mono ${className}`}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--risk-low-bg)] text-[var(--risk-low)] border border-[var(--risk-low-border)] font-mono-tnum ${className}`}
       >
-        <ShieldCheck className="w-3.5 h-3.5 text-[#3A8A7F] dark:text-[#4EA699]" />
+        <ShieldCheck className="w-3 h-3 text-[var(--risk-low)]" />
         <span>{norm}</span>
       </span>
     );
@@ -152,9 +152,9 @@ export function DecisionBadge({
   if (norm === "BLOCK" || norm === "BLOCKED" || norm === "DENY" || norm === "REJECTED" || norm === "FAIL") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-red-50 text-[#D64541] border border-red-300 dark:bg-[#D64541]/15 dark:text-[#EF5350] dark:border-[#D64541]/40 font-mono ${className}`}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--risk-critical-bg)] text-[var(--risk-critical)] border border-[var(--risk-critical-border)] font-mono-tnum ${className}`}
       >
-        <AlertCircle className="w-3.5 h-3.5 text-[#D64541] dark:text-[#EF5350]" />
+        <AlertCircle className="w-3 h-3 text-[var(--risk-critical)]" />
         <span>{norm}</span>
       </span>
     );
@@ -163,19 +163,19 @@ export function DecisionBadge({
   if (norm === "REQUIRE_APPROVAL" || norm === "APPROVAL_REQUIRED" || norm === "GATED") {
     return (
       <span
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-orange-50 text-[#D05A40] border border-orange-300 dark:bg-[#D05A40]/15 dark:text-[#F08060] dark:border-[#D05A40]/40 font-mono ${className}`}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--risk-high-bg)] text-[var(--risk-high)] border border-[var(--risk-high-border)] font-mono-tnum ${className}`}
       >
-        <Clock className="w-3.5 h-3.5 text-[#D05A40] dark:text-[#F08060]" />
-        <span>REQUIRE APPROVAL</span>
+        <Clock className="w-3 h-3 text-[var(--risk-high)]" />
+        <span>APPROVAL REQUIRED</span>
       </span>
     );
   }
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-300 dark:bg-slate-800/80 dark:text-slate-400 dark:border-slate-700/60 font-mono ${className}`}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border)] font-mono-tnum ${className}`}
     >
-      <Shield className="w-3.5 h-3.5 text-slate-400" />
+      <Shield className="w-3 h-3 text-[var(--text-muted)]" />
       <span>{norm}</span>
     </span>
   );
@@ -193,26 +193,26 @@ export function RoleBadge({
 }) {
   const norm = (role || "VIEWER").toUpperCase();
 
-  let colors = "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800/80 dark:text-slate-300 dark:border-slate-700";
-  let icon = <UserCheck className="w-3 h-3 text-slate-500" />;
+  let colors = "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border)]";
+  let icon = <UserCheck className="w-3 h-3" />;
 
   if (norm === "ADMIN") {
-    colors = "bg-orange-50 text-[#D05A40] border-orange-300 dark:bg-[#D05A40]/15 dark:text-[#F08060] dark:border-[#D05A40]/40";
-    icon = <Lock className="w-3 h-3 text-[#D05A40] dark:text-[#F08060]" />;
+    colors = "bg-[var(--accent)]/10 text-[var(--accent)] border-[var(--accent)]/30";
+    icon = <Lock className="w-2.5 h-2.5" />;
   } else if (norm === "APPROVER") {
-    colors = "bg-amber-50 text-[#B87000] border-amber-300 dark:bg-[#E3A03E]/15 dark:text-[#F3BA63] dark:border-[#E3A03E]/40";
-    icon = <ShieldCheck className="w-3 h-3 text-[#E3A03E] dark:text-[#F3BA63]" />;
+    colors = "bg-[var(--risk-high-bg)] text-[var(--risk-high)] border-[var(--risk-high-border)]";
+    icon = <ShieldCheck className="w-2.5 h-2.5" />;
   } else if (norm === "SECURITY_ANALYST") {
-    colors = "bg-teal-50 text-[#2C6E65] border-teal-300 dark:bg-[#3A8A7F]/15 dark:text-[#4EA699] dark:border-[#3A8A7F]/40";
-    icon = <Activity className="w-3 h-3 text-[#3A8A7F] dark:text-[#4EA699]" />;
+    colors = "bg-[var(--info)]/10 text-[var(--info)] border-[var(--info)]/30";
+    icon = <Activity className="w-2.5 h-2.5" />;
   } else if (norm === "OPERATOR") {
-    colors = "bg-sky-50 text-sky-700 border-sky-300 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800/50";
-    icon = <UserCheck className="w-3 h-3 text-sky-600 dark:text-sky-400" />;
+    colors = "bg-[var(--risk-low-bg)] text-[var(--risk-low)] border-[var(--risk-low-border)]";
+    icon = <UserCheck className="w-2.5 h-2.5" />;
   }
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-semibold tracking-wider border ${colors} ${className}`}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono-tnum font-semibold tracking-wider border ${colors} ${className}`}
     >
       {icon}
       <span>{norm}</span>
@@ -235,10 +235,10 @@ export function VerificationBadge({
   if (verified) {
     return (
       <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-teal-50 text-[#2C6E65] border border-teal-300 dark:bg-[#3A8A7F]/15 dark:text-[#4EA699] dark:border-[#3A8A7F]/40 ${className}`}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono-tnum bg-[var(--risk-low-bg)] text-[var(--risk-low)] border border-[var(--risk-low-border)] ${className}`}
         title="Verified cryptographic hash invariance"
       >
-        <ShieldCheck className="w-3 h-3 text-[#3A8A7F] dark:text-[#4EA699]" />
+        <ShieldCheck className="w-2.5 h-2.5" />
         <span>{label}</span>
       </span>
     );
@@ -246,10 +246,10 @@ export function VerificationBadge({
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono bg-red-50 text-[#D64541] border border-red-300 dark:bg-[#D64541]/15 dark:text-[#EF5350] dark:border-[#D64541]/40 ${className}`}
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono-tnum bg-[var(--risk-critical-bg)] text-[var(--risk-critical)] border border-[var(--risk-critical-border)] ${className}`}
       title="Verification mismatch or unverified"
     >
-      <AlertCircle className="w-3 h-3 text-[#D64541] dark:text-[#EF5350]" />
+      <AlertCircle className="w-2.5 h-2.5" />
       <span>UNVERIFIED</span>
     </span>
   );

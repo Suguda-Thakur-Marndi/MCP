@@ -29,6 +29,7 @@ export function DataTable<T extends object>({
   emptyTitle = "No records found",
   emptyMessage = "No security data available in this view.",
   onRowClick,
+  keyExtractor,
   className = "",
 }: {
   columns: Column<T>[];
@@ -41,6 +42,7 @@ export function DataTable<T extends object>({
   emptyTitle?: string;
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
+  keyExtractor?: (row: T) => string | number;
   className?: string;
 }) {
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -71,10 +73,10 @@ export function DataTable<T extends object>({
   const totalPages = Math.max(1, Math.ceil((totalItems ?? data.length) / pageSize));
 
   return (
-    <div className={`rounded-lg border border-[#D1CEC7] dark:border-[#243044] bg-[#FFFFFF] dark:bg-[#111827] overflow-hidden flex flex-col shadow-xs ${className}`}>
+    <div className={`rounded border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden flex flex-col shadow-xs ${className}`}>
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs text-[#1E1E1E] dark:text-slate-300 border-collapse">
-          <thead className="bg-[#EAE7E1] dark:bg-[#1A2332] text-[#4A4A4A] dark:text-slate-400 uppercase text-[11px] font-semibold tracking-wider sticky top-0 border-b border-[#D1CEC7] dark:border-[#243044] z-10">
+        <table className="w-full text-left text-xs text-[var(--text-primary)] border-collapse">
+          <thead className="bg-[var(--bg-secondary)] text-[var(--text-secondary)] uppercase text-[10px] font-mono-tnum font-semibold tracking-wider sticky top-0 border-b border-[var(--border)] z-10">
             <tr>
               {columns.map((col) => (
                 <th
@@ -125,10 +127,18 @@ export function DataTable<T extends object>({
             ) : (
               sortedData.map((row, idx) => (
                 <tr
-                  key={(row as { id?: string | number; ticket_id?: string }).ticket_id || (row as { id?: string | number }).id || idx}
+                  key={
+                    keyExtractor
+                      ? keyExtractor(row)
+                      : (row as { id?: string | number; ticket_id?: string }).ticket_id ||
+                        (row as { id?: string | number }).id ||
+                        idx
+                  }
                   onClick={() => onRowClick && onRowClick(row)}
-                  className={`transition-colors duration-150 ${
-                    onRowClick ? "cursor-pointer hover:bg-[#F5F4F0] dark:hover:bg-slate-800/60" : "hover:bg-[#F5F4F0]/60 dark:hover:bg-slate-800/30"
+                  className={`transition-colors duration-150 border-b border-[var(--border-subtle)] ${
+                    onRowClick
+                      ? "cursor-pointer hover:bg-[var(--bg-secondary)]"
+                      : "hover:bg-[var(--bg-secondary)]/50"
                   }`}
                 >
                   {columns.map((col) => (

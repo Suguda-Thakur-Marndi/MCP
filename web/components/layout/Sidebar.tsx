@@ -15,9 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
-  Layers,
   X,
-  Activity,
 } from "lucide-react";
 import { api, type CurrentUser } from "@/lib/api";
 import { RoleBadge } from "../ui/Badges";
@@ -85,65 +83,56 @@ export function Sidebar({
 
   const NAVIGATION: NavGroup[] = [
     {
-      group: "Overview",
+      group: "Operations",
       items: [
-        { label: "Dashboard", href: "/", icon: LayoutDashboard },
+        { label: "Overview", href: "/", icon: LayoutDashboard },
+        { label: "Guarded Agent", href: "/agent", icon: Bot },
+        { label: "MCP Tools", href: "/tools", icon: Wrench },
       ],
     },
     {
-      group: "Governance & Approvals",
+      group: "Governance & Control",
       items: [
         { label: "Approval Queue", href: "/approvals", icon: ShieldAlert, badgeCount: pendingApprovalsCount },
         { label: "Policy Engine", href: "/policies", icon: Sliders },
       ],
     },
     {
-      group: "AI & MCP Operations",
+      group: "Compliance & Audit",
       items: [
-        { label: "Guarded Agent", href: "/agent", icon: Bot },
-        { label: "MCP Tools", href: "/tools", icon: Wrench },
+        { label: "Audit Ledger", href: "/audit", icon: ScrollText },
+        { label: "Security Benchmarks", href: "/evaluation", icon: CheckCircle },
       ],
     },
     {
-      group: "Assurance & Compliance",
+      group: "System",
       items: [
-        { label: "Security Tests", href: "/evaluation", icon: CheckCircle },
-        { label: "Audit Logs", href: "/audit", icon: ScrollText },
-      ],
-    },
-    {
-      group: "Platform",
-      items: [
-        { label: "System Health", href: "/health", icon: Activity },
-        { label: "Settings", href: "/settings", icon: Settings },
+        { label: "Platform Settings", href: "/settings", icon: Settings },
       ],
     },
   ];
 
   return (
     <aside
-      className={`fixed left-0 top-0 bottom-0 z-40 bg-[#F8F6F0] dark:bg-[#131923] border-r border-[#D1CEC7] dark:border-[#26344A] flex flex-col transition-all duration-200 select-none shadow-sm ${
-        isCollapsed ? "w-16" : "w-64"
+      className={`fixed left-0 top-0 bottom-0 z-40 bg-[var(--bg-secondary)] border-r border-[var(--border)] flex flex-col transition-all duration-200 select-none ${
+        isCollapsed ? "w-16" : "w-60"
       } ${
-        isMobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
+        isMobileOpen ? "translate-x-0 shadow-xl" : "-translate-x-full lg:translate-x-0"
       }`}
     >
       {/* Brand Header */}
-      <div className="h-14 border-b border-[#D1CEC7] dark:border-[#26344A] px-4 flex items-center justify-between">
+      <div className="h-14 border-b border-[var(--border)] px-3.5 flex items-center justify-between">
         <Link href="/" onClick={onCloseMobile} className="flex items-center gap-2.5 overflow-hidden group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#D05A40] via-amber-600 to-[#3A8A7F] p-[1px] shadow-md shadow-[#D05A40]/20 flex-shrink-0 group-hover:scale-105 transition-transform">
-            <div className="w-full h-full rounded-[7px] bg-[#1A202E] dark:bg-[#0D1117] flex items-center justify-center font-bold text-white text-xs tracking-wider font-mono">
-              MS
-            </div>
+          <div className="w-7 h-7 rounded bg-[var(--accent)] text-white flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-sm">
+            <Shield className="w-4 h-4" />
           </div>
           {!isCollapsed && (
             <div className="flex flex-col truncate">
-              <span className="text-xs font-bold tracking-[0.14em] text-[#1A202E] dark:text-[#F4F6F9] font-sans flex items-center">
-                MCP<span className="text-[#D05A40]">SENTINEL</span>
+              <span className="text-xs font-bold tracking-wider text-[var(--text-primary)] flex items-center">
+                MCP<span className="text-[var(--accent)] font-semibold ml-0.5">SENTINEL</span>
               </span>
-              <span className="text-[9px] text-[#6B7280] dark:text-slate-400 font-mono tracking-wider flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#3A8A7F] animate-pulse inline-block" />
-                SECURITY GATEWAY
+              <span className="text-[9px] text-[var(--text-muted)] font-mono tracking-wider">
+                GATEKEEPER v1.0
               </span>
             </div>
           )}
@@ -152,7 +141,7 @@ export function Sidebar({
           {/* Mobile close button */}
           <button
             onClick={onCloseMobile}
-            className="p-1 rounded text-slate-400 hover:text-[#1A202E] dark:hover:text-slate-200 hover:bg-[#EFECE5] dark:hover:bg-slate-800 transition-colors lg:hidden"
+            className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-subtle)] transition-colors lg:hidden"
             title="Close sidebar"
           >
             <X className="w-4 h-4" />
@@ -160,7 +149,7 @@ export function Sidebar({
           {/* Desktop collapse toggle */}
           <button
             onClick={onToggleCollapse}
-            className="hidden lg:block p-1 rounded text-slate-400 hover:text-[#1A202E] dark:hover:text-slate-200 hover:bg-[#EFECE5] dark:hover:bg-slate-800 transition-colors"
+            className="hidden lg:flex p-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-subtle)] transition-colors"
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -170,12 +159,10 @@ export function Sidebar({
 
       {/* Organization Header */}
       {!isCollapsed && (
-        <div className="px-3 py-2 bg-[#EFECE5] dark:bg-[#17202E] border-b border-[#D1CEC7] dark:border-[#26344A] flex items-center justify-between">
-          <div className="truncate">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-[#6B7280] dark:text-slate-400 block font-mono">
-              Organization
-            </span>
-            <span className="text-xs font-semibold text-[#1A202E] dark:text-slate-200 truncate block font-sans">
+        <div className="px-3.5 py-2 border-b border-[var(--border)] bg-[var(--bg-primary)]/50 flex items-center justify-between">
+          <div className="truncate pr-2">
+            <span className="text-[9px] uppercase font-semibold tracking-wider text-[var(--text-muted)] block">Workspace</span>
+            <span className="text-xs font-medium text-[var(--text-primary)] truncate block">
               {currentUser?.organization || "Sentinel Enterprise"}
             </span>
           </div>
@@ -188,7 +175,7 @@ export function Sidebar({
         {NAVIGATION.map((grp) => (
           <div key={grp.group}>
             {!isCollapsed && (
-              <h5 className="px-2 mb-1 text-[10px] font-bold uppercase tracking-wider text-[#6B7280] dark:text-slate-400 font-mono">
+              <h5 className="px-2 mb-1.5 text-[9px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                 {grp.group}
               </h5>
             )}
@@ -202,19 +189,19 @@ export function Sidebar({
                     <Link
                       href={item.href}
                       onClick={onCloseMobile}
-                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      className={`flex items-center justify-between px-2.5 py-1.5 rounded text-xs transition-colors ${
                         isActive
-                          ? "bg-[#D05A40]/15 text-[#D05A40] border border-[#D05A40]/30 shadow-xs"
-                          : "text-[#475063] dark:text-slate-400 hover:text-[#1A202E] dark:hover:text-slate-200 hover:bg-[#EFECE5] dark:hover:bg-slate-800/60"
+                          ? "bg-[var(--bg-card)] text-[var(--accent)] font-semibold shadow-xs border-l-2 border-[var(--accent)]"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card-hover)]"
                       } ${isCollapsed ? "justify-center px-0" : ""}`}
                       title={isCollapsed ? item.label : undefined}
                     >
                       <div className="flex items-center gap-2.5 truncate">
-                        <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-[#D05A40]" : "text-[#6B7280] dark:text-slate-400"}`} />
+                        <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-[var(--accent)]" : "text-[var(--text-muted)]"}`} />
                         {!isCollapsed && <span className="truncate">{item.label}</span>}
                       </div>
                       {!isCollapsed && (item.badgeCount ?? 0) > 0 && (
-                        <span className="px-1.5 py-0.2 rounded-full bg-[#D05A40]/20 border border-[#D05A40]/40 text-[#D05A40] font-mono text-[10px] font-bold">
+                        <span className="px-1.5 py-0.5 rounded bg-[var(--risk-high-bg)] border border-[var(--risk-high-border)] text-[var(--risk-high)] font-mono-tnum text-[10px] font-bold">
                           {item.badgeCount}
                         </span>
                       )}
@@ -228,15 +215,15 @@ export function Sidebar({
       </div>
 
       {/* Footer / User Profile summary */}
-      <div className="p-3 border-t border-[#D1CEC7] dark:border-[#26344A] bg-[#EFECE5]/70 dark:bg-[#0D1117]/50">
+      <div className="p-3 border-t border-[var(--border)] bg-[var(--bg-primary)]/40">
         <div className={`flex items-center gap-2.5 ${isCollapsed ? "justify-center" : ""}`}>
-          <div className="w-7 h-7 rounded-full bg-[#D05A40]/15 border border-[#D05A40]/30 flex items-center justify-center text-xs font-bold text-[#D05A40] flex-shrink-0 font-mono">
+          <div className="w-6 h-6 rounded bg-[var(--border)] text-[var(--text-primary)] flex items-center justify-center text-[10px] font-semibold flex-shrink-0">
             {currentUser?.name ? currentUser.name[0].toUpperCase() : "A"}
           </div>
           {!isCollapsed && (
             <div className="truncate flex-1">
-              <p className="text-xs font-semibold text-[#1A202E] dark:text-slate-200 truncate">{currentUser?.name || "Operator"}</p>
-              <p className="text-[10px] text-[#6B7280] dark:text-slate-400 truncate font-mono">{currentUser?.email || "admin@sentinel.test"}</p>
+              <p className="text-xs font-medium text-[var(--text-primary)] truncate">{currentUser?.name || "Security Operator"}</p>
+              <p className="text-[10px] text-[var(--text-muted)] truncate font-mono-tnum">{currentUser?.email || "admin@sentinel.test"}</p>
             </div>
           )}
         </div>

@@ -4,7 +4,13 @@
  * Zero mock data — every function issues a real HTTP request.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+
+export interface HealthStatus {
+  status: string;
+  alive?: boolean;
+  service?: string;
+}
 
 // --------------------------------------------------------------------------
 // Auth helper – reads JWT from localStorage
@@ -32,7 +38,7 @@ async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${API_BASE}${path}`;
+  const url = typeof window !== "undefined" && path.startsWith("/") ? path : `${API_BASE}${path}`;
   const isMutation = ["POST", "PUT", "DELETE", "PATCH"].includes(
     (options.method || "GET").toUpperCase()
   );
@@ -136,6 +142,7 @@ export interface ApprovalRecord {
   action: string;
   parameters: Record<string, unknown>;
   parameter_hash: string;
+  parameters_hash?: string;
   environment: string;
   policy_id: string;
   risk_level: string;
@@ -163,10 +170,15 @@ export interface AuditEvent {
   created_at: string;
   details?: Record<string, unknown> | null;
   event_data?: Record<string, unknown> | null;
+  parameters?: Record<string, unknown> | null;
 }
 
 export interface AuditStats {
   total: number;
+  total_events?: number;
+  allowed_invocations?: number;
+  blocked_operations?: number;
+  gated_approvals?: number;
   by_decision: Record<string, number>;
   by_tool?: Record<string, number>;
 }
@@ -179,7 +191,7 @@ export interface PolicyRule {
   target_decision?: string;
   priority: number;
   reason?: string;
-  condition?: string;
+  conditions?: Record<string, unknown> | null;
 }
 
 export interface PolicyResponse {
@@ -211,14 +223,21 @@ export interface ToolInfo {
   operation_type?: string;
   resource_type?: string;
   data_sensitivity?: string;
-  parameters?: Record<string, unknown>;
+  parameters?: Record<string, unknown> | null;
+  schema?: Record<string, unknown> | null;
 }
 
 export interface SecurityEvalScenario {
   scenario_id: string | number;
+  test_id?: string;
   name: string;
   category: string;
   passed: boolean;
+  status?: string;
+  attack_success?: boolean;
+  side_effect_detected?: boolean;
+  severity?: string;
+  evidence?: unknown;
   expected?: string;
   actual?: string;
   expected_decision?: string;
@@ -228,7 +247,6 @@ export interface SecurityEvalScenario {
   db_integrity_verified?: boolean;
   notes?: string;
   error?: string | null;
-  evidence?: string;
 }
 
 export interface SecurityEvalResult {
@@ -240,6 +258,7 @@ export interface SecurityEvalResult {
     duration_seconds: number;
     average_latency_ms?: number;
   };
+  total_scenarios?: number;
   results: SecurityEvalScenario[];
   generated_at?: string;
   timestamp?: string;
@@ -256,6 +275,7 @@ export interface AgentExecutionRecord {
   action?: string;
   risk_score?: number;
   details: Record<string, unknown> | null;
+  parameters?: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -298,6 +318,11 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   get_order: "Retrieves enterprise order by unique order number.",
   list_customer_orders: "Lists customer order history with pagination boundaries.",
   update_order_status: "Transitions an order through valid lifecycle states (PROCESSING, SHIPPED, DELIVERED).",
+  query_customer_records: "Queries customer records with row-level security and field authorization.",
+  get_customer_orders: "Retrieves customer purchase history, fulfillment statuses, and order lines.",
+  append_customer_audit_note: "Appends verified operational audit notes to customer ledger.",
+  update_customer: "Updates customer fields subject to schema validation and policy logging.",
+  purge_inactive_customer_data: "Permanently purges inactive customer data. Mandatory dual-custody gated.",
 };
 
 function normalizeSecurityEval(res: unknown): SecurityEvalResult {
@@ -315,21 +340,34 @@ function normalizeSecurityEval(res: unknown): SecurityEvalResult {
   const avgLatency = Number(report.average_latency_ms ?? 0);
 
   const rawResults = Array.isArray(report.results) ? report.results : [];
-  const results: SecurityEvalScenario[] = rawResults.map((r: Record<string, unknown>) => ({
-    scenario_id: String(r.scenario_id ?? ""),
-    name: String(r.name ?? "Scenario"),
-    category: String(r.category ?? "SECURITY"),
-    passed: Boolean(r.passed),
-    expected: String(r.expected ?? r.expected_decision ?? "ALLOW"),
-    actual: String(r.actual ?? r.actual_decision ?? (r.passed ? "ALLOW" : "BLOCK")),
-    expected_decision: r.expected_decision ? String(r.expected_decision) : undefined,
-    actual_decision: r.actual_decision ? String(r.actual_decision) : undefined,
-    duration_ms: Number(r.duration_ms ?? r.latency_ms ?? 0),
-    latency_ms: Number(r.latency_ms ?? r.duration_ms ?? 0),
-    db_integrity_verified: Boolean(r.db_integrity_verified),
-    notes: r.notes ? String(r.notes) : undefined,
-    error: r.error ? String(r.error) : null,
-  }));
+  const results: SecurityEvalScenario[] = rawResults.map((r: Record<string, unknown>) => {
+    const isPass = r.status === "PASS" || r.passed === true || (r.attack_success === false && r.status !== "FAIL");
+    const testId = String(r.test_id ?? r.scenario_id ?? "");
+    return {
+      scenario_id: testId,
+      test_id: testId,
+      name: String(r.name ?? "Scenario"),
+      category: String(r.category ?? "SECURITY"),
+      status: String(r.status ?? (isPass ? "PASS" : "FAIL")),
+      passed: isPass,
+      attack_success: Boolean(r.attack_success),
+      side_effect_detected: Boolean(r.side_effect_detected),
+      severity: String(r.severity ?? "MEDIUM"),
+      expected: String(r.expected ?? r.expected_decision ?? "ALLOW"),
+      actual: String(r.actual ?? r.actual_decision ?? (isPass ? "ALLOW" : "BLOCK")),
+      expected_decision: String(r.expected_decision ?? r.expected ?? "ALLOW"),
+      actual_decision: String(r.actual_decision ?? r.actual ?? "ALLOW"),
+      duration_ms: Number(r.duration_ms ?? r.latency_ms ?? 0),
+      latency_ms: Number(r.latency_ms ?? r.duration_ms ?? 0),
+      db_integrity_verified:
+        r.db_integrity_verified !== undefined
+          ? Boolean(r.db_integrity_verified)
+          : !Boolean(r.side_effect_detected),
+      notes: r.notes ? String(r.notes) : undefined,
+      evidence: r.evidence,
+      error: r.error ? String(r.error) : null,
+    };
+  });
 
   return {
     summary: {
@@ -471,13 +509,26 @@ export const api = {
         const name = String(t.tool_name || t.name || "unnamed_tool");
         const isDestructive = Boolean(t.destructive ?? t.is_destructive);
         const readOnly = Boolean(t.read_only);
-        const riskLevel = String(t.risk_level || t.base_risk || (isDestructive ? "CRITICAL" : "LOW"));
+        const baseRiskNum = typeof t.base_risk === "number" ? t.base_risk : Number(t.base_risk) || 0;
+        let riskLevel: string;
+        if (typeof t.risk_level === "string" && ["LOW", "MEDIUM", "HIGH", "CRITICAL"].includes(t.risk_level.toUpperCase())) {
+          riskLevel = t.risk_level.toUpperCase();
+        } else if (isDestructive || baseRiskNum >= 40) {
+          riskLevel = "CRITICAL";
+        } else if (baseRiskNum >= 30) {
+          riskLevel = "HIGH";
+        } else if (baseRiskNum >= 20) {
+          riskLevel = "MEDIUM";
+        } else {
+          riskLevel = "LOW";
+        }
+
         return {
           tool_name: name,
           name: name,
           description: String(t.description || TOOL_DESCRIPTIONS[name] || `FastMCP tool: ${name}`),
           risk_level: riskLevel,
-          base_risk: String(t.base_risk || riskLevel),
+          base_risk: String(baseRiskNum > 0 ? `${baseRiskNum}/100` : riskLevel),
           is_destructive: isDestructive,
           destructive: isDestructive,
           requires_approval: Boolean(
@@ -487,6 +538,7 @@ export const api = {
           operation_type: t.operation_type ? String(t.operation_type) : undefined,
           resource_type: t.resource_type ? String(t.resource_type) : undefined,
           data_sensitivity: t.data_sensitivity ? String(t.data_sensitivity) : undefined,
+          parameters: (t.parameters || t.schema) as Record<string, unknown> | null,
         };
       });
     },

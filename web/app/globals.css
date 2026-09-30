@@ -4,97 +4,124 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--bg-card);
-  --color-surface-high: var(--bg-card-hover);
+  --color-surface-hover: var(--bg-card-hover);
   --color-border-hairline: var(--border);
-  --color-accent-burnt: #D05A40;
-  --color-accent-teal: #3A8A7F;
-  --color-accent-amber: #E3A03E;
-  --color-accent-crimson: #D64541;
-  --font-serif: var(--font-serif), "Playfair Display", Georgia, serif;
+  --color-accent-burnt: #D95E00;
+  --color-accent-teal: #0A7A75;
   --font-sans: var(--font-sans), Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: var(--font-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 :root {
-  /* Architectural Intelligence Design Tokens (deep-research-report.md Section 3.1) */
-  --color-bg-primary: #F8F6F0;
-  --color-bg-secondary: #EFECE5;
-  --color-text-primary: #1A202E;
-  --color-text-secondary: #475063;
-  --color-accent: #D05A40;
-  --color-accent-2: #3A8A7F;
-  --color-warning: #E3A03E;
-  --color-danger: #D64541;
-  --color-border: #D1CEC7;
+  /* Architectural Intelligence Design Tokens */
+  --color-bg-primary: #F7F6F2;
+  --color-bg-secondary: #ECEAE4;
+  --color-text-primary: #18191B;
+  --color-text-secondary: #4A4D53;
+  --color-accent: #D95E00;
+  --color-accent-2: #0A7A75;
+  --color-warning: #D97706;
+  --color-danger: #DC2626;
+  --color-border: #D8D5CD;
 
-  /* Theme mappings (Architectural Intelligence Light) */
-  --background: #F8F6F0;
-  --foreground: #1A202E;
-  --bg-primary: #F8F6F0;
-  --bg-secondary: #EFECE5;
+  /* Theme mappings (Architectural Intelligence - Light) */
+  --background: #F7F6F2;
+  --foreground: #18191B;
+  --bg-primary: #F7F6F2;
+  --bg-secondary: #ECEAE4;
   --bg-card: #FFFFFF;
-  --bg-card-hover: #F6F3EB;
-  --border: #D1CEC7;
-  --border-subtle: #E2DFD8;
-  --border-accent: #D05A40;
-  --accent: #D05A40;
-  --accent-2: #3A8A7F;
-  --text-primary: #1A202E;
-  --text-secondary: #475063;
+  --bg-card-hover: #F2EFE9;
+  --border: #D8D5CD;
+  --border-subtle: #E5E2DA;
+  --border-accent: #D95E00;
+  --accent: #D95E00;
+  --accent-2: #0A7A75;
+  --text-primary: #18191B;
+  --text-secondary: #4A4D53;
   --text-muted: #6B7280;
-  --success: #3A8A7F;
-  --warning: #E3A03E;
-  --danger: #D64541;
-  --info: #2B6CB0;
+  --success: #0A7A75;
+  --warning: #D97706;
+  --danger: #DC2626;
+  --info: #0284C7;
 
-  /* Spacing */
+  /* Risk Tokens */
+  --risk-low: #0A7A75;
+  --risk-low-bg: #E6F3F2;
+  --risk-low-border: #A3D4D1;
+  --risk-medium: #D97706;
+  --risk-medium-bg: #FEF3C7;
+  --risk-medium-border: #FCD34D;
+  --risk-high: #D95E00;
+  --risk-high-bg: #FFEDD5;
+  --risk-high-border: #FDBA74;
+  --risk-critical: #DC2626;
+  --risk-critical-bg: #FEE2E2;
+  --risk-critical-border: #FCA5A5;
+
+  /* Spacing Scale */
+  --space-2xs: 2px;
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
   --space-lg: 24px;
   --space-xl: 32px;
+  --space-2xl: 48px;
 
-  /* Radii */
+  /* Radii (Restrained & Architectural) */
+  --radius-xs: 2px;
   --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 16px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
 
-  /* Shadows */
-  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.07);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.10);
+  /* Shadows (Minimal & Purposeful) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.08);
 
   /* Motion */
-  --motion-fast: 150ms ease-in-out;
-  --motion-medium: 300ms ease-in-out;
-  --motion-slow: 500ms ease;
+  --motion-fast: 120ms ease;
+  --motion-medium: 200ms ease;
 }
 
-/* Architectural Intelligence Graphite Dark Theme */
+/* Midnight Dark Theme Option */
 [data-theme="midnight"],
 .dark {
   --background: #0D1117;
-  --foreground: #F4F6F9;
+  --foreground: #F0F6FC;
   --bg-primary: #0D1117;
-  --bg-secondary: #131923;
-  --bg-card: #17202E;
-  --bg-card-hover: #1E2A3C;
-  --border: #26344A;
-  --border-subtle: #1C2738;
-  --border-accent: #D05A40;
-  --accent: #D05A40;
-  --accent-2: #3A8A7F;
-  --text-primary: #F4F6F9;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
-  --success: #3A8A7F;
-  --warning: #E3A03E;
-  --danger: #D64541;
+  --bg-secondary: #161B22;
+  --bg-card: #161B22;
+  --bg-card-hover: #1F242C;
+  --border: #30363D;
+  --border-subtle: #21262D;
+  --border-accent: #38BDF8;
+  --accent: #38BDF8;
+  --accent-2: #10B981;
+  --text-primary: #F0F6FC;
+  --text-secondary: #8B949E;
+  --text-muted: #6E7681;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --danger: #EF4444;
   --info: #38BDF8;
 
-  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  /* Risk Tokens (Dark Mode) */
+  --risk-low: #10B981;
+  --risk-low-bg: rgba(16, 185, 129, 0.12);
+  --risk-low-border: rgba(16, 185, 129, 0.3);
+  --risk-medium: #F59E0B;
+  --risk-medium-bg: rgba(245, 158, 11, 0.12);
+  --risk-medium-border: rgba(245, 158, 11, 0.3);
+  --risk-high: #FB923C;
+  --risk-high-bg: rgba(251, 146, 60, 0.12);
+  --risk-high-border: rgba(251, 146, 60, 0.3);
+  --risk-critical: #EF4444;
+  --risk-critical-bg: rgba(239, 68, 68, 0.12);
+  --risk-critical-border: rgba(239, 68, 68, 0.3);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -108,200 +135,57 @@ body {
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
 }
 
-/* Typography Utility Classes */
-.font-serif {
-  font-family: var(--font-serif);
-}
-
-.font-sans {
-  font-family: var(--font-sans);
-}
-
-.font-mono {
-  font-family: var(--font-mono);
-}
-
+/* Tabular figures for monospace technical values, timestamps, and hashes */
 .font-mono-tnum {
   font-family: var(--font-mono);
   font-feature-settings: "tnum" 1, "zero" 1;
 }
 
-/* Surface Panels */
-.arch-panel {
+/* Operational Surface Panels */
+.ops-panel {
   background-color: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-sm);
 }
 
-.arch-panel-high {
-  background-color: var(--bg-card-hover);
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-}
-
-.stitch-panel {
+.ops-panel-elevated {
   background-color: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
 }
 
-.stitch-panel-high {
-  background-color: var(--bg-card-hover);
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-}
-
-/* Glow effects for Architectural Accents */
-.glow-burnt {
-  box-shadow: 0 0 25px rgba(208, 90, 64, 0.25);
-}
-
-.glow-teal {
-  box-shadow: 0 0 25px rgba(58, 138, 127, 0.25);
-}
-
-.glow-amber {
-  box-shadow: 0 0 25px rgba(227, 160, 62, 0.25);
-}
-
-/* Sleek scrollbar */
+/* Restrained scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: var(--bg-primary);
 }
 ::-webkit-scrollbar-thumb {
   background: var(--border);
-  border-radius: 3px;
+  border-radius: 2px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+  background: var(--text-muted);
 }
 
-/* Status indicator pulse ring */
-.pulse-dot {
-  position: relative;
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-.pulse-dot::after {
-  content: "";
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
-  border-radius: 50%;
-  animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
-}
-
-@keyframes pulse-ring {
-  0% { transform: scale(0.95); opacity: 0.8; }
-  50% { transform: scale(1.6); opacity: 0; }
-  100% { transform: scale(0.95); opacity: 0; }
-}
-
-/* Shimmer Skeleton */
+/* Subtle Shimmer Skeleton */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% { opacity: 0.5; }
+  50% { opacity: 0.9; }
+  100% { opacity: 0.5; }
 }
 
-.skeleton {
-  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.8s infinite;
-  border-radius: 6px;
-}
-
-/* 3D Perspective & Spatial Depth */
-.perspective-800 {
-  perspective: 800px;
-}
-.perspective-1000 {
-  perspective: 1000px;
-}
-.perspective-1200 {
-  perspective: 1200px;
-}
-.transform-3d {
-  transform-style: preserve-3d;
-}
-.backface-hidden {
-  backface-visibility: hidden;
-}
-
-/* Architectural Grid Patterns & Accents */
-.arch-grid {
-  background-size: 32px 32px;
-  background-image: 
-    linear-gradient(to right, rgba(208, 90, 64, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(208, 90, 64, 0.05) 1px, transparent 1px);
-}
-
-.cyber-grid {
-  background-size: 32px 32px;
-  background-image: 
-    linear-gradient(to right, rgba(208, 90, 64, 0.05) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(58, 138, 127, 0.05) 1px, transparent 1px);
-}
-
-.cyber-grid-dense {
-  background-size: 16px 16px;
-  background-image: 
-    linear-gradient(to right, rgba(208, 90, 64, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(208, 90, 64, 0.04) 1px, transparent 1px);
-}
-
-/* Rotational Orbit Animations */
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@keyframes spin-reverse-slow {
-  from { transform: rotate(360deg); }
-  to { transform: rotate(0deg); }
-}
-
-.animate-spin-slow {
-  animation: spin-slow 30s linear infinite;
-}
-
-.animate-spin-reverse-slow {
-  animation: spin-reverse-slow 40s linear infinite;
-}
-
-/* SVG Beam Pulse Animation */
-@keyframes beam-travel {
-  0% {
-    stroke-dashoffset: 120;
-  }
-  100% {
-    stroke-dashoffset: 0;
-  }
-}
-
-.animate-beam-flow {
-  stroke-dasharray: 12 18;
-  animation: beam-travel 2.4s linear infinite;
-}
-
-/* Border Beam Effect */
-@keyframes border-beam-sweep {
-  0% {
-    offset-distance: 0%;
-  }
-  100% {
-    offset-distance: 100%;
-  }
+.skeleton-shimmer {
+  animation: shimmer 1.6s ease-in-out infinite;
+  background-color: var(--bg-secondary);
+  border-radius: var(--radius-xs);
 }
 
 /* Reduced motion preference */

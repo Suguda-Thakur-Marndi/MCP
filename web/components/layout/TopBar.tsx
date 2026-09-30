@@ -8,10 +8,11 @@ import {
   LogOut,
   Menu,
   Search,
-  ShieldCheck,
   ShieldAlert,
   Sun,
   Moon,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { api, type CurrentUser } from "@/lib/api";
 import { RoleBadge } from "../ui/Badges";
@@ -94,28 +95,28 @@ export function TopBar({
 
   return (
     <header
-      className={`h-14 border-b border-[#D1CEC7] dark:border-[#26344A] bg-[#F8F6F0]/90 dark:bg-[#0D1117]/90 backdrop-blur fixed top-0 right-0 z-20 flex items-center justify-between px-3 sm:px-4 transition-all duration-200 left-0 ${
-        sidebarCollapsed ? "lg:left-16" : "lg:left-64"
+      className={`h-14 border-b border-[var(--border)] bg-[var(--bg-primary)]/90 backdrop-blur-xs fixed top-0 right-0 z-20 flex items-center justify-between px-3 sm:px-4 transition-all duration-200 left-0 ${
+        sidebarCollapsed ? "lg:left-16" : "lg:left-60"
       }`}
     >
       {/* Global Quick Search Button & Mobile Hamburger */}
       <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-md">
         <button
           onClick={onToggleMobileMenu}
-          className="lg:hidden p-1.5 -ml-1 rounded text-[#475063] dark:text-slate-400 hover:text-[#1A202E] dark:hover:text-slate-200 hover:bg-[#EFECE5] dark:hover:bg-slate-800 transition-colors"
+          className="lg:hidden p-1.5 -ml-1 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
           aria-label="Toggle navigation"
         >
           <Menu className="w-5 h-5" />
         </button>
         <button
           onClick={onOpenSearch}
-          className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg bg-[#EFECE5]/70 dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] text-xs text-[#475063] dark:text-slate-400 hover:text-[#1A202E] dark:hover:text-slate-200 hover:border-[#D05A40] transition-colors shadow-sm"
+          className="w-full flex items-center justify-between px-3 py-1.5 rounded bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] transition-colors shadow-xs"
         >
           <div className="flex items-center gap-2">
-            <Search className="w-3.5 h-3.5 text-[#6B7280] dark:text-slate-500" />
-            <span className="truncate">Search tools, approvals, audit logs, policies...</span>
+            <Search className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+            <span className="truncate">Quick jump (tools, approvals, policies, logs)...</span>
           </div>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#D1CEC7]/60 dark:bg-slate-800 text-[10px] font-mono text-[#1A202E] dark:text-slate-400 border border-[#D1CEC7] dark:border-slate-700">
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-[10px] font-mono-tnum text-[var(--text-secondary)] border border-[var(--border)]">
             <Command className="w-2.5 h-2.5" /> K
           </kbd>
         </button>
@@ -123,76 +124,70 @@ export function TopBar({
 
       {/* Right controls: Theme Toggle, Health, Pending approvals, User info, Logout */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Architectural Theme Switcher */}
+        {/* Theme Switcher */}
         <button
           onClick={toggleTheme}
-          className="p-1.5 rounded-lg border border-[#D1CEC7] dark:border-[#26344A] bg-[#EFECE5]/70 dark:bg-[#17202E] text-[#475063] dark:text-slate-300 hover:text-[#D05A40] hover:border-[#D05A40]/40 transition-all shadow-sm"
-          title={theme === "architectural" ? "Switch to Architectural Midnight (Dark)" : "Switch to Architectural Intelligence (Warm Ivory)"}
+          className="p-1.5 rounded border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all shadow-xs"
+          title={theme === "architectural" ? "Switch to Midnight Theme" : "Switch to Architectural Theme"}
           aria-label="Toggle visual theme"
         >
           {theme === "architectural" ? (
-            <Moon className="w-4 h-4 text-[#D05A40]" />
+            <Moon className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
           ) : (
-            <Sun className="w-4 h-4 text-amber-400" />
+            <Sun className="w-3.5 h-3.5 text-[var(--warning)]" />
           )}
         </button>
 
         {/* System Health */}
-        <Link
-          href="/health"
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#EFECE5]/80 dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] text-[11px] font-mono shadow-sm hover:border-[#D05A40] transition-colors"
-          title={isHealthy ? "FastMCP Gateway & Security Perimeter Online" : "Disconnected / Backend Offline"}
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[var(--bg-card)] border border-[var(--border)] text-[11px] font-mono-tnum shadow-xs"
+          title={isHealthy !== false ? "RiskWise 2.0 Policy Gateway & Invariant Perimeter Operational" : "Backend Gateway Offline"}
         >
           <span
-            className={`w-2 h-2 rounded-full ${
-              isHealthy === true
-                ? "bg-[#3A8A7F] shadow-[0_0_8px_rgba(58,138,127,0.5)]"
-                : isHealthy === false
-                ? "bg-[#D64541]"
-                : "bg-amber-400 animate-pulse"
+            className={`w-1.5 h-1.5 rounded-full ${
+              isHealthy === false
+                ? "bg-[var(--danger)]"
+                : "bg-[var(--risk-low)]"
             }`}
           />
-          <span className="text-[#1A202E] dark:text-slate-300 font-semibold hidden sm:inline">
-            {isHealthy === true ? "SYS ONLINE" : isHealthy === false ? "CONN ERR" : "PROBING"}
+          <span className="text-[var(--text-primary)] font-semibold text-[11px] hidden sm:inline">
+            {isHealthy === false ? "GATEWAY OFFLINE" : "OPERATIONAL"}
           </span>
-        </Link>
+        </div>
 
         {/* Pending Approvals quick badge */}
         <Link
           href="/approvals"
-          className="relative p-2 rounded-lg text-[#475063] dark:text-slate-400 hover:text-[#1A202E] dark:hover:text-slate-200 hover:bg-[#EFECE5] dark:hover:bg-slate-800 transition-colors"
-          title="Review Pending Approvals"
+          className="relative p-1.5 rounded border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[var(--accent)] transition-all shadow-xs"
+          title={pendingCount > 0 ? `${pendingCount} dual-custody approval requests pending` : "No pending approvals"}
+          aria-label="Approvals"
         >
-          <ShieldAlert className="w-4 h-4 text-[#D05A40]" />
+          <ShieldAlert className={`w-3.5 h-3.5 ${pendingCount > 0 ? "text-[var(--risk-high)]" : ""}`} />
           {pendingCount > 0 && (
-            <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#D05A40] text-white font-mono text-[10px] font-bold flex items-center justify-center animate-pulse shadow-sm">
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[var(--risk-high)] text-white text-[9px] font-mono-tnum font-bold flex items-center justify-center">
               {pendingCount > 9 ? "9+" : pendingCount}
             </span>
           )}
         </Link>
 
-        {/* User Identity & Role */}
-        <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-[#D1CEC7] dark:border-[#26344A]">
-          <span className="text-xs text-[#1A202E] dark:text-slate-300 font-medium font-sans">{currentUser?.name || "Operator"}</span>
+        {/* User Identity and Role */}
+        <div className="hidden sm:flex items-center gap-2 pl-1 border-l border-[var(--border)]">
+          <div className="flex flex-col text-right">
+            <span className="text-xs font-medium text-[var(--text-primary)] leading-tight truncate max-w-[120px]">
+              {currentUser?.name || "Security Admin"}
+            </span>
+          </div>
           {currentUser?.role && <RoleBadge role={currentUser.role} />}
         </div>
-
-        {/* Settings / Switch role button */}
-        <Link
-          href="/settings"
-          className="p-1.5 rounded-md text-[#4A4A4A] dark:text-slate-400 hover:text-[#D95E00] dark:hover:text-sky-400 hover:bg-[#E2DFDA] dark:hover:bg-slate-800 transition-colors"
-          title="Security Settings & Role Switcher"
-        >
-          <ShieldCheck className="w-4 h-4" />
-        </Link>
 
         {/* Logout */}
         <button
           onClick={handleLogout}
-          className="p-1.5 rounded-md text-[#4A4A4A] dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/30 transition-colors"
-          title="Reset session / Sign out"
+          className="p-1.5 rounded border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--danger)] hover:border-[var(--danger)] transition-all shadow-xs"
+          title="Sign out of Sentinel session"
+          aria-label="Sign out"
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="w-3.5 h-3.5" />
         </button>
       </div>
     </header>

@@ -13,7 +13,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen bg-[#F5F4F0] dark:bg-[#0B0F14] text-[#1E1E1E] dark:text-slate-100 flex flex-col font-sans transition-colors duration-200 selection:bg-[#D95E00]/30 selection:text-[#D95E00]">
+      <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col font-sans transition-colors duration-150 selection:bg-[var(--accent)]/20 selection:text-[var(--accent)]">
       {/* Mobile Drawer Backdrop */}
       {mobileMenuOpen && (
         <div
