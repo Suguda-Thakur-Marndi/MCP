@@ -167,108 +167,108 @@ export default function SettingsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* System & Telemetry Card */}
-        <div className="rounded border border-[var(--border)] bg-[var(--card)] overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-elevated)]">
+        <div className="rounded border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden shadow-xs">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
             <div className="flex items-center gap-2">
-              <Server className="w-4 h-4 text-[var(--primary)]" />
-              <h2 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-wider">
+              <Server className="w-4 h-4 text-[var(--accent)]" />
+              <h2 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
                 System Diagnostics & Services
               </h2>
             </div>
-            <span className="flex items-center gap-1.5 text-[11px] font-mono">
+            <span className="flex items-center gap-1.5 text-[11px] font-mono-tnum">
               <span
                 className={`w-2 h-2 rounded-full ${
                   health?.status === "ok" || health?.status === "healthy"
-                    ? "bg-emerald-500"
-                    : "bg-rose-500"
+                    ? "bg-[var(--success)]"
+                    : "bg-[var(--danger)]"
                 }`}
               />
-              <span className="font-semibold uppercase text-[var(--foreground)]">
-                {loading ? "Probing..." : health?.status || "ONLINE"}
+              <span className="font-semibold uppercase text-[var(--text-primary)]">
+                {loading ? "Probing..." : health?.status || "OPERATIONAL"}
               </span>
             </span>
           </div>
 
           <div className="p-4 space-y-2 text-xs">
-            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--surface-elevated)]/60 border border-[var(--border)]">
-              <span className="text-[var(--muted-foreground)]">FastAPI Core Gateway:</span>
-              <span className="font-mono text-[var(--primary)] font-semibold">http://127.0.0.1:8000</span>
+            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-primary)] border border-[var(--border)]">
+              <span className="text-[var(--text-secondary)]">FastAPI Core Gateway:</span>
+              <span className="font-mono-tnum text-[var(--accent)] font-semibold">http://127.0.0.1:8000</span>
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--surface-elevated)]/60 border border-[var(--border)]">
-              <span className="text-[var(--muted-foreground)]">PostgreSQL Storage Engine:</span>
-              <span className="font-mono text-emerald-600 dark:text-emerald-400 font-semibold">Pooled (asyncpg, port 5000)</span>
+            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-primary)] border border-[var(--border)]">
+              <span className="text-[var(--text-secondary)]">PostgreSQL Storage Engine:</span>
+              <span className="font-mono-tnum text-[var(--success)] font-semibold">Pooled (asyncpg, port 5000)</span>
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--surface-elevated)]/60 border border-[var(--border)]">
-              <span className="text-[var(--muted-foreground)]">FastMCP Protocol Mode:</span>
-              <span className="font-mono text-[var(--foreground)] font-semibold">In-Process FastMCP 4.0</span>
+            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-primary)] border border-[var(--border)]">
+              <span className="text-[var(--text-secondary)]">FastMCP Protocol Mode:</span>
+              <span className="font-mono-tnum text-[var(--text-primary)] font-semibold">In-Process FastMCP 4.0</span>
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--surface-elevated)]/60 border border-[var(--border)]">
-              <span className="text-[var(--muted-foreground)]">AI Reasoning Core:</span>
-              <span className="font-mono text-purple-600 dark:text-purple-400 font-semibold">Google Gemini 2.5 Flash</span>
+            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-primary)] border border-[var(--border)]">
+              <span className="text-[var(--text-secondary)]">AI Reasoning Core:</span>
+              <span className="font-mono-tnum text-[var(--accent)] font-semibold">Google Gemini 2.5 Flash</span>
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--surface-elevated)]/60 border border-[var(--border)]">
-              <span className="text-[var(--muted-foreground)]">Cryptographic Integrity Seal:</span>
-              <span className="font-mono text-[var(--foreground)] font-semibold">SHA-256 Parameter Hash</span>
+            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-primary)] border border-[var(--border)]">
+              <span className="text-[var(--text-secondary)]">Cryptographic Integrity Seal:</span>
+              <span className="font-mono-tnum text-[var(--text-primary)] font-semibold">SHA-256 Parameter Hash</span>
             </div>
           </div>
         </div>
 
         {/* Security Parameters & Invariants */}
-        <div className="rounded border border-[var(--border)] bg-[var(--card)] overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-elevated)]">
+        <div className="rounded border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden shadow-xs">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
             <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <h2 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-wider">
+              <ShieldCheck className="w-4 h-4 text-[var(--success)]" />
+              <h2 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
                 Cryptographic Invariants
               </h2>
             </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-semibold">
+            <span className="text-[10px] font-mono-tnum px-2 py-0.5 rounded bg-[var(--risk-low-bg)] text-[var(--risk-low)] border border-[var(--risk-low-border)] font-semibold">
               ENFORCED
             </span>
           </div>
 
           <div className="p-4 space-y-2 text-xs">
-            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--surface-elevated)]/60 border border-[var(--border)]">
-              <span className="text-[var(--muted-foreground)]">JWT Token Signature:</span>
-              <span className="font-mono text-[var(--foreground)]">HS256 (32+ Byte Key)</span>
+            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-primary)] border border-[var(--border)]">
+              <span className="text-[var(--text-secondary)]">JWT Token Signature:</span>
+              <span className="font-mono-tnum text-[var(--text-primary)]">HS256 (32+ Byte Key)</span>
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--surface-elevated)]/60 border border-[var(--border)]">
-              <span className="text-[var(--muted-foreground)]">Session Cookie Guard:</span>
-              <span className="font-mono text-[var(--foreground)]">HttpOnly, SameSite=Lax</span>
+            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-primary)] border border-[var(--border)]">
+              <span className="text-[var(--text-secondary)]">Session Cookie Guard:</span>
+              <span className="font-mono-tnum text-[var(--text-primary)]">HttpOnly, SameSite=Lax</span>
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--surface-elevated)]/60 border border-[var(--border)]">
-              <span className="text-[var(--muted-foreground)]">Approval Ticket Lifetime (TTL):</span>
-              <span className="font-mono text-amber-600 dark:text-amber-400 font-semibold">3,600s (1 Hour Window)</span>
+            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-primary)] border border-[var(--border)]">
+              <span className="text-[var(--text-secondary)]">Approval Ticket Lifetime (TTL):</span>
+              <span className="font-mono-tnum text-[var(--warning)] font-semibold">3,600s (1 Hour Window)</span>
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--surface-elevated)]/60 border border-[var(--border)]">
-              <span className="text-[var(--muted-foreground)]">CSRF Header Validation:</span>
-              <span className="font-mono text-emerald-600 dark:text-emerald-400 font-semibold">X-Requested-With Enforced</span>
+            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-primary)] border border-[var(--border)]">
+              <span className="text-[var(--text-secondary)]">CSRF Header Validation:</span>
+              <span className="font-mono-tnum text-[var(--success)] font-semibold">X-Requested-With Enforced</span>
             </div>
-            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--surface-elevated)]/60 border border-[var(--border)]">
-              <span className="text-[var(--muted-foreground)]">Replay Protection:</span>
-              <span className="font-mono text-[var(--primary)]">One-Time Token Invalidation</span>
+            <div className="flex items-center justify-between p-2.5 rounded bg-[var(--bg-primary)] border border-[var(--border)]">
+              <span className="text-[var(--text-secondary)]">Replay Protection:</span>
+              <span className="font-mono-tnum text-[var(--accent)]">One-Time Token Invalidation</span>
             </div>
           </div>
         </div>
       </div>
 
       {/* RBAC Testing Identity Switcher */}
-      <div className="rounded border border-[var(--border)] bg-[var(--card)] overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 border-b border-[var(--border)] bg-[var(--surface-elevated)]">
+      <div className="rounded border border-[var(--border)] bg-[var(--bg-card)] overflow-hidden shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-3 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
           <div>
             <div className="flex items-center gap-2">
-              <UserCheck className="w-4 h-4 text-[var(--primary)]" />
-              <h2 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-wider">
+              <UserCheck className="w-4 h-4 text-[var(--accent)]" />
+              <h2 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
                 RBAC Test Harness & Identity Simulation
               </h2>
               <RoleBadge role={activeRole} />
             </div>
-            <p className="text-[11px] text-[var(--muted-foreground)] mt-0.5">
+            <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
               Simulate enterprise roles in this browser session to test dual-custody approval gating, policy constraints, and tool execution boundaries.
             </p>
           </div>
-          <span className="text-[11px] font-mono text-[var(--muted-foreground)]">
-            Active: <span className="font-semibold text-[var(--foreground)]">{activeEmail}</span>
+          <span className="text-[11px] font-mono-tnum text-[var(--text-muted)]">
+            Active: <span className="font-semibold text-[var(--text-primary)]">{activeEmail}</span>
           </span>
         </div>
 
@@ -282,25 +282,25 @@ export default function SettingsPage() {
                 onClick={() => handleRoleChange(r.role, r.email)}
                 className={`p-3.5 rounded border text-left transition-all flex flex-col justify-between space-y-2.5 ${
                   isSelected
-                    ? "bg-[var(--surface-elevated)] border-[var(--primary)] shadow-sm"
-                    : "bg-[var(--card)] border-[var(--border)] hover:border-[var(--muted-foreground)]/40 hover:bg-[var(--surface-elevated)]/40"
+                    ? "bg-[var(--bg-primary)] border-[var(--accent)] shadow-xs ring-1 ring-[var(--accent)]/30"
+                    : "bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--text-muted)] hover:bg-[var(--bg-primary)]/50"
                 }`}
               >
                 <div className="flex items-center justify-between w-full">
                   <RoleBadge role={r.role} />
                   {isSelected ? (
-                    <span className="flex items-center gap-1 text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <span className="flex items-center gap-1 text-[10px] font-mono-tnum text-[var(--success)] font-bold">
                       <Check className="w-3 h-3" />
                       ACTIVE
                     </span>
                   ) : (
-                    <span className="text-[10px] font-mono text-[var(--muted-foreground)]">
+                    <span className="text-[10px] font-mono-tnum text-[var(--text-muted)]">
                       CLICK TO ACTIVATE
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-[var(--foreground)] leading-relaxed">{r.desc}</p>
-                <span className="font-mono text-[10px] text-[var(--muted-foreground)] block truncate pt-1 border-t border-[var(--border)]/60">
+                <p className="text-xs text-[var(--text-primary)] leading-relaxed">{r.desc}</p>
+                <span className="font-mono-tnum text-[10px] text-[var(--text-muted)] block truncate pt-1 border-t border-[var(--border-subtle)]">
                   {r.email}
                 </span>
               </button>

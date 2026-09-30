@@ -16,10 +16,10 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RiskWise 2.0 — Supply Chain Risk Intelligence & Decision Support",
+  title: "MCP Sentinel — AI Security & Approval Platform",
   description:
-    "Enterprise Supply Chain Risk Intelligence and Decision Support Platform with Human-in-the-Loop Approval Gating, Invariant Policy Governance, and Cryptographic Audit Logging.",
-  keywords: ["RiskWise", "supply-chain", "risk", "security", "AI", "agent", "approval", "governance"],
+    "Enterprise AI Security Platform with Human-in-the-Loop Approval Gating, Invariant Policy Governance, Cryptographic Audit Logging, and Autonomous LangGraph Agent Boundary Enforcement.",
+  keywords: ["MCP Sentinel", "mcp", "security", "AI", "agent", "approval", "governance", "HITL"],
 };
 
 export default function RootLayout({

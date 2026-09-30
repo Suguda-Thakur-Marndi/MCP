@@ -141,7 +141,7 @@ export function TopBar({
         {/* System Health */}
         <div
           className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[var(--bg-card)] border border-[var(--border)] text-[11px] font-mono-tnum shadow-xs"
-          title={isHealthy !== false ? "RiskWise 2.0 Policy Gateway & Invariant Perimeter Operational" : "Backend Gateway Offline"}
+          title={isHealthy !== false ? "MCP Sentinel — AI Security & Approval Platform Operational" : "Backend Gateway Offline"}
         >
           <span
             className={`w-1.5 h-1.5 rounded-full ${

@@ -88,34 +88,34 @@ function AuthContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] flex flex-col justify-center items-center p-4 sm:p-6 transition-colors duration-150">
+    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col justify-center items-center p-4 sm:p-6 transition-colors duration-150">
       <div className="w-full max-w-md">
         {/* Brand Header */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2.5 group">
-            <div className="w-9 h-9 rounded bg-[var(--primary)] text-white flex items-center justify-center font-bold text-xs tracking-wider">
-              MS
+            <div className="w-9 h-9 rounded bg-[var(--accent)] text-white flex items-center justify-center font-bold text-xs tracking-wider shadow-xs">
+              RW
             </div>
             <div className="flex flex-col text-left">
-              <span className="text-sm font-bold tracking-[0.16em] uppercase text-[var(--foreground)]">
-                MCP<span className="text-[var(--primary)]">SENTINEL</span>
+              <span className="text-sm font-bold tracking-[0.16em] uppercase text-[var(--text-primary)]">
+                RISK<span className="text-[var(--accent)]">WISE 2.0</span>
               </span>
-              <span className="text-[10px] text-[var(--muted-foreground)] font-mono tracking-wider">
+              <span className="text-[10px] text-[var(--text-muted)] font-mono-tnum tracking-wider">
                 SECURITY GATEWAY & CONTROL PLANE
               </span>
             </div>
           </Link>
-          <h1 className="text-lg md:text-xl font-bold mt-4 tracking-tight text-[var(--foreground)]">
+          <h1 className="text-lg md:text-xl font-bold mt-4 tracking-tight text-[var(--text-primary)]">
             Security Gateway Authentication
           </h1>
-          <p className="text-xs text-[var(--muted-foreground)] mt-1">
+          <p className="text-xs text-[var(--text-secondary)] mt-1">
             Zero-Trust access control and cryptographic role-based identity
           </p>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="mb-4 p-3.5 rounded text-xs flex items-center gap-2.5 border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400">
+          <div className="mb-4 p-3.5 rounded text-xs flex items-center gap-2.5 border border-[var(--danger)] bg-[var(--danger)]/10 text-[var(--danger)]">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -123,21 +123,21 @@ function AuthContent() {
 
         {/* Current Active Session Card */}
         {currentUser && (
-          <div className="mb-4 p-4 rounded border border-[var(--border)] bg-[var(--card)] shadow-sm">
+          <div className="mb-4 p-4 rounded border border-[var(--border)] bg-[var(--bg-card)] shadow-xs">
             <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
-              <span className="text-[11px] font-mono font-semibold uppercase text-[var(--muted-foreground)]">
+              <span className="text-[11px] font-mono-tnum font-semibold uppercase text-[var(--text-muted)]">
                 Active Session Detected
               </span>
               <RoleBadge role={currentUser.role} />
             </div>
             <div className="pt-2 flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-[var(--foreground)]">{currentUser.name}</p>
-                <p className="text-[11px] font-mono text-[var(--muted-foreground)]">{currentUser.email}</p>
+                <p className="text-xs font-semibold text-[var(--text-primary)]">{currentUser.name}</p>
+                <p className="text-[11px] font-mono-tnum text-[var(--text-muted)]">{currentUser.email}</p>
               </div>
               <Link
                 href="/"
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-[var(--primary)] text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-[var(--accent)] text-white text-xs font-semibold hover:opacity-90 transition-opacity shadow-xs"
               >
                 <span>Enter</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -147,16 +147,16 @@ function AuthContent() {
         )}
 
         {/* Authentication Options Container */}
-        <div className="rounded border border-[var(--border)] bg-[var(--card)] shadow-sm p-6 space-y-6">
+        <div className="rounded border border-[var(--border)] bg-[var(--bg-card)] shadow-xs p-6 space-y-6">
           {/* Google OAuth Section */}
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)] mb-2.5">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2.5">
               Enterprise Single Sign-On
             </h2>
             <button
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded border border-[var(--border)] bg-[var(--surface-elevated)] hover:bg-[var(--surface-elevated)]/80 text-xs font-semibold text-[var(--foreground)] transition-colors shadow-sm"
+              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded border border-[var(--border)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-primary)] text-xs font-semibold text-[var(--text-primary)] transition-colors shadow-xs"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
@@ -184,7 +184,7 @@ function AuthContent() {
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-[var(--border)]" />
             </div>
-            <span className="relative px-3 bg-[var(--card)] text-[10px] font-mono uppercase text-[var(--muted-foreground)]">
+            <span className="relative px-3 bg-[var(--bg-card)] text-[10px] font-mono-tnum uppercase text-[var(--text-muted)]">
               Or local simulation sign-in
             </span>
           </div>
@@ -192,10 +192,10 @@ function AuthContent() {
           {/* Test Roles Quick Selector */}
           <div>
             <div className="flex items-center justify-between mb-2.5">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--muted-foreground)]">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
                 Select Identity Profile
               </h2>
-              <span className="text-[10px] font-mono text-[var(--primary)] font-semibold">
+              <span className="text-[10px] font-mono-tnum text-[var(--accent)] font-semibold">
                 RBAC TEST HARNESS
               </span>
             </div>
@@ -205,20 +205,20 @@ function AuthContent() {
                   key={id.role}
                   onClick={() => handleTestLogin(id)}
                   disabled={loading}
-                  className="w-full p-2.5 rounded border border-[var(--border)] hover:border-[var(--primary)] bg-[var(--surface-elevated)]/50 hover:bg-[var(--surface-elevated)] text-left transition-all flex items-center justify-between group"
+                  className="w-full p-2.5 rounded border border-[var(--border)] hover:border-[var(--accent)] bg-[var(--bg-secondary)]/60 hover:bg-[var(--bg-secondary)] text-left transition-all flex items-center justify-between group"
                 >
                   <div className="truncate pr-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[var(--foreground)] group-hover:text-[var(--primary)] transition-colors">
+                      <span className="text-xs font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors">
                         {id.name}
                       </span>
                       <RoleBadge role={id.role} />
                     </div>
-                    <p className="text-[10px] text-[var(--muted-foreground)] truncate mt-0.5 font-mono">
+                    <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5 font-mono-tnum">
                       {id.email}
                     </p>
                   </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-[var(--muted-foreground)] group-hover:text-[var(--primary)] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                  <ArrowRight className="w-3.5 h-3.5 text-[var(--text-muted)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
                 </button>
               ))}
             </div>
@@ -227,18 +227,18 @@ function AuthContent() {
 
         {/* Security Parameters Footer */}
         <div className="mt-6 text-center space-y-2">
-          <div className="flex items-center justify-center gap-4 text-[11px] font-mono text-[var(--muted-foreground)]">
+          <div className="flex items-center justify-center gap-4 text-[11px] font-mono-tnum text-[var(--text-muted)]">
             <span className="flex items-center gap-1">
-              <Lock className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+              <Lock className="w-3 h-3 text-[var(--success)]" />
               HttpOnly Secure Cookie
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">
-              <KeyRound className="w-3 h-3 text-[var(--primary)]" />
+              <KeyRound className="w-3 h-3 text-[var(--accent)]" />
               HS256 Dual-Custody Gated
             </span>
           </div>
-          <p className="text-[10px] text-[var(--muted-foreground)]">
+          <p className="text-[10px] text-[var(--text-muted)]">
             Protected by MCP-Sentinel FastMCP Zero-Trust Interceptor
           </p>
         </div>
