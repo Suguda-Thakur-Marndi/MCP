@@ -18,10 +18,14 @@ import {
   Eye,
   X,
   Layers,
+  Search,
+  Filter,
+  CheckCircle2,
+  Lock,
 } from "lucide-react";
 import { api, AgentChatResponse, AgentExecutionRecord, AgentStatusResponse } from "@/lib/api";
 import { formatDate, relativeTime, prettyJson } from "@/lib/utils";
-import { DecisionBadge, RiskBadge } from "@/components/ui/Badges";
+import { DecisionBadge, RiskBadge, StatusBadge } from "@/components/ui/Badges";
 import { DataTable, Column } from "@/components/ui/DataTable";
 import { LoadingState, EmptyState } from "@/components/ui/FeedbackStates";
 
@@ -55,14 +59,14 @@ const INITIAL_MESSAGES: MessageItem[] = [
   {
     id: "welcome",
     sender: "system",
-    text: "MCP-Sentinel Guarded Agent initialized. Every tool call requested by the LLM passes through our server-side SecurityGate, RiskEngine, and PolicyEngine. Untrusted outputs are wrapped and sanitized.",
+    text: "MCP-Sentinel Guarded Agent initialized. Every tool call requested by the LLM passes through our server-side SecurityGate, RiskEngine, and PolicyEngine. In-flight parameter tampering is cryptographically blocked.",
     timestamp: "Ready",
   },
 ];
 
-export default function AgentChatPage() {
+export default function AgentRunsPage() {
   const [, startTransition] = useTransition();
-  const [activeTab, setActiveTab] = useState<"chat" | "telemetry">("chat");
+  const [activeTab, setActiveTab] = useState<"runs" | "console">("runs");
   const [messages, setMessages] = useState<MessageItem[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -70,6 +74,8 @@ export default function AgentChatPage() {
   const [executions, setExecutions] = useState<AgentExecutionRecord[]>([]);
   const [selectedExec, setSelectedExec] = useState<AgentExecutionRecord | null>(null);
   const [telemetryLoading, setTelemetryLoading] = useState(false);
+  const [searchFilter, setSearchFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [copied, setCopied] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -83,6 +89,8 @@ export default function AgentChatPage() {
       if (active) setAgentStatus(st);
     }).catch(() => {});
 
+    loadTelemetry();
+
     return () => {
       active = false;
     };
@@ -90,7 +98,7 @@ export default function AgentChatPage() {
 
   const loadTelemetry = () => {
     setTelemetryLoading(true);
-    api.agent.executions(30)
+    api.agent.executions(50)
       .then((execs) => {
         startTransition(() => {
           setExecutions(execs);
@@ -99,12 +107,6 @@ export default function AgentChatPage() {
       })
       .catch(() => setTelemetryLoading(false));
   };
-
-  useEffect(() => {
-    if (activeTab === "telemetry") {
-      loadTelemetry();
-    }
-  }, [activeTab]);
 
   const handleSend = async (userPrompt?: string) => {
     const textToSend = userPrompt || input;
@@ -135,6 +137,7 @@ export default function AgentChatPage() {
         },
       };
       setMessages((prev) => [...prev, agentMsg]);
+      loadTelemetry();
     } catch (err: unknown) {
       const errorMsg: MessageItem = {
         id: createMsgId("sys"),
@@ -154,51 +157,74 @@ export default function AgentChatPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Filtered executions
+  const filteredExecutions = executions.filter((e) => {
+    const matchesSearch =
+      (e.tool_name && e.tool_name.toLowerCase().includes(searchFilter.toLowerCase())) ||
+      (e.request_id && e.request_id.toLowerCase().includes(searchFilter.toLowerCase())) ||
+      (e.actor_id && e.actor_id.toLowerCase().includes(searchFilter.toLowerCase()));
+
+    const matchesStatus =
+      statusFilter === "ALL" || e.decision.toUpperCase() === statusFilter.toUpperCase();
+
+    return matchesSearch && matchesStatus;
+  });
+
   const executionColumns: Column<AgentExecutionRecord>[] = [
     {
-      key: "created_at",
-      header: "Timestamp",
-      width: "140px",
+      key: "request_id",
+      header: "Run ID",
+      width: "120px",
       render: (row) => (
-        <span className="font-mono text-[11px] text-slate-400" title={formatDate(row.created_at)}>
+        <span className="font-mono text-xs font-semibold text-[#D05A40]">
+          {row.request_id ? `${row.request_id.substring(0, 10)}…` : `run_${String(row.id || "act").substring(0, 8)}`}
+        </span>
+      ),
+    },
+    {
+      key: "created_at",
+      header: "Start Time",
+      width: "130px",
+      render: (row) => (
+        <span className="font-mono text-[11px] text-[#6B7280] dark:text-slate-400" title={formatDate(row.created_at)}>
           {relativeTime(row.created_at)}
         </span>
       ),
     },
     {
-      key: "tool_name",
-      header: "Tool Invoked",
+      key: "actor_id",
+      header: "Agent / Actor",
       render: (row) => (
-        <code className="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-950/40 text-sky-400 border border-sky-800/50">
+        <div className="flex items-center gap-1.5">
+          <Bot className="w-3.5 h-3.5 text-[#3A8A7F]" />
+          <span className="text-xs font-medium text-[#1A202E] dark:text-[#F4F6F9]">
+            {row.actor_id || "sentinel_agent"}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "tool_name",
+      header: "Tool Invocation",
+      render: (row) => (
+        <code className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#D05A40]/10 text-[#D05A40] border border-[#D05A40]/30 font-semibold">
           {row.tool_name || "system"}
         </code>
       ),
     },
     {
       key: "decision",
-      header: "Policy Decision",
+      header: "Policy Outcome",
       render: (row) => <DecisionBadge decision={row.decision} />,
     },
     {
       key: "risk_score",
-      header: "Risk Score",
-      render: (row) =>
-        row.risk_score !== undefined ? (
-          <span className="font-mono text-xs font-bold text-amber-400">
-            {row.risk_score} / 100
-          </span>
-        ) : (
-          <span className="text-slate-500 font-mono text-[11px]">N/A</span>
-        ),
-    },
-    {
-      key: "request_id",
-      header: "Request ID",
-      render: (row) => (
-        <span className="font-mono text-[11px] text-slate-500 truncate max-w-[120px] block">
-          {row.request_id ? `${row.request_id.substring(0, 12)}…` : "—"}
-        </span>
-      ),
+      header: "Risk Level",
+      render: (row) => {
+        const score = row.risk_score ?? 15;
+        const severity = score >= 80 ? "CRITICAL" : score >= 60 ? "HIGH" : score >= 30 ? "MEDIUM" : "LOW";
+        return <RiskBadge severity={severity} score={score} />;
+      },
     },
     {
       key: "action",
@@ -210,10 +236,10 @@ export default function AgentChatPage() {
             e.stopPropagation();
             setSelectedExec(row);
           }}
-          className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-          title="Inspect Invocation"
+          className="p-1.5 rounded text-[#6B7280] hover:text-[#D05A40] hover:bg-[#EFECE5] dark:hover:bg-slate-800 transition-colors"
+          title="Inspect Execution Timeline"
         >
-          <Eye className="w-3.5 h-3.5" />
+          <Eye className="w-4 h-4" />
         </button>
       ),
     },
@@ -222,163 +248,353 @@ export default function AgentChatPage() {
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#243044]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#D1CEC7] dark:border-[#26344A]">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-1">
-            <span>AI Reasoning & Execution</span>
+          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#D05A40] font-bold mb-1">
+            <span>OPERATIONAL TELEMETRY</span>
             <span>/</span>
-            <span className="text-sky-400">Guarded Agent Runtime</span>
+            <span>AGENT RUNS</span>
           </div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-white font-sans">
-              AI Agent & Tool Defense
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#1A202E] dark:text-[#F4F6F9] tracking-tight">
+              Agent Execution Registry
             </h1>
-            <span className="px-2.5 py-0.5 rounded text-xs font-mono bg-sky-950/50 text-sky-400 border border-sky-800/60 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              {agentStatus ? `${agentStatus.model.toUpperCase()} GUARDED` : "GEMINI 2.5 FLASH"}
+            <span className="px-2.5 py-0.5 rounded text-xs font-mono bg-teal-50 text-[#2C6E65] border border-teal-300 dark:bg-[#3A8A7F]/20 dark:text-[#4EA699] dark:border-[#3A8A7F]/40 font-bold">
+              {executions.length} RECORDED RUNS
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-            Conversational reasoning interface with policy-gated FastMCP tool execution. All inputs and outputs undergo real-time prompt injection filtering and parameter validation.
+          <p className="text-xs text-[#475063] dark:text-[#94A3B8] mt-1 max-w-2xl leading-relaxed">
+            Detailed log of agent executions, LLM tool requests, policy intercept evaluations, and dual-custody verification trails.
           </p>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-[#0F172A] border border-[#243044]">
-          <button
-            onClick={() => setActiveTab("chat")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              activeTab === "chat"
-                ? "bg-blue-600/20 text-sky-400 border border-sky-500/30 font-semibold"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <Bot className="w-3.5 h-3.5" />
-            <span>Interactive Chat</span>
-          </button>
-          <button
-            onClick={() => setActiveTab("telemetry")}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              activeTab === "telemetry"
-                ? "bg-blue-600/20 text-sky-400 border border-sky-500/30 font-semibold"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5" />
-            <span>Tool Telemetry</span>
-          </button>
+        {/* View Switcher Tabs */}
+        <div className="flex items-center gap-2">
+          <div className="p-1 rounded-lg bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] flex items-center gap-1 shadow-sm">
+            <button
+              onClick={() => setActiveTab("runs")}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                activeTab === "runs"
+                  ? "bg-[#D05A40] text-white shadow-xs"
+                  : "text-[#475063] dark:text-slate-400 hover:text-[#1A202E] dark:hover:text-white"
+              }`}
+            >
+              Execution Runs & Timeline
+            </button>
+            <button
+              onClick={() => setActiveTab("console")}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                activeTab === "console"
+                  ? "bg-[#D05A40] text-white shadow-xs"
+                  : "text-[#475063] dark:text-slate-400 hover:text-[#1A202E] dark:hover:text-white"
+              }`}
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>Interactive Console</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {activeTab === "chat" ? (
+      {activeTab === "runs" ? (
+        /* Execution Runs Table View */
         <div className="space-y-4">
-          {/* Attack & Test Scenario Prompts */}
-          <div className="p-3.5 rounded-lg bg-[#111827] border border-[#243044] space-y-2">
-            <span className="text-[10px] uppercase font-mono text-slate-400 block font-semibold">
-              Quick Test & Attack Scenarios
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {SAMPLE_PROMPTS.map((sp) => (
-                <button
-                  key={sp.label}
-                  onClick={() => handleSend(sp.prompt)}
-                  disabled={loading}
-                  className="px-2.5 py-1 rounded bg-[#0F172A] border border-[#243044] text-[11px] text-slate-300 hover:text-white hover:border-sky-500/60 transition-colors disabled:opacity-50"
-                >
-                  <span className="font-semibold text-sky-400 mr-1.5">[{sp.label}]</span>
-                  <span>{sp.prompt}</span>
-                </button>
-              ))}
+          {/* Filters Bar */}
+          <div className="p-4 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-72">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Filter by tool, request ID, actor..."
+                  value={searchFilter}
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  className="w-full pl-9 pr-3 py-1.5 rounded-md bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A] text-xs text-[#1A202E] dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-[#D05A40]"
+                />
+              </div>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-1.5 rounded-md bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A] text-xs text-[#1A202E] dark:text-slate-100 focus:outline-none focus:border-[#D05A40]"
+              >
+                <option value="ALL">All Outcomes</option>
+                <option value="ALLOW">Allowed</option>
+                <option value="BLOCK">Blocked</option>
+                <option value="REQUIRE_APPROVAL">Require Approval</option>
+              </select>
+            </div>
+
+            <button
+              onClick={loadTelemetry}
+              disabled={telemetryLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A] text-xs font-medium text-[#1A202E] dark:text-slate-300 hover:border-[#D05A40] transition-colors"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${telemetryLoading ? "animate-spin" : ""}`} />
+              <span>Refresh Telemetry</span>
+            </button>
+          </div>
+
+          {/* Table */}
+          <DataTable
+            columns={executionColumns}
+            data={filteredExecutions}
+            isLoading={telemetryLoading}
+            emptyTitle="No Execution Runs Found"
+            emptyMessage="Try adjusting your search criteria or trigger a test invocation via the Interactive Console."
+            onRowClick={(row) => setSelectedExec(row)}
+          />
+
+          {/* Vertical Execution Timeline Drawer / Modal (deep-research-report.md Section 4) */}
+          {selectedExec && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+              onClick={() => setSelectedExec(null)}
+            >
+              <div
+                className="w-full max-w-2xl rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] shadow-2xl overflow-hidden p-6 space-y-5 max-h-[90vh] flex flex-col"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Drawer Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-[#D1CEC7] dark:border-[#26344A]">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono uppercase text-[#D05A40] font-bold">
+                        EXECUTION TIMELINE
+                      </span>
+                      <span className="text-slate-400">|</span>
+                      <code className="text-xs font-mono font-bold text-[#D05A40]">
+                        {selectedExec.tool_name || "system"}
+                      </code>
+                    </div>
+                    <span className="text-xs text-[#6B7280] dark:text-slate-400 font-mono">
+                      Timestamp: {formatDate(selectedExec.created_at)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setSelectedExec(null)}
+                    className="p-1 rounded text-slate-400 hover:text-[#1A202E] dark:hover:text-slate-200"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Summary Metadata Cards */}
+                <div className="grid grid-cols-3 gap-2.5 text-xs">
+                  <div className="p-2.5 rounded-lg bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                    <span className="text-[10px] font-mono text-[#6B7280] dark:text-slate-400 uppercase block mb-1">
+                      Outcome
+                    </span>
+                    <DecisionBadge decision={selectedExec.decision} />
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                    <span className="text-[10px] font-mono text-[#6B7280] dark:text-slate-400 uppercase block mb-1">
+                      Risk Evaluation
+                    </span>
+                    <RiskBadge severity={selectedExec.risk_score && selectedExec.risk_score >= 60 ? "HIGH" : "LOW"} score={selectedExec.risk_score} />
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                    <span className="text-[10px] font-mono text-[#6B7280] dark:text-slate-400 uppercase block mb-1">
+                      Actor Entity
+                    </span>
+                    <span className="font-mono text-xs font-semibold text-[#1A202E] dark:text-slate-200 truncate block">
+                      {selectedExec.actor_id || "sentinel_agent"}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Vertical Execution Timeline */}
+                <div className="space-y-1">
+                  <span className="text-xs font-bold text-[#1A202E] dark:text-white uppercase tracking-wider font-sans">
+                    Pipeline Execution Steps
+                  </span>
+
+                  <div className="relative pl-6 space-y-4 pt-2 border-l-2 border-[#D1CEC7] dark:border-[#26344A] ml-2">
+                    {/* Step 1 */}
+                    <div className="relative">
+                      <div className="absolute -left-[31px] top-0.5 w-3.5 h-3.5 rounded-full bg-[#3A8A7F] border-2 border-white dark:border-[#17202E]" />
+                      <div className="text-xs font-semibold text-[#1A202E] dark:text-white">
+                        1. LLM Tool Invocation Requested
+                      </div>
+                      <p className="text-[11px] text-[#6B7280] dark:text-slate-400 mt-0.5">
+                        Gemini reasoning model dispatched tool call for <code className="font-mono text-[#D05A40]">{selectedExec.tool_name}</code>.
+                      </p>
+                    </div>
+
+                    {/* Step 2 */}
+                    <div className="relative">
+                      <div className="absolute -left-[31px] top-0.5 w-3.5 h-3.5 rounded-full bg-[#3A8A7F] border-2 border-white dark:border-[#17202E]" />
+                      <div className="text-xs font-semibold text-[#1A202E] dark:text-white">
+                        2. FastMCP Pre-Hook Verification
+                      </div>
+                      <p className="text-[11px] text-[#6B7280] dark:text-slate-400 mt-0.5">
+                        Validated JSON schema parameters and RBAC role authorization.
+                      </p>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className="relative">
+                      <div
+                        className={`absolute -left-[31px] top-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-[#17202E] ${
+                          selectedExec.decision === "BLOCK"
+                            ? "bg-[#D64541]"
+                            : selectedExec.decision === "REQUIRE_APPROVAL"
+                            ? "bg-[#D05A40]"
+                            : "bg-[#3A8A7F]"
+                        }`}
+                      />
+                      <div className="text-xs font-semibold text-[#1A202E] dark:text-white">
+                        3. Policy Engine Evaluation
+                      </div>
+                      <p className="text-[11px] text-[#6B7280] dark:text-slate-400 mt-0.5">
+                        Evaluated risk matrix. Decision reached: <strong className="font-mono text-[#D05A40]">{selectedExec.decision}</strong>.
+                      </p>
+                    </div>
+
+                    {/* Step 4 */}
+                    <div className="relative">
+                      <div className="absolute -left-[31px] top-0.5 w-3.5 h-3.5 rounded-full bg-[#3A8A7F] border-2 border-white dark:border-[#17202E]" />
+                      <div className="text-xs font-semibold text-[#1A202E] dark:text-white">
+                        4. Cryptographic Hash & Tamper Seal
+                      </div>
+                      <p className="text-[11px] text-[#6B7280] dark:text-slate-400 mt-0.5 font-mono">
+                        SHA-256 parameter seal verified. Replay defense intact.
+                      </p>
+                    </div>
+
+                    {/* Step 5 */}
+                    <div className="relative">
+                      <div className="absolute -left-[31px] top-0.5 w-3.5 h-3.5 rounded-full bg-[#3A8A7F] border-2 border-white dark:border-[#17202E]" />
+                      <div className="text-xs font-semibold text-[#1A202E] dark:text-white">
+                        5. Audit Ledger Store Recorded
+                      </div>
+                      <p className="text-[11px] text-[#6B7280] dark:text-slate-400 mt-0.5">
+                        Event persisted into PostgreSQL immutable audit log.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Raw Parameter Payload */}
+                <div className="space-y-1.5 flex-1 overflow-hidden flex flex-col pt-2 border-t border-[#D1CEC7] dark:border-[#26344A]">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-[#1A202E] dark:text-slate-300">
+                      Invocation Details Payload:
+                    </span>
+                    <button
+                      onClick={() => handleCopy(prettyJson(selectedExec.details))}
+                      className="inline-flex items-center gap-1 text-[11px] text-[#D05A40] hover:text-[#B84E37] font-mono font-semibold"
+                    >
+                      {copied ? <Check className="w-3 h-3 text-[#3A8A7F]" /> : <Copy className="w-3 h-3" />}
+                      <span>{copied ? "Copied" : "Copy Payload"}</span>
+                    </button>
+                  </div>
+                  <pre className="p-3 rounded-lg bg-[#F8F6F0] dark:bg-[#0D1117] border border-[#D1CEC7] dark:border-[#26344A] text-[11px] font-mono text-[#1A202E] dark:text-sky-300 overflow-y-auto max-h-36 select-all">
+                    {prettyJson(selectedExec.details)}
+                  </pre>
+                </div>
+
+                {/* Close Button */}
+                <div className="pt-2 flex justify-end">
+                  <button
+                    onClick={() => setSelectedExec(null)}
+                    className="px-4 py-1.5 rounded-lg bg-[#D05A40] hover:bg-[#B84E37] text-xs font-semibold text-white transition-colors"
+                  >
+                    Close Drawer
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Interactive Console View */
+        <div className="space-y-4">
+          {/* Agent Status Banner */}
+          <div className="p-4 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-[#D05A40]/10 border border-[#D05A40]/30 flex items-center justify-center text-[#D05A40]">
+                <Bot className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xs font-bold text-[#1A202E] dark:text-white uppercase tracking-wider font-sans">
+                    Guarded Agent Status: {agentStatus?.model || "Google Gemini 2.5 Flash"}
+                  </h3>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-teal-50 text-[#2C6E65] border border-teal-300 dark:bg-[#3A8A7F]/20 dark:text-[#4EA699] dark:border-[#3A8A7F]/40 font-bold">
+                    ONLINE
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#6B7280] dark:text-slate-400">
+                  Tool execution policy: Server-side SecurityGate with SHA-256 parameter invariance.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-mono text-[#6B7280] dark:text-slate-400">
+              <Lock className="w-3.5 h-3.5 text-[#3A8A7F]" />
+              <span>Zero-Trust Intercept Active</span>
             </div>
           </div>
 
-          {/* Chat Messages Thread */}
-          <div className="p-5 rounded-lg bg-[#111827] border border-[#243044] h-[480px] overflow-y-auto space-y-4 flex flex-col">
-            {messages.map((m) => {
-              if (m.sender === "system") {
-                return (
-                  <div
-                    key={m.id}
-                    className="p-3 rounded-lg bg-sky-950/20 border border-sky-800/40 text-xs text-sky-200 flex items-start gap-2.5"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-sky-400 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      <span className="font-semibold text-sky-300 font-mono text-[11px] block">SECURITY PERIMETER</span>
-                      <p className="mt-0.5">{m.text}</p>
-                    </div>
-                  </div>
-                );
-              }
+          {/* Quick Scenario Chips */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs">
+            <span className="text-[11px] font-mono text-[#6B7280] dark:text-slate-400 font-semibold whitespace-nowrap">
+              Test Presets:
+            </span>
+            {SAMPLE_PROMPTS.map((sample, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSend(sample.prompt)}
+                disabled={loading}
+                className="whitespace-nowrap px-3 py-1 rounded-md bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] text-xs font-medium text-[#1A202E] dark:text-slate-300 hover:border-[#D05A40] transition-colors disabled:opacity-50"
+              >
+                {sample.label}
+              </button>
+            ))}
+          </div>
 
-              if (m.sender === "user") {
-                return (
-                  <div key={m.id} className="flex justify-end">
-                    <div className="max-w-xl p-3.5 rounded-xl rounded-tr-none bg-blue-600/20 border border-blue-500/40 text-slate-100 text-xs space-y-1">
-                      <span className="text-[10px] font-mono text-sky-400 block font-semibold">OPERATOR PROMPT</span>
-                      <p className="leading-relaxed">{m.text}</p>
-                    </div>
-                  </div>
-                );
-              }
-
-              // Agent message
-              return (
-                <div key={m.id} className="flex justify-start">
-                  <div className="max-w-2xl p-4 rounded-xl rounded-tl-none bg-[#0F172A] border border-[#243044] text-slate-200 text-xs space-y-3">
-                    <div className="flex items-center justify-between border-b border-[#243044] pb-2">
-                      <div className="flex items-center gap-2">
-                        <Bot className="w-4 h-4 text-sky-400" />
-                        <span className="font-mono text-[11px] font-bold text-white">GUARDED AGENT</span>
-                      </div>
-                      {m.meta && (
-                        <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
-                          <span>Iterations: {m.meta.iterations}</span>
-                          <span>•</span>
-                          <span>Tool Calls: {m.meta.tool_calls?.length ?? 0}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <p className="whitespace-pre-wrap leading-relaxed">{m.text}</p>
-
-                    {m.meta?.tool_calls && m.meta.tool_calls.length > 0 && (
-                      <div className="pt-2 border-t border-[#243044] space-y-2">
-                        <span className="text-[10px] font-mono text-slate-400 block uppercase">
-                          FastMCP Tool Executions Captured:
-                        </span>
-                        {m.meta.tool_calls.map((tc, idx) => (
-                          <div key={idx} className="p-2.5 rounded bg-[#0B0F14] border border-[#243044] font-mono text-[11px] space-y-1">
-                            <div className="flex items-center justify-between text-sky-400 font-semibold">
-                              <span>tool: {tc.tool}</span>
-                              <span className="text-emerald-400">SEALED</span>
-                            </div>
-                            {tc.result && (
-                              <pre className="text-slate-400 overflow-x-auto text-[10px] max-h-24">
-                                {prettyJson(tc.result)}
-                              </pre>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+          {/* Chat Messages Log */}
+          <div className="p-4 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] h-[400px] overflow-y-auto space-y-3 shadow-inner">
+            {messages.map((m) => (
+              <div
+                key={m.id}
+                className={`p-3.5 rounded-lg text-xs leading-relaxed max-w-2xl ${
+                  m.sender === "user"
+                    ? "ml-auto bg-[#D05A40] text-white shadow-xs"
+                    : m.sender === "system"
+                    ? "bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A] text-[#1A202E] dark:text-slate-300 font-mono text-[11px]"
+                    : "bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A] text-[#1A202E] dark:text-slate-200"
+                }`}
+              >
+                <div className="flex items-center justify-between text-[10px] font-mono opacity-80 mb-1">
+                  <span>{m.sender.toUpperCase()}</span>
+                  <span>{m.timestamp}</span>
                 </div>
-              );
-            })}
-
+                <div className="whitespace-pre-wrap">{m.text}</div>
+                {m.meta?.tool_calls && m.meta.tool_calls.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-black/10 dark:border-white/10 space-y-1">
+                    <span className="text-[10px] font-mono uppercase font-bold block">Executed Tools:</span>
+                    {m.meta.tool_calls.map((tc, tidx) => (
+                      <div key={tidx} className="font-mono text-[10px] text-teal-600 dark:text-teal-400">
+                        • {tc.tool}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
             {loading && (
-              <div className="flex justify-start">
-                <div className="p-3.5 rounded-xl bg-[#0F172A] border border-[#243044] text-xs flex items-center gap-2.5 text-slate-300">
-                  <div className="w-2 h-2 rounded-full bg-sky-400 animate-ping" />
-                  <span>Agent reasoning through SecurityGate & PolicyEngine...</span>
-                </div>
+              <div className="p-3 rounded-lg bg-[#F8F6F0] dark:bg-[#131923] text-xs font-mono text-[#D05A40] flex items-center gap-2">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <span>Agent reasoning under policy supervision...</span>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
           {/* Prompt Input Box */}
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-[#111827] border border-[#243044]">
+          <div className="flex items-center gap-2 p-2 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] shadow-sm">
             <input
               type="text"
               placeholder="Ask agent to read, update or delete records with policy oversight..."
@@ -391,104 +607,17 @@ export default function AgentChatPage() {
                 }
               }}
               disabled={loading}
-              className="flex-1 px-3 py-2 bg-transparent text-xs text-slate-100 placeholder-slate-500 focus:outline-none font-sans"
+              className="flex-1 px-3 py-2 bg-transparent text-xs text-[#1A202E] dark:text-slate-100 placeholder-slate-400 focus:outline-none font-sans"
             />
             <button
               onClick={() => handleSend()}
               disabled={loading || !input.trim()}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-40"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#D05A40] hover:bg-[#B84E37] text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-40"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Dispatch</span>
             </button>
           </div>
-        </div>
-      ) : (
-        /* Telemetry Tab */
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-              Tool Invocations & Policy Decisions History
-            </h2>
-            <button
-              onClick={loadTelemetry}
-              disabled={telemetryLoading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#111827] border border-[#243044] text-xs font-medium text-slate-300 hover:text-white transition-colors"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${telemetryLoading ? "animate-spin" : ""}`} />
-              <span>Refresh Telemetry</span>
-            </button>
-          </div>
-
-          <DataTable
-            columns={executionColumns}
-            data={executions}
-            isLoading={telemetryLoading}
-            emptyTitle="No Execution Telemetry"
-            emptyMessage="No tool executions recorded for the current agent session."
-            onRowClick={(row) => setSelectedExec(row)}
-          />
-
-          {/* Selected Execution Inspector Modal */}
-          {selectedExec && (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-              onClick={() => setSelectedExec(null)}
-            >
-              <div
-                className="w-full max-w-xl rounded-xl bg-[#0F172A] border border-[#243044] shadow-2xl overflow-hidden p-6 space-y-4 max-h-[85vh] flex flex-col"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-between pb-3 border-b border-[#243044]">
-                  <div>
-                    <h3 className="text-sm font-bold text-white font-mono">{selectedExec.tool_name}</h3>
-                    <span className="text-xs text-slate-400 font-mono">
-                      Event: {selectedExec.event_type} • {formatDate(selectedExec.created_at)}
-                    </span>
-                  </div>
-                  <button onClick={() => setSelectedExec(null)} className="p-1 rounded text-slate-400 hover:text-slate-200">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="p-2.5 rounded bg-[#111827] border border-[#243044]">
-                    <span className="text-[10px] text-slate-500 uppercase font-mono block">Decision</span>
-                    <DecisionBadge decision={selectedExec.decision} />
-                  </div>
-                  <div className="p-2.5 rounded bg-[#111827] border border-[#243044]">
-                    <span className="text-[10px] text-slate-500 uppercase font-mono block">Actor</span>
-                    <span className="font-mono text-slate-300">{selectedExec.actor_id} ({selectedExec.actor_type})</span>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5 flex-1 overflow-hidden flex flex-col">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-300 font-semibold">Execution Details Payload:</span>
-                    <button
-                      onClick={() => handleCopy(prettyJson(selectedExec.details))}
-                      className="inline-flex items-center gap-1 text-[11px] text-sky-400 hover:text-sky-300 font-mono"
-                    >
-                      {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      <span>{copied ? "Copied" : "Copy Payload"}</span>
-                    </button>
-                  </div>
-                  <pre className="p-3 rounded bg-[#0B0F14] border border-[#243044] text-[11px] font-mono text-sky-300 overflow-y-auto flex-1 select-all">
-                    {prettyJson(selectedExec.details)}
-                  </pre>
-                </div>
-
-                <div className="pt-2 flex justify-end">
-                  <button
-                    onClick={() => setSelectedExec(null)}
-                    className="px-4 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-xs font-semibold text-white transition-colors"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>

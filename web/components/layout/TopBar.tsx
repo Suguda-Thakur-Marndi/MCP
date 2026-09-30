@@ -94,7 +94,7 @@ export function TopBar({
 
   return (
     <header
-      className={`h-14 border-b border-[#D1CEC7] dark:border-[#243044] bg-[#F5F4F0]/90 dark:bg-[#0F172A]/90 backdrop-blur fixed top-0 right-0 z-20 flex items-center justify-between px-3 sm:px-4 transition-all duration-200 left-0 ${
+      className={`h-14 border-b border-[#D1CEC7] dark:border-[#26344A] bg-[#F8F6F0]/90 dark:bg-[#0D1117]/90 backdrop-blur fixed top-0 right-0 z-20 flex items-center justify-between px-3 sm:px-4 transition-all duration-200 left-0 ${
         sidebarCollapsed ? "lg:left-16" : "lg:left-64"
       }`}
     >
@@ -102,20 +102,20 @@ export function TopBar({
       <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-md">
         <button
           onClick={onToggleMobileMenu}
-          className="lg:hidden p-1.5 -ml-1 rounded text-[#4A4A4A] dark:text-slate-400 hover:text-[#1E1E1E] dark:hover:text-slate-200 hover:bg-[#E2DFDA] dark:hover:bg-slate-800 transition-colors"
+          className="lg:hidden p-1.5 -ml-1 rounded text-[#475063] dark:text-slate-400 hover:text-[#1A202E] dark:hover:text-slate-200 hover:bg-[#EFECE5] dark:hover:bg-slate-800 transition-colors"
           aria-label="Toggle navigation"
         >
           <Menu className="w-5 h-5" />
         </button>
         <button
           onClick={onOpenSearch}
-          className="w-full flex items-center justify-between px-3 py-1.5 rounded-md bg-[#E2DFDA]/70 dark:bg-[#111827] border border-[#D1CEC7] dark:border-[#243044] text-xs text-[#4A4A4A] dark:text-slate-400 hover:text-[#1E1E1E] dark:hover:text-slate-200 hover:border-[#B5B2AB] dark:hover:border-slate-600 transition-colors shadow-sm"
+          className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg bg-[#EFECE5]/70 dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] text-xs text-[#475063] dark:text-slate-400 hover:text-[#1A202E] dark:hover:text-slate-200 hover:border-[#D05A40] transition-colors shadow-sm"
         >
           <div className="flex items-center gap-2">
-            <Search className="w-3.5 h-3.5 text-[#7A7670] dark:text-slate-500" />
+            <Search className="w-3.5 h-3.5 text-[#6B7280] dark:text-slate-500" />
             <span className="truncate">Search tools, approvals, audit logs, policies...</span>
           </div>
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#D1CEC7]/60 dark:bg-slate-800 text-[10px] font-mono text-[#1E1E1E] dark:text-slate-400 border border-[#B5B2AB] dark:border-slate-700">
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#D1CEC7]/60 dark:bg-slate-800 text-[10px] font-mono text-[#1A202E] dark:text-slate-400 border border-[#D1CEC7] dark:border-slate-700">
             <Command className="w-2.5 h-2.5" /> K
           </kbd>
         </button>
@@ -126,53 +126,54 @@ export function TopBar({
         {/* Architectural Theme Switcher */}
         <button
           onClick={toggleTheme}
-          className="p-1.5 rounded-md border border-[#D1CEC7] dark:border-[#243044] bg-[#E2DFDA]/70 dark:bg-[#111827] text-[#4A4A4A] dark:text-slate-300 hover:text-[#D95E00] dark:hover:text-amber-400 hover:border-[#D95E00]/40 dark:hover:border-amber-500/40 transition-all shadow-sm"
+          className="p-1.5 rounded-lg border border-[#D1CEC7] dark:border-[#26344A] bg-[#EFECE5]/70 dark:bg-[#17202E] text-[#475063] dark:text-slate-300 hover:text-[#D05A40] hover:border-[#D05A40]/40 transition-all shadow-sm"
           title={theme === "architectural" ? "Switch to Architectural Midnight (Dark)" : "Switch to Architectural Intelligence (Warm Ivory)"}
           aria-label="Toggle visual theme"
         >
           {theme === "architectural" ? (
-            <Moon className="w-4 h-4 text-[#D95E00]" />
+            <Moon className="w-4 h-4 text-[#D05A40]" />
           ) : (
             <Sun className="w-4 h-4 text-amber-400" />
           )}
         </button>
 
         {/* System Health */}
-        <div
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#E2DFDA]/80 dark:bg-[#111827] border border-[#D1CEC7] dark:border-[#243044] text-[11px] font-mono shadow-sm"
+        <Link
+          href="/health"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#EFECE5]/80 dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] text-[11px] font-mono shadow-sm hover:border-[#D05A40] transition-colors"
           title={isHealthy ? "FastMCP Gateway & Security Perimeter Online" : "Disconnected / Backend Offline"}
         >
           <span
             className={`w-2 h-2 rounded-full ${
               isHealthy === true
-                ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                ? "bg-[#3A8A7F] shadow-[0_0_8px_rgba(58,138,127,0.5)]"
                 : isHealthy === false
-                ? "bg-rose-500"
+                ? "bg-[#D64541]"
                 : "bg-amber-400 animate-pulse"
             }`}
           />
-          <span className="text-[#1E1E1E] dark:text-slate-300 font-semibold hidden sm:inline">
+          <span className="text-[#1A202E] dark:text-slate-300 font-semibold hidden sm:inline">
             {isHealthy === true ? "SYS ONLINE" : isHealthy === false ? "CONN ERR" : "PROBING"}
           </span>
-        </div>
+        </Link>
 
         {/* Pending Approvals quick badge */}
         <Link
           href="/approvals"
-          className="relative p-2 rounded-md text-[#4A4A4A] dark:text-slate-400 hover:text-[#1E1E1E] dark:hover:text-slate-200 hover:bg-[#E2DFDA] dark:hover:bg-slate-800 transition-colors"
+          className="relative p-2 rounded-lg text-[#475063] dark:text-slate-400 hover:text-[#1A202E] dark:hover:text-slate-200 hover:bg-[#EFECE5] dark:hover:bg-slate-800 transition-colors"
           title="Review Pending Approvals"
         >
-          <ShieldAlert className="w-4 h-4 text-[#D95E00] dark:text-amber-400" />
+          <ShieldAlert className="w-4 h-4 text-[#D05A40]" />
           {pendingCount > 0 && (
-            <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#D95E00] text-white font-mono text-[10px] font-bold flex items-center justify-center animate-pulse shadow-sm">
+            <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-[#D05A40] text-white font-mono text-[10px] font-bold flex items-center justify-center animate-pulse shadow-sm">
               {pendingCount > 9 ? "9+" : pendingCount}
             </span>
           )}
         </Link>
 
         {/* User Identity & Role */}
-        <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-[#D1CEC7] dark:border-[#243044]">
-          <span className="text-xs text-[#1E1E1E] dark:text-slate-300 font-medium">{currentUser?.name || "Operator"}</span>
+        <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-[#D1CEC7] dark:border-[#26344A]">
+          <span className="text-xs text-[#1A202E] dark:text-slate-300 font-medium font-sans">{currentUser?.name || "Operator"}</span>
           {currentUser?.role && <RoleBadge role={currentUser.role} />}
         </div>
 

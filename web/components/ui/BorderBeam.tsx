@@ -20,8 +20,8 @@ export function BorderBeam({
   duration = 12,
   borderWidth = 1.5,
   anchor = 90,
-  colorFrom = "#38BDF8", // Cyan
-  colorTo = "#818CF8",   // Indigo/Violet
+  colorFrom = "#D05A40", // Burnt-orange
+  colorTo = "#3A8A7F",   // Architectural Teal
   delay = 0,
 }: BorderBeamProps) {
   return (

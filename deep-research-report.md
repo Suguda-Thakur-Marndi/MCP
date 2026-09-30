@@ -1,255 +1,156 @@
-# Executive Summary
+# 1. Audit of Existing Codebase
 
-This report outlines a comprehensive plan for a complete production‑quality UI/UX redesign of the MCP‑Sentinel application using the six specified design resources (Taste Skill, No-Slop Design, Better Design, Aceternity UI, Magic UI, shadcn/ui). We start by creating a **route/component inventory template** to map all existing pages. We then define a **design system** (colors, typography, spacing, radii, shadows, motion) based on the desired “Architectural Intelligence” direction. We compare **3D implementation options** (React Three Fiber, CSS/HTML 3D, SVG/Canvas) and propose accessibility/performance fallbacks. We list **exact installation steps** for each design resource (with commands and verification checks) using Antigravity’s skill manager. A detailed **implementation plan** is given, with milestones, effort estimates, and verification tasks (including browser screenshots and tests). We also include a **forbidden-actions checklist** (no secrets, no destructive tests, preserve backend/auth). Finally, we provide a **ready-to-paste master prompt** (≤1200 words) that instructs Antigravity to inspect the repo, build the design system, implement the redesign in-place, run all checks, and produce deliverables.
+The MCP‑Sentinel project is a **Next.js 16/React 19** application using TypeScript, Tailwind CSS, Radix UI/shadcn-style components, Lucide icons, Recharts, TanStack Query, and Zod.  Its UI pages include dashboards, tables, forms, and dialogs.  The repository likely has an `.agents/skills/` folder containing installed agent design skills (e.g. **Taste Skill**, **No-Slop Design**, etc.) and configuration for the Better Design MCP if set up.  Before redesigning, ensure all existing routes, pages, and components are identified (e.g. Overview, Agent Runs, Tools, Approvals, Audit Logs, Security Evaluation, Policy Inspector, System Health, Settings, Auth, etc.), and that the backend, API clients, authentication flows, policies and security logic are preserved.  Verify that any installed design‑skills (like **taste-skill**, **no-slop-design**, **better-design** and **shadcn/ui** templates) are recognized by Antigravity and accessible to the agent.  
 
-All technical recommendations are supported by references to the official resources:
+**Key check:** Confirm current frontend dependencies (especially Tailwind config and any existing design tokens or styles) so the redesign builds on them rather than discarding them.  Do not remove or rewrite working features or security tests.  The goal is to re-skin and restructure the UI/UX, not rewrite the backend.  
 
-- **Taste Skill** (Leonxlnx/taste-skill) for frontend design guidance.  
-- **No-Slop Design** (agshinrajabov/no-slop-design) for research-driven style rules.  
-- **Better Design** (marvkr/better-design) for design tokens, system themes, and guidelines.  
-- **Aceternity UI** for 3D/viz components (peer-reviewed library).  
-- **Magic UI** for polished animated components.  
-- **shadcn/ui** for a solid accessible component foundation.  
+# 2. Design Resource Analysis
 
-<!-- We do not cite the private README here, but its requirements informed this plan. -->
+We will leverage **six open-source design resources** to guide the new UI/UX:
 
----
+- **Taste Skill (Leonxlnx/taste-skill)** – A “frontend taste” skill for AI agents. It enforces stronger **layout, typography, spacing, hierarchy,** and **motion**. It makes AI-generated UIs “feel real” by focusing on layout decisions, type scales, spacing rhythm, interaction polish, and visual hierarchy. We will use its principles to avoid generic layouts and ensure every design choice is intentional.
 
-## 1. Route & Component Inventory (Template)
+- **No-Slop Design (agshinrajabov/no-slop-design)** – An “anti-generic” design skill. It *researches before drawing*, creates a **real moodboard**, sets its own design tokens, and checks its work so it doesn’t repeat past designs. It combats “slop” (default Tailwind tutorial styles) by replacing defaults (purple gradients, generic cards, etc.) with deliberate brand‑driven decisions. We will use its workflow to define brand attributes, select reference designs, and enforce deliberate visual decisions at every step.
 
-Begin by auditing the existing MCP-Sentinel code to list all routes and key components. We suggest using a table like the one below. Antigravity can fill in actual component names and details from the repo:
+- **Better Design (marvkr/better-design)** – A design MCP server that provides design *context* to coding agents. It supplies **semantic design tokens, component code, UI principles, accessibility checks,** and visual-review rules. It includes dozens of curated design system themes (Stripe, Apple, etc.) so agents use real product colors, spacings, and typography instead of guessing. We will use Better Design to define token values (colors, spacing, fonts, etc.) and to run final accessibility and design consistency reviews.
 
-| Route/Path             | Page/Component               | Purpose / Data Display           |
-|------------------------|------------------------------|----------------------------------|
-| `/` or `/overview`     | **OverviewDashboard**        | Security posture, metrics, 3D hero visualization. |
-| `/agent-runs`          | **AgentRunsList**            | List of AI agent executions.     |
-| `/agent-runs/:id`      | **AgentRunDetail**           | Detailed timeline of a specific run (tools, policies, results). |
-| `/mcp-tools`           | **McpToolsList**             | Registered tool inventory.       |
-| `/mcp-tools/:id`       | **McpToolDetail**            | Tool schema, params, permissions, recent usage. |
-| `/approvals`           | **ApprovalQueueList**        | Pending, approved, rejected tickets. |
-| `/approvals/:id`       | **ApprovalDetail**           | Requesting agent, action details, approve/reject. |
-| `/audit-logs`          | **AuditLogsList**            | Security events log (timestamp, actor, outcome). |
-| `/audit-logs/:id`      | **AuditLogDetail**           | Full event details (correlation ID, payload). |
-| `/evaluation`          | **EvaluationDashboard**      | Security test runs, pass/fail stats. |
-| `/evaluation/:id`      | **EvaluationRunDetail**      | Individual test results, evidence. |
-| `/policy-inspector`    | **PolicyList**               | List of policy rules and status. |
-| `/policy-inspector/:id`| **PolicyDetail**             | Rule conditions, effect, version history. |
-| `/system-health`       | **SystemHealthDashboard**    | Service status, metrics, architecture map. |
-| `/settings`            | **SettingsPage**            | Profile, auth, roles, notifications, etc. |
-| `/login` or `/auth`    | **AuthPage**                | Google sign-in flow, error states. |
-| `*` (404)             | **NotFoundPage**             | 404 or Access Denied fallback.   |
+- **shadcn/ui (shadcn-ui/ui)** – A production-ready component library built with React/Tailwind. It offers **composable, accessible UI components** (tables, forms, dialogs, tabs, navigation, etc.) with thoughtful defaults. We will reuse shadcn/ui components as the foundation for the new UI (e.g. for forms, tables, dialogs, navigation), ensuring consistency and accessibility out of the box.
 
-*Table: Routes, components, and their purpose for MCP-Sentinel.*  
+- **Aceternity UI (ui.aceternity.com)** – A large library of **premium visual components**. It includes 200+ copy-paste blocks and effects: background animations, card transformations, parallax, 3D card effects, rotating marquees, dynamic text, etc. We will selectively use Aceternity UI’s 3D/perspective components and animated backgrounds (for example, “3D Card Effect” or “Background Beams”) on pages like the Overview dashboard, to give a high-quality, dimensional feel.
 
-Antigravity should use this template to verify existing pages and fill in any missing routes.
+- **Magic UI (magicui.design)** – A set of **150+ animated components and micro-interactions** built with React/Tailwind/Motion. It’s designed as a “perfect companion for shadcn/ui.” We will use Magic UI for subtle polished animations (hover effects, transitions, animated loaders, number counters, etc.) to add fine interaction details without overdoing it.
 
----
+Each tool has a specific role: **Taste Skill + No-Slop** guide the high-level design decisions and style (layout, spacing, brand tokens), **Better Design** provides token libraries and review tooling, **shadcn/ui** provides the base UI components, and **Aceternity/Magic UI** provide the eye-catching 3D visuals and animations. Using all together ensures the result feels cohesive, intentional, and polished, not a mishmash of styles.
 
-## 2. Design Tokens (Prioritized List)
+# 3. Cohesive Design System & 3D Visual Language
 
-Define a shared design system before coding. Below is a proposed token set reflecting the **“Architectural Intelligence”** theme (warm neutrals, graphite text, bold accent). Adjust values as needed:
+## 3.1 Visual Identity: “Architectural Intelligence”
 
-| Token            | Example Value      | Usage                             |
-|------------------|--------------------|-----------------------------------|
-| **Colors**       |                    |                                   |
-| `color-bg-primary`    | `#F5F4F0` (soft ivory)  | Main app background.        |
-| `color-bg-secondary`  | `#E2DFDA` (stone gray)   | Card/panel backgrounds.    |
-| `color-text-primary`  | `#1E1E1E` (graphite)    | Main body text.           |
-| `color-text-secondary`| `#4A4A4A` (charcoal)    | Secondary/placeholder text.|
-| `color-accent`        | `#D95E00` (burnt orange)| Primary accent/buttons.    |
-| `color-accent-2`      | `#0A7A75` (teal)       | Secondary accent (success) |
-| `color-warning`       | `#E88D00` (amber)      | Warning states.            |
-| `color-danger`        | `#B71C1C` (deep red)   | Critical alerts.           |
-| `color-border`        | `#CCCCCC` (light gray) | Border lines/dividers.     |
-| **Typography**   |                    |                                   |
-| `font-family-sans`    | `Inter, sans-serif`    | Body and UI text.          |
-| `font-family-heading` | `GT Eesti Display`     | Display headings (if licensed). |
-| `font-size-base`      | `1rem` (16px)         | Base text size.            |
-| `font-size-lg`        | `1.25rem` (20px)      | Section headings.         |
-| `font-size-xl`        | `1.5rem` (24px)      | Page titles.              |
-| `font-weight-normal`  | `400`                | Standard text weight.     |
-| `font-weight-bold`    | `700`                | Headings/buttons.         |
-| **Spacing**      |                    |                                   |
-| `space-xs`           | `4px`                 | Small gaps, icon margins.  |
-| `space-sm`           | `8px`                 | Between controls/text.    |
-| `space-md`           | `16px`                | Padding in cards/forms.   |
-| `space-lg`           | `24px`                | Section padding.          |
-| `space-xl`           | `32px`                | Page margins/large gaps.  |
-| **Radii**        |                    |                                   |
-| `radius-sm`          | `4px`                 | Small border radius.      |
-| `radius-md`          | `8px`                 | Default border radius.    |
-| `radius-lg`          | `16px`                | For large cards/dialogs.  |
-| **Shadows**      |                    |                                   |
-| `shadow-sm`         | `0 1px 4px rgba(0,0,0,0.1)` | Light raised border. |
-| `shadow-md`         | `0 4px 8px rgba(0,0,0,0,0.1)` | Moderate depth card. |
-| `shadow-lg`         | `0 8px 16px rgba(0,0,0,0.15)` | Big lift effect.  |
-| **Motion**       |                    |                                   |
-| `motion-fast`        | `150ms ease-in-out`   | Hover/press transitions.  |
-| `motion-medium`      | `300ms ease-in-out`   | Modal/dialog open.        |
-| `motion-slow`        | `500ms ease`          | Page transitions.        |
+We are creating a **new visual theme** for MCP-Sentinel, **not a recolor of the old style**. The guiding concept is *“Architectural Intelligence”* – a precise, editorial, high-end security platform. Key elements:
 
-*Table: Proposed design token categories and values.*
+- **Color palette (new brand tokens):** Warm **off-white/ivory** backgrounds (#F8F6F0), crisp **ink black/graphite** text (#1A202E), and deep **slate-gray** surfaces (#2D2F36). A **burnt-orange** accent (#D05A40) for primary highlights. A desaturated **teal/green** (#3A8A7F) for success states. Use **amber/yellow** (#E3A03E) sparingly for warnings. Reserve **rich red** (#D64541) for critical threats. These will be defined as semantic tokens (e.g. `--color-bg`, `--color-text`, `--color-primary-accent`, etc.) as per Better Design’s structure.
 
-We prioritize semantic tokens (e.g. `color-bg-primary`, `font-size-base`) for consistency. All components will use these tokens via Tailwind config or CSS variables. For example, Better Design’s installation example suggests using its themes via shadcn registration, but here we define our own scheme suited to MCP‑Sentinel’s brand. 
+- **Typography:** Choose a refined **serif** for headings and a clean **sans-serif** for body. For example, an editorial serif (like *DM Serif Display* or *Playfair Display*) for large titles, paired with a modern sans (like *Inter* or *Roboto*) for text. Use a **monospace** (like *JetBrains Mono* or *Roboto Mono*) for code, IDs, and technical text. Define a consistent type scale (e.g. 48px, 36px, 24px, 18px, 16px, 14px) for Headings H1–H4 and body variants. These font choices become tokens in CSS.
 
----
+- **Spacing & Layout:** Establish a spacing scale (e.g. 4px base, with units at 8px, 16px, 24px, 32px, 48px, 64px, etc.). Use consistent gutters and margins so that content aligns. Avoid arbitrary card sizes; rely on flexible grids or flex layouts. Use **horizontal and vertical rhythm** so headings and paragraphs line up (a Taste Skill principle). Leave generous whitespace in overview and detail pages for clarity, but maintain higher density in data tables and logs for efficiency.
 
-## 3. 3D Visualization Options
+- **Surfaces & Depth:** Use subtle elevation – thin borders (#444753) and soft shadows for active panels. Consider occasional glassmorphism (semi-transparent frosted layers) for overlays. Apply a unified lighting style: imagine the UI as physical surfaces lit from above, with soft shadows. This will harmonize any 3D elements we add.
 
-We plan to include a professional 3D “Security Machine” visualization on the Overview page, but must choose a lightweight approach with fallbacks:
+- **Iconography & Elements:** Use consistent Lucide icons or those provided by shadcn/ui. Don’t mix emoji or unrelated styles. Icons and badges use semantic coloring (e.g. teal checkmark for success, red cross for error, amber exclamation for caution).
 
-- **React Three Fiber (Three.js):** Full 3D engine in React. *Pros:* Highly flexible; many effects (lighting, physics). *Cons:* Large bundle (~1MB+), requires WebGL support, not SEO/ARIA-friendly (needs alternative content). Performance may suffer on low-end devices. Fallback: static image or CSS alternative when `prefers-reduced-motion` or no WebGL.  
-- **SVG + CSS 3D Transforms:** Uses HTML/SVG elements with 3D transforms. *Pros:* Lightweight, all browsers support CSS3; inherently accessible (DOM structure). *Cons:* Limited to simpler shapes and interactions; no true WebGL-level effects (like real shading).  
-- **Canvas (2D) / WebGL:** Direct use of `<canvas>` or WebGL without React. *Pros:* High performance for custom GPU scenes. *Cons:* No DOM nodes (accessibility barriers), manual work, heavy for complex scenes. Requires alt text fallback.  
-- **Hybrid (Canvas + CSS):** Render 3D to a canvas and overlay HTML UI. *Pros:* Offloads intensive parts to GPU. *Cons:* Same accessibility issues.  
+All design tokens (colors, fonts, spacing, radii, etc.) must be declared up front (for example via CSS variables or Tailwind config) so the MCP server can supply them to the agent (Better Design’s MCP can load semantic tokens). This ensures consistency. 
 
-**Recommendation:** Use **React Three Fiber** for the centerpiece if high customization is needed, but keep the scene very simple. Alternatively, use **CSS/SVG** for a scalable “architectural” model: e.g. layered boxes and lines. If using R3F, include logic to hide/replace it on mobile or when WebGL is unavailable. Always respect `prefers-reduced-motion`. Provide a *static image or minimal CSS fallback* (e.g. simplified 2D version) for accessibility. 
+## 3.2 3D Visual Concept: “The Security Machine”
 
-*No authoritative source directly compares these in one place*, but general 3D guidance suggests WebGL-heavy solutions require careful fallbacks. For example, React Three Fiber docs note it “renders using WebGL” (bundle size concern), whereas CSS transforms (MDN) degrade gracefully in all browsers and are GPU-accelerated. 
+Instead of the old neon shield, our **3D hero element** will be a bespoke “Security Machine” – a dimensional, architectural assembly implying a core and its connections. Imagine a central, stylized mainframe node with interlocking metal plates, glass orbs, and wiring, with smaller agent/tool nodes connected by glowing cables. The style should evoke *precision-engineered hardware*, with:
 
----
+- **Materials:** Matte dark metal plates, brushed steel edges, occasional semi-transparent glass panels. Avoid glossy neon; use **controlled glowing accents** (the burnt-orange accent color can glow as power lines, and teal pulses for safe links).
 
-## 4. Install & Verify Design Skills
+- **Lighting:** Dramatic but soft. Highlights along edges, subtle ambient occlusion in gaps. Possibly a gentle ambient glow behind the machine to give depth.
 
-Use Antigravity’s skill installer (`npx skills add`) and recommended steps from each repo.
+- **Animation:** Very subtle movement – e.g. slow pulsation, a rotating piece, or flowing light along cables. Use Magic UI for these smooth micro-animations. Obey `prefers-reduced-motion`: no critical information conveyed only via animation.
 
-1. **Taste Skill (Front-end design):**  
-   ```bash
-   npx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"
-   ```  
-   This installs the latest v2 frontend design skill. Expected: a `.agents/skills/taste-skill` folder with its SKILL.md. Verify by checking that `design-taste-frontend` appears in Antigravity’s Skills panel. If install fails, ensure the repo URL is correct and that `npx skills` CLI is updated. (See README.)  
+- **Fallback:** Provide a simplified static SVG or CSS fallback if WebGL is unavailable. (Aceternity UI may provide React 3D card components that we can adapt.)
 
-2. **No-Slop Design (AI art director):**  
-   ```bash
-   git clone https://github.com/agshinrajabov/no-slop-design .agents/skills/no-slop-design
-   ```  
-   (Alternatively `npx skills add https://github.com/agshinrajabov/no-slop-design` if supported.) The repo instructions show using `git clone` for non-Claude agents. Expected: SKILL.md in `.agents/skills/no-slop-design`. Verify that Antigravity lists a “no-slop-design” skill. If missing, check clone path and that Python 3.9+ is available (the skill uses local Chrome for moodboard).  
+This 3D motif will primarily appear on the **Overview dashboard** (as a signature centerpiece) and perhaps as small decorative elements on e.g. the Authentication page. Other pages will be more conventional (tables, forms) so the 3D is special and memorable. Every element of the machine must feel intentional and functional (even if abstract) – a Zen blend of art and security tech.
 
-3. **Better Design (Design system MCP):**  
-   ```bash
-   npx skills add marvkr/better-design --skill better-design
-   npx better-design
-   ```  
-   This installs the design MCP and its CLI. On running `npx better-design`, it should connect to the MCP. Verify by confirming the endpoint is logged and/or by asking Antigravity to “use better-design” in a test prompt. Failure modes: no output could mean missing Node.js or network issues.  
+# 4. Page-by-Page UI/UX Redesign
 
-4. **Aceternity UI (3D/visual components):**  
-   - Inspect components on [Aceternity UI site](https://ui.aceternity.com) and add only needed ones to the project (e.g., via `npm install @aceternity/ui` if a package exists, or copy relevant SKILL.md). No single CLI command is given; treat it as a library to import in React code. Verify by ensuring imported components render.  
+Using the above design system, redesign each existing page:
 
-5. **Magic UI (Animations):**  
-   - Add `magic-ui` components as needed (likely via `npm install @magicui/magicui` or similar). Their docs at [magicui.design](https://magicui.design/docs) explain usage. No Antigravity skill install; simply ensure `magicui` is in `package.json`. Verify by including a Magic UI example component.  
+- **Overview Dashboard:** As the signature screen, use an **asymmetric editorial layout**. Left side: a large title (e.g. “Security Posture: Operational”) in the serif display font, a short status message, and a primary “Investigate Issues” button in burnt-orange. Below that, key metrics (Active Runs, Pending Approvals, Blocked Actions) in clean metric cards or icon-stat panels using our color tokens. Right side: place the 3D “Security Machine” hero. Ensure the machine is clearly scaled to not crowd the metrics. Below the hero, a timeline or charts of recent activity (e.g. a compact bar chart of events, sparkline for policy violations). All text is in our sans-serif body font with appropriate contrast. Use the Better Design principle “hierarchy” and “spacing” to guide placement.
 
-6. **shadcn/ui (Component library):**  
-   - If not already installed, add with: `npx create-shadcn@latest` or ensure it’s part of the Next.js setup. The Better Design docs show installing components via `npx shadcn add <URL>`. Verify by checking the `.tailwind` and component files are present.  
+- **Agent Runs Page:** A dense, filterable table of agent executions. Filters at top (search, date range, status dropdown). Table columns: Run ID (monospace), Agent Name, Start Time, Duration, Tool Count, Status (with color badge), Risk Level (teal/amber/red badge), Outcome. Use shadcn/ui Table component. Each row hover highlights slightly. Selecting a row opens a **detail drawer** or panel. In the detail: show run metadata (agent, times, status) and a **vertical execution timeline**. For timeline steps (tool requests, policy checks, approvals, final outcome) use a neutral line with colored dots (green for success, red for blocked). Each event has icon+label. Keep styling minimalistic (no redundant lines of code). Only use 3D or animations subtly (e.g. a small tool icon shaking if a tool was blocked). Use Magic UI for hover effects or expanding events.
 
-For each, record the success or errors. The citations confirm recommended install commands for Taste, No-Slop, and Better Design. If any repo is inaccessible, note it as a blocker.
+- **MCP Tools Page:** A registry table of tools. Columns: Tool Name, Description, Server, Environment, Risk (e.g. “High”, “Low” with color-coded dot), Permission (Read/Write/Destructive), Status (Enabled/Disabled). Filters: by server or risk. Row detail view: show the tool’s JSON schema or fields (rendered nicely), permissions panel, and recent invocation history. Use monospace for schema fragments. Visual cue (e.g. a warning icon) if it’s destructive. If the backend supports editing, include a form with labeled inputs to update tool config – use shadcn/forms. Validate inputs per schema. All elements should reuse tokens (fields, labels aligned, help text) following Better Design spacing rules. No extraneous 3D here – just a clean interface.
 
----
+- **Approval Queue:** A **master-detail workflow**. Left: a list/table of pending requests with columns (Agent, Action, Target, Risk, Requested At). Color-coded risk (amber for elevated, red for critical). Include badges for Expired or Consumed requests. Right: when selecting an approval, show detailed view: who requested it (icon + name), full action description (e.g. “Delete customer record #123”), target resource link, policy rule that triggered it, risk explanation, and any context (e.g. customer data). Emphasize the action (e.g. in a bordered box). At bottom, prominent “Approve” and “Reject” buttons (burnt-orange for Approve, red for Reject), each opening a **confirmation dialog**. In the dialog, restate exactly what will happen (so user double-checks) and require one more click. Use Magic UI for subtle transitions of the dialog. Show loading/spinner on submission, then either success toast or error. Never auto-complete without backend response. If backend says “expired” first, show an error state. This page needs clarity above all.
 
-## 5. Implementation Plan & Milestones
+- **Audit Logs:** A searchable, filterable log table. Columns: Timestamp, Actor, Action, Resource, Outcome, Severity, Correlation ID. Actor and Resource names are links if possible. Outcomes use color dots (green/red). Provide a text search and filters for date range, actor, severity. On selecting an event, open a slide-over drawer with event details: full JSON or structured fields (rendered as a key/value list), including correlation and request IDs (with copy buttons), and any policy or decision info. Tables and text use monospace where needed (IDs). Use shadcn/table and shadcn/drawer. Ensure logs are easy to scan; do not overload with UI decoration. This page is utility-first: prioritize legibility.
 
-We break the work into phases. Estimated effort (experienced engineer):
+- **Security Evaluation:** A results dashboard for automated tests. Top shows current evaluation summary: total tests, passed (teal), failed (red), skipped (gray), last run time, duration. If a run is in progress, show a progress bar or spinner. Below, chart the pass/fail trend over time (if history exists) or a pie chart of categories. A table lists test cases: Name, Category, Severity, Expected vs. Actual result (monospace snippets), Status. Allow filtering by category or status. Use colors carefully (green for pass, red for fail). Each row can expand to show details/evidence (like logs or diff) using a sliding panel. Do NOT hardcode fake results – only display actual output from backend. The tone is technical: use fixed-width for code samples, crisp contrast, no decorative fluff.
 
-| Phase                                  | Tasks                                                     | Est. Effort | Verification                       |
-|----------------------------------------|-----------------------------------------------------------|-------------|-------------------------------------|
-| **1. Repo Audit & Token Setup**        | Inspect all routes/components; set up design tokens.      | 4h          | Completed route table; CSS vars set.|
-| **2. Skill Installation**              | Install and verify all 6 resources (above).               | 2h          | Skills registered; test prompts.     |
-| **3. Design System Coding**            | Add color/typography/spacing tokens (Tailwind).           | 4h          | Styles compile; color palette valid. |
-| **4. Base Layout & Shell**             | Build new sidebar, header, shell using shadcn/ui tokens.  | 6h          | UI renders; navigation works.       |
-| **5. 3D Visualization Prototype**      | Implement chosen 3D element (or CSS fallback).            | 6h          | Overview shows 3D graphic/snapshot.   |
-| **6. Page Redesign**                   | Redesign each page (overview, runs, tools, approvals, etc.).  | 20h (≈2.5 days)  | Screenshots of each; functionality. |
-| **7. Component Refinement**            | Reuse/clean up reusable components (tables, dialogs, etc.). | 4h         | No style regressions; components re-used. |
-| **8. Responsive & Accessibility**      | Test/adapt layouts for tablet/mobile; ensure a11y.         | 4h          | Manual mobile tests; lint/a11y pass. |
-| **9. Testing & Bugfixes**              | Run full test suite, fix any regressions.                 | 3h          | All tests pass; no console errors.   |
-| **10. Documentation & Delivery**       | Update README/CLEANUP-REPORT.md/UI-REPORT.md.             | 3h          | New docs committed; change log ready.|
+- **Policy Inspector:** Show the active security policy rules. Top: policy meta (version, updated date). List of rules: each row (Rule ID, Description, Effect, Enabled). Clicking a rule shows details: human summary, condition expression (in readable code block), affected tools/resources, roles. Include an “Evaluate Sample” tool: allow entering a sample action to see which rules match. If editing is supported, provide a side-by-side editor (markdown or form) with save. Use shadcn/code-block or markdown display for rule expressions. Highlight matched rules in search. Keep page text-heavy but clearly grouped with headings and subtle dividers.
 
-*Table: High-level milestones with time and checks.*
+- **System Health:** Dashboard of backend services. Use cards or a table: Service Name, Status (Healthy/Degraded/Down), Last checked, Latency, Error Rate. Use color-coded badges (green, amber, red). Show a small line chart for e.g. latency over time per service. If applicable, include a simple 3D/diagram: e.g. a minimal node graph of the services (API → MCP → DB → Agents), with status color at each node. Or at least a list/grid of services with status icons. Ensure any graphics are annotated (e.g. tooltips). Distinguish “unknown” (gray) vs “healthy” (green). Display any recent incidents or alerts in a list. This is an ops page: clarity and up-to-date data are key.
 
-```mermaid
-timeline
-    title UX Redesign Timeline (Oct 2026)
-    2026-10-01 : Audit + Tokens : 1d
-    2026-10-02 : Install Skills : 0.5d
-    2026-10-02 : Build Design System : 0.5d
-    2026-10-03 : Layout & Shell : 1d
-    2026-10-04 : 3D Visual Prototype : 1d
-    2026-10-05 : Pages Redesign (multi-day) : 2.5d
-    2026-10-08 : Components Refinement : 0.5d
-    2026-10-08 : Responsive/A11y : 0.5d
-    2026-10-09 : Testing & Fixes : 0.5d
-    2026-10-10 : Final Docs & Delivery : 0.5d
-```
+- **Settings:** Use a tabbed or accordion layout for different sections (Profile, Authentication, Team, Notifications, etc.). Forms must follow a uniform style: left-aligned labels, consistent spacing, primary Save button (orange) and Cancel. On save, validate and show error messages inline. If user lacks permissions for a section, disable inputs and show a tooltip. Do not expose any secrets or tokens in plaintext.
 
-In practice, the **pages redesign** phase may be the bulk of work (20h). Each page must be verified: open in browser, check data, interactions (buttons, filters, dialogs), and capture screenshots. Run lint, type-check, unit/integration tests after changes. For example, after redesign, **capture before/after** screenshots of key pages (Overview, Approval, Audit, etc.) to include in `UI-REPORT.md`. 
+- **Authentication (Sign-in):** A clean two-panel layout. Left: MCP-Sentinel logo/branding, a brief tagline (e.g. “Secure AI Agent Operations Platform”), and a **subtle 3D illustration** (e.g. a minimalist lock or network node cluster) inspired by the new design language. Right: sign-in form (or just a “Continue with Google” button if OIDC), with concise text. Use our serif display for the page title, sans for form text. Background might use a gentle gradient or texture in brand colors. Include standard states: loading spinner on login, error message on failure. No unnecessary fields – it should match the existing OAuth flow exactly.
 
-Verification checks include:
+For **all pages**, apply the new tokens, typography and spacing consistently. Use Taste Skill and Better Design principles (hierarchy, spacing, accessible contrast) to guide detailed layout decisions. Avoid generic hero images or AI stock photos – our pages are tool surfaces, not marketing landing pages. Use real data or clearly labeled test data. Ensure color is never the only cue (e.g. accompany red text with a “✖” icon for failures).
 
-- **Browser QA:** Load each route (desktop/tablet/mobile widths), verify actual data loads, UI alignment, accessible semantics, no console/network errors.  
-- **Automated tests:** Run `npm run lint`, `npm run type-check`, unit/integration tests. Do not remove or disable failing tests; fix issues.  
-- **Security**: Ensure Google OAuth still works (if environment available), and that all existing API calls (Auth, backend, database migrations) are intact.  
+# 5. Reusable Component Strategy
 
-If any breaking change occurs (e.g. an unreachable route), debug it immediately or revert that change. 
+Build a consistent component library (using shadcn/ui where possible):
 
----
+- **AppShell:** Sidebar/Nav, Topbar, Breadcrumbs, PageHeader.
+- **Layouts:** DashboardGrid, MasterDetail, SettingsGrid.
+- **Controls:** FormInput, Select, Button (primary/secondary/destructive), Toggle, Tab, Dropdown, Tooltip, Dialog, Drawer, Toast.
+- **Data Display:** Table, Pagination, FilterBar, SearchInput, Badge/StatusIndicator, CodeBlock, JSONViewer, Chart (via Recharts or a UI wrapper), EmptyState, LoadingSkeleton, ErrorState.
+- **Security Widgets:** RiskBadge (color-coded), SecurityTimeline, AgentBadge, DeviceNode (for system map).
 
-## 6. Forbidden Actions & Safety Constraints
+Each should use the design tokens (colors, font-sizes, spacing, radius) defined above. For example, define `radius-sm`, `radius-md`, `radius-lg`, and use them consistently. These components should be implemented in the existing Tailwind/CSS-in-JS (as per project) so they can be reused on every page.
 
-- **No Secrets or Credentials:** Never expose API keys, `.env`, client secrets, or user data in code, docs, or screenshots. If any are found, mark them as “rotate needed” and remove before commit.  
-- **No Production Destructive Testing:** Do *not* execute destructive operations (like real approvals or database resets) on production or live data. Use a test environment or mocks.  
-- **Preserve Auth & Backend:** Do not disable or mock Google OAuth; do not remove real API endpoints. All real interactions (login, data fetches, approval requests) must continue to work. Frontend should not hardcode “fake” success; show real API responses.  
-- **Do Not Trust Frontend for Security:** The UI redesign should not change any RBAC/ABAC logic. Do not add/remove admin-only buttons in the UI alone.  
-- **No New Features Beyond UI/UX:** The task is strictly redesign; do not implement new backend logic (e.g. new API calls). Do not introduce fake content (e.g. pretend data in charts). Only display actual data or controlled test fixtures.  
+# 6. Final Antigravity Prompt and Checklist
 
-This list should be enforced by the agent at all steps. 
+Below is the **complete prompt** to give to Antigravity. It encapsulates the above design system and page-by-page instructions. It also reminds Antigravity of the functional requirements and existing features to preserve. After the prompt, follow with an implementation checklist for verification.
 
----
+```plaintext
+# MCP-Sentinel — Complete Premium UI/UX Redesign (Architectural Intelligence theme)
 
-## 7. Master Antigravity Prompt
+You are a **senior product design team**. Transform the existing MCP-Sentinel frontend into a cohesive, production-grade **cybersecurity platform** with a distinctive “Architectural Intelligence” UI. This means a new, intentional visual identity — not a quick recolor of the old dashboard. 
 
-Below is a copy-and-paste prompt for Antigravity (or any capable coding agent). It tells the agent to perform the entire UI/UX overhaul **in the existing codebase**, using the six specified design resources, and to verify everything rigorously:
+- **Maintain all existing functionality.** Do not remove or break any routes, APIs, or security logic. Google OAuth, Gemini API integration, LangGraph agents, policy enforcement, and approval workflows must continue working. This is a visual/UX overhaul only.
+- **Use the existing tech stack.** Keep Next.js, TypeScript, Tailwind, Radix/shadcn components, and the backend unchanged. Do not introduce unrelated frameworks.
+- **Leverage design skills:** Use the installed Taste Skill, No-Slop Design, Better Design, shadcn/ui components, Aceternity UI, and Magic UI *appropriately* to guide and implement the redesign.
+- **Design system:** Define new design tokens (colors, fonts, spacing, radii, shadows, motion). Implement a dark-first yet warm palette (off-white backgrounds, burnt-orange accent, desaturated teal for success, red for critical, etc.). Use editorial serif headers and a clean sans serif body. Consistent spacing scale and subtle depth everywhere.
+- **Global layout:** Build a refined application shell with a compact left navigation (logo + logical sections) and a top bar (breadcrumbs, title, search, user menu). Navigation icons and active states should be clear and accessible.
+- **3D centerpiece:** Create a custom 3D “Security Machine” for the Overview page. It should look like a precision-engineered core with connected nodes. Subtle lighting and animation (pulses, slow rotations) are allowed. Provide a static fallback. Use Aceternity UI for components and Magic UI for animations if needed.
+- **Page-specific UI:**
+
+  - **Overview:** Asymmetric dashboard with a prominent 3D hero and clear security metrics (active runs, pending approvals, threats). Use minimal, well-aligned cards and charts. No fake data or meaningless charts.
+  
+  - **Agent Runs:** Dense table of executions (ID, agent, status, risk, etc.). Include filters and search. On click, show a detail pane with a timeline of events. Use visual markers for successes/failures.
+  
+  - **MCP Tools:** Registry table (tool, server, risk, permissions). Detail view shows schema and history. If editing is supported, show a form with validation. Highlight destructive tools with warning styles.
+  
+  - **Approval Queue:** Master-detail review interface. List pending requests with risk badges. Detail panel explains *who* requests *what* on *which resource* and *why*. “Approve” and “Reject” buttons must confirm with the user before sending. Show submission status and errors. Ensure expiration logic is handled by backend, not the UI.
+  
+  - **Audit Logs:** Searchable/filterable event log. Columns (timestamp, actor, action, resource, outcome, severity, ID). On row click, slide in an event detail drawer showing structured info and IDs. Allow copying IDs. Use monospace for technical fields.
+  
+  - **Security Evaluation:** Show evaluation runs and results. Display pass/fail counts (no fabricated success rate). Table of test cases with categories and outcomes. Allow expanding a test for details and logs. Use charts (bar or pie) to summarize severity distribution. Ensure text alternatives for any diagrams.
+  
+  - **Policy Inspector:** List of policy rules with summary. Clicking a rule shows conditions and scope in readable form. If backend allows, enable editing with validation. Clearly separate viewing vs editing modes. Provide a way to simulate a policy decision (if supported) but mark it as “demo”.
+  
+  - **System Health:** Display health of services (Frontend, API, MCP server, DB, etc.). Use colored status badges (green/amber/red/gray). Show simple charts for latency or error rate if available. Optionally present an infrastructure diagram in our new 3D style. Show any recent incidents or alerts.
+  
+  - **Settings/Users:** Rebuild settings screens with tabs or sections. Use consistent form layout and validation. Only show settings that backend supports. Don’t display secrets. Include profile info and sign-out.
+  
+  - **Authentication:** Redesign the login page in our theme. Use the serif font for branding text, a subtle 3D/illustration (like a stylized lock or node), and a clear Google sign‑in button. Handle loading and error states. Do not change the actual OAuth flow or tokens.
+  
+- **Components and Interactions:** Create reusable components per our design system (MetricCard, DataTable, FilterBar, StatusBadge, Timeline, Dialogs, etc.). Use shadcn/ui for accessible basics, and style them with our tokens. Implement hover/focus/active states for all buttons and interactive elements. Use Magic UI for selected micro-animations (button ripple, loading spinner, subtle number counters, etc.). Ensure reduced-motion compliance.
+- **Responsiveness:** The redesign must work on all viewports. Desktop: full sidebar and multi-column layouts. Tablet: collapsible sidebar, rearranged grids. Mobile: a mobile menu, stacked content, readable tables (allow horizontal scroll if needed), and touch-friendly targets. Check every page in a browser.
+- **Accessibility:** Adhere to WCAG guidelines. Use semantic HTML and ARIA where needed. Ensure contrast meets standards. Provide text labels/icons for color indications. Include focus outlines. Use Better Design’s review rules (via MCP if possible) to catch any issues.
+- **Verification:** After implementation, run the build and all tests. Use real backend data; do not hardcode data to “make it work.” Fix any console errors. Prepare screenshots of each redesigned page. 
+
+**Important:** Antigravity should preserve the existing project logic. The output is a real implementation, not a mockup. The goal is a seamless, fully functional, and visually polished update that reflects professional product design, using the design system and resources above.
 
 ```
-# MCP-Sentinel UI/UX Redesign — Master Prompt
 
-You are a senior product designer and frontend engineer. Redesign the existing MCP-Sentinel app into a premium, production-grade cybersecurity UI. Use the six provided resources: Taste Skill, No-Slop Design, Better Design, Aceternity UI, Magic UI, and shadcn/ui.
+**Implementation Checklist:**  
+- [ ] **Installed Skills:** Verify Taste Skill, No-Slop, Better Design, MagicUI, Aceternity UI, shadcn/ui are available.  
+- [ ] **Design Tokens:** Confirm new color, typography, spacing tokens are set (e.g. via CSS vars or Tailwind config).  
+- [ ] **Layout Update:** Apply new AppShell (sidebar, topbar, etc.) across all pages.  
+- [ ] **All Pages Redesigned:** Ensure Overview, Agent Runs, Tools, Approvals, Audit, Evaluation, Policy, Health, Settings, Auth, and any others use the new styles and layout.  
+- [ ] **Reusable Components:** Refactor or create common components (tables, forms, cards, badges, dialogs) with the new design tokens.  
+- [ ] **3D Visuals:** Integrate the 3D “Security Machine” on the Overview page. Use Aceternity/Magic UI components as needed. Provide static fallback.  
+- [ ] **Animations:** Add subtle Magic UI transitions (hover effects, loading, modals).  
+- [ ] **Data Integration:** Check each page loads real data. API calls should work, and pages should not appear empty or “fake.”  
+- [ ] **Forms & Actions:** Test all interactive workflows (search, filters, form submissions, navigation, OAuth sign-in, approval actions) in the actual app.  
+- [ ] **Accessibility Audit:** Use tools or Better Design review rules to check contrast, focus, and semantics. Address any issues.  
+- [ ] **Responsive Testing:** Manually test layouts on tablet and mobile breakpoints. Fix overflow or layout bugs.  
+- [ ] **Build & Tests:** Run `npm run build`, lint, type checks, and any existing test suites. Ensure no regressions.  
+- [ ] **Screenshots & Review:** Capture final screenshots of each page (desktop & mobile). Compare to design goals. Confirm no “generic AI” look remains.  
 
-1. **Inspect the repo:** List all routes/pages/components. Fill a table of URL paths, component names, and their purpose. Preserve all working functionality (API, auth, tests). Identify pages to redesign (e.g. overview, runs, tools, approvals, audit, evaluation, policy, health, settings, auth).
-
-2. **Install design tools:** Use `npx skills add` or `git clone` to install:  
-   - Taste Skill (design-taste-frontend).  
-   - No-Slop Design (clone to `.agents/skills/no-slop-design`).  
-   - Better Design (`npx skills add marvkr/better-design --skill better-design` and `npx better-design`).  
-   Ensure each skill/CLI is available. Verify the Better Design MCP is connected.
-
-3. **Define Design System:** Based on “Architectural Intelligence”, create reusable tokens for colors, typography, spacing, radii, shadows, and motion (see table above). Use warm off-white and stone backgrounds, graphite text, burnt-orange accent, teal success, amber warning, red danger. Example: `color-bg-primary: #F5F4F0; color-text-primary: #1E1E1E; color-accent: #D95E00; space-md: 16px;`. (No generic neon gradients.) Implement them in Tailwind or CSS.
-
-4. **Apply No-Slop & Taste principles:** Follow the No-Slop design checklist and Taste Skill guidance to avoid AI-slop patterns. Each UI decision must be *purposeful*. For example, pick a clear typography hierarchy, use consistent spacing (no random gaps), purposeful imagery. Use Better Design tools to review spacing and accessibilty rules as needed.
-
-5. **Implement new shell/layout:** Using shadcn/ui components and custom styles: build a compact sidebar and topbar. Include product logo, navigation (Overview, Agent Runs, Tools, Approvals, Audit, Evaluation, Policies, Health, Settings). Use proper active indicators. Make the layout responsive (sidebar collapsible, mobile nav).
-
-6. **Integrate 3D Security Visual:** On the Overview page, create a 3D “security machine” visualization. Choose an approach: React Three Fiber (Three.js) or CSS/SVG transforms. Ensure it matches the architectural style (floating panels, control core, subtle lighting). Provide a static fallback (e.g. simplified SVG) when WebGL or motion is disabled. Keep the visualization subtle and non-distracting (professional level, not cartoonish).
-
-7. **Redesign each page:** For *every* existing page/route (overview, agent runs, tool registry, approvals, audit logs, evaluation, policy inspector, system health, settings, auth, etc.):
-   - Apply the new color, typography, and spacing tokens.
-   - Structure content in deliberate layouts: e.g. Overview as editorial two-column (metrics + 3D), Agent Runs as dense table + timeline, Approvals as clear master-detail, Audit as filterable log table, etc.
-   - Use shadcn/ui for forms, tables, dialogs, toasts, badges (see shadcn components library).
-   - Use Magic UI components for subtle animations (e.g. hover glows, loading indicators, number count-up).
-   - Use Aceternity UI only for selected 3D/animated effects (e.g. cards with perspective, ambient effects).  
-   - Ensure consistent card styles: subtle shadows, no oversized rounded shapes, clear headings.
-
-8. **Preserve functionality:** Do not hardcode dummy data or disable real calls. All API integrations (Auth, backend endpoints, database) must remain intact. Approval buttons should still call the backend. Do not introduce fake login or fake success. Maintain role-based UI behavior (no unauthorized menu items).
-
-9. **Accessibility & responsive:** Ensure semantic HTML and ARIA where needed. Keyboard navigation and focus states must work. Contrast must be high. Support `prefers-reduced-motion` (disable or simplify animations). Test and adapt layouts for tablet and mobile screens (stack content, collapse menus, avoid overflow).
-
-10. **Verify and iterate:** After changes, run the app:
-    - **Browser QA:** Open each route, test interactions (search, filters, dialogs, modals). Look for misalignment or overflow. Capture screenshots of each redesigned page (desktop and mobile).
-    - **Automated tests:** Run `npm run lint`, `type-check`, unit/integration tests, and production build. Fix any new errors without disabling tests.  
-    - Ensure Google OAuth login still works (if environment allows). Do not expose tokens/URLs in UI or logs.
-
-11. **Documentation:** Update `README.md` with any file path changes. Create `CLEANUP-REPORT.md` noting removed obsolete files. Create `UI-REPORT.md` with before/after design screenshots and test results. Prepare a list of changed files.
-
-**Important Safety:** Do **not** expose any credentials or secrets. Do **not** perform destructive actions on production data. Preserve all existing security logic. Do **not** let generic AI-slop patterns creep back. Work incrementally: complete one page at a time, then test, then move on.
-
-Begin by inspecting the repository and route inventory. Then implement the new design system and layouts as above. Do not stop after the dashboard: complete *every* page to the new standard, testing each. The final deliverable should feel like a meticulously designed enterprise product built by skilled humans, not a generic template. 
-```
-
-**Final Note:** The plan and prompt incorporate best practices from Taste Skill, No-Slop, Better Design, etc. The actual redesign should emphasize a new, “architectural” identity (warm neutrals, bold accent, precise layout) while preserving MCP-Sentinel’s core functionality. All instructions are based on the official docs of the six design resources to ensure correct usage. Adjust any values or steps if a resource cannot be installed (note it explicitly). The result should be a coherent, polished UI/UX with thorough testing and documentation.
+By following this prompt and checklist, the MCP-Sentinel UI will be transformed into a cohesive, professional security dashboard with a custom 3D visual identity, while preserving all functional behavior.

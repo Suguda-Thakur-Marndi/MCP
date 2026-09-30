@@ -18,6 +18,7 @@ import {
   X,
   Copy,
   Check,
+  Lock,
 } from "lucide-react";
 import {
   PieChart,
@@ -35,7 +36,6 @@ import { relativeTime, formatDate, prettyJson } from "@/lib/utils";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { DecisionBadge } from "@/components/ui/Badges";
 import { DataTable, Column } from "@/components/ui/DataTable";
-import { Skeleton } from "@/components/ui/FeedbackStates";
 import { SecurityCore3D } from "@/components/visualization/SecurityCore3D";
 import { BorderBeam } from "@/components/ui/BorderBeam";
 
@@ -48,14 +48,14 @@ interface DecisionEvent {
 }
 
 const DECISION_COLORS: Record<string, string> = {
-  ALLOW: "#22C55E",
-  ALLOWED: "#22C55E",
-  PASS: "#22C55E",
-  BLOCK: "#EF4444",
-  BLOCKED: "#EF4444",
-  DENY: "#EF4444",
-  REQUIRE_APPROVAL: "#F59E0B",
-  PENDING: "#F59E0B",
+  ALLOW: "#3A8A7F",
+  ALLOWED: "#3A8A7F",
+  PASS: "#3A8A7F",
+  BLOCK: "#D64541",
+  BLOCKED: "#D64541",
+  DENY: "#D64541",
+  REQUIRE_APPROVAL: "#D05A40",
+  PENDING: "#E3A03E",
 };
 
 export default function DashboardPage() {
@@ -142,7 +142,6 @@ export default function DashboardPage() {
       counts[d] = (counts[d] || 0) + 1;
     });
 
-    // If counts empty, seed from metrics
     if (Object.keys(counts).length === 0 && stats?.metrics) {
       if (stats.metrics.completed_approvals > 0) counts["ALLOW"] = stats.metrics.completed_approvals;
       if (stats.metrics.blocked_actions > 0) counts["BLOCK"] = stats.metrics.blocked_actions;
@@ -152,7 +151,7 @@ export default function DashboardPage() {
     return Object.entries(counts).map(([name, value]) => ({
       name,
       value,
-      color: DECISION_COLORS[name] || "#38BDF8",
+      color: DECISION_COLORS[name] || "#D05A40",
     }));
   }, [stats]);
 
@@ -178,7 +177,7 @@ export default function DashboardPage() {
       header: "Timestamp",
       render: (row) => (
         <span
-          className="font-mono text-[11px] text-slate-400"
+          className="font-mono text-[11px] text-[#6B7280] dark:text-slate-400"
           title={formatDate(row.created_at)}
         >
           {relativeTime(row.created_at)}
@@ -189,7 +188,7 @@ export default function DashboardPage() {
       key: "event_type",
       header: "Event Type",
       render: (row) => (
-        <span className="font-mono text-xs font-semibold text-slate-200">
+        <span className="font-mono text-xs font-semibold text-[#1A202E] dark:text-slate-200">
           {row.event_type}
         </span>
       ),
@@ -198,7 +197,7 @@ export default function DashboardPage() {
       key: "tool_name",
       header: "Target Tool",
       render: (row) => (
-        <code className="px-2 py-0.5 rounded text-[11px] font-mono bg-sky-950/40 text-sky-400 border border-sky-800/50">
+        <code className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#D05A40]/10 text-[#D05A40] border border-[#D05A40]/30 font-semibold">
           {row.tool_name || "system"}
         </code>
       ),
@@ -218,7 +217,7 @@ export default function DashboardPage() {
             e.stopPropagation();
             setSelectedEvent(row);
           }}
-          className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+          className="p-1 rounded text-slate-400 hover:text-[#1A202E] dark:hover:text-slate-200 hover:bg-[#EFECE5] dark:hover:bg-slate-800 transition-colors"
           title="Inspect Event"
         >
           <Eye className="w-3.5 h-3.5" />
@@ -228,127 +227,138 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-      {/* Page Title & Operational Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#243044]">
-        <div>
-          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-1">
-            <span>Control Tower</span>
-            <span>/</span>
-            <span className="text-sky-400">Security Gatekeeper</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-white font-sans">
-              Security Command Center
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
+      {/* Top Banner & Editorial Asymmetric Layout (deep-research-report.md Section 4) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Side: Editorial Typography & Key Operational Metrics (5 Columns) */}
+        <div className="lg:col-span-5 space-y-6">
+          <div>
+            <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#D05A40] font-bold mb-2">
+              <span>CONTROL TOWER</span>
+              <span>/</span>
+              <span>SECURITY GATEKEEPER</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-4xl font-serif font-bold tracking-tight text-[#1A202E] dark:text-[#F4F6F9] leading-tight">
+              Security Posture: Operational
             </h1>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono bg-emerald-950/50 text-emerald-400 border border-emerald-800/60">
-              <span className="pulse-dot bg-emerald-400" />
-              LIVE TELEMETRY
-            </span>
+
+            <div className="flex items-center gap-2 mt-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono bg-teal-50 text-[#2C6E65] border border-teal-300 dark:bg-[#3A8A7F]/20 dark:text-[#4EA699] dark:border-[#3A8A7F]/40 font-semibold">
+                <span className="pulse-dot bg-[#3A8A7F]" />
+                LIVE TELEMETRY ACTIVE
+              </span>
+              <span className="text-[11px] font-mono text-[#6B7280] dark:text-slate-400">
+                FastMCP v1.0
+              </span>
+            </div>
+
+            <p className="text-xs text-[#475063] dark:text-[#94A3B8] mt-3 leading-relaxed">
+              Deterministic policy enforcement, cryptographic tool gating, and LangGraph agent governance. All in-flight invocations are verified via SHA-256 parameter seals.
+            </p>
+
+            <div className="flex items-center gap-3 pt-4">
+              <Link
+                href="/approvals"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#D05A40] hover:bg-[#B84E37] text-white text-xs font-semibold shadow-md shadow-[#D05A40]/25 transition-all hover:translate-y-[-1px]"
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>Investigate Issues</span>
+              </Link>
+              <button
+                onClick={fetchStats}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] text-xs font-medium text-[#1A202E] dark:text-slate-300 hover:border-[#D05A40] transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+                <span>Sync</span>
+              </button>
+            </div>
           </div>
-          <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-            Real-time policy enforcement, AI agent oversight, and cryptographic gating telemetry powered by FastMCP.
-          </p>
+
+          {error && (
+            <div className="p-3.5 rounded-lg text-xs flex items-center justify-between border border-red-300 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200">
+              <span>{error}</span>
+              <button onClick={fetchStats} className="font-semibold underline hover:text-red-900">
+                Retry
+              </button>
+            </div>
+          )}
+
+          {/* Key Metric Cards in Clean 2x3 Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-3 pt-2">
+            <MetricCard
+              title="Pending Approvals"
+              value={loading ? "—" : stats?.metrics.pending_approvals ?? 0}
+              icon={ShieldAlert}
+              variant={(stats?.metrics.pending_approvals ?? 0) > 0 ? "warning" : "default"}
+              trend={(stats?.metrics.pending_approvals ?? 0) > 0 ? "Requires Review" : "Clear"}
+              trendDirection={(stats?.metrics.pending_approvals ?? 0) > 0 ? "up" : "neutral"}
+              subtext="Human Gated"
+            />
+            <MetricCard
+              title="Blocked Actions"
+              value={loading ? "—" : stats?.metrics.blocked_actions ?? 0}
+              icon={Ban}
+              variant={(stats?.metrics.blocked_actions ?? 0) > 0 ? "critical" : "default"}
+              trend="0 Breaches"
+              trendDirection="down"
+              subtext="Policy Enforced"
+            />
+            <MetricCard
+              title="Authorized Runs"
+              value={loading ? "—" : stats?.metrics.completed_approvals ?? 0}
+              icon={ShieldCheck}
+              variant="success"
+              trend="Cryptographic"
+              trendDirection="down"
+              subtext="Verified Hash"
+            />
+            <MetricCard
+              title="Audit Events"
+              value={loading ? "—" : stats?.metrics.audit_events ?? 0}
+              icon={Activity}
+              variant="info"
+              subtext="PostgreSQL Trail"
+            />
+            <MetricCard
+              title="Indexed Records"
+              value={loading ? "—" : stats?.metrics.customers ?? 0}
+              icon={Users}
+              subtext="Protected Entities"
+            />
+            <MetricCard
+              title="Managed Orders"
+              value={loading ? "—" : stats?.metrics.orders ?? 0}
+              icon={ShoppingBag}
+              subtext="Secured Items"
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={fetchStats}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#111827] border border-[#243044] text-xs font-medium text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-            <span>Refresh</span>
-          </button>
-          <Link
-            href="/approvals"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-md bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white text-xs font-semibold shadow-sm transition-all hover:shadow-sky-500/20"
-          >
-            <ShieldAlert className="w-3.5 h-3.5" />
-            <span>Review Approvals</span>
-          </Link>
+        {/* Right Side: 3D "Security Machine" Hero Centerpiece (7 Columns) */}
+        <div className="lg:col-span-7">
+          <SecurityCore3D
+            systemHealthy={!error}
+            pendingCount={stats?.metrics?.pending_approvals ?? 0}
+            blockedCount={stats?.metrics?.blocked_actions ?? 0}
+            toolCount={6}
+          />
         </div>
       </div>
 
-      {error && (
-        <div className="p-3.5 rounded-lg text-xs flex items-center justify-between border border-rose-900/50 bg-rose-950/30 text-rose-200">
-          <span>{error}</span>
-          <button onClick={fetchStats} className="font-semibold underline hover:text-white">
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* Distinctive 3D Security-Core Centerpiece */}
-      <SecurityCore3D
-        systemHealthy={!error}
-        pendingCount={stats?.metrics?.pending_approvals ?? 0}
-        blockedCount={stats?.metrics?.blocked_actions ?? 0}
-        toolCount={6}
-      />
-
-      {/* KPI Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
-        <MetricCard
-          title="Pending Approvals"
-          value={loading ? "—" : stats?.metrics.pending_approvals ?? 0}
-          icon={ShieldAlert}
-          variant={(stats?.metrics.pending_approvals ?? 0) > 0 ? "warning" : "default"}
-          trend={(stats?.metrics.pending_approvals ?? 0) > 0 ? "Requires Review" : "Clear"}
-          trendDirection={(stats?.metrics.pending_approvals ?? 0) > 0 ? "up" : "neutral"}
-          subtext="Human Gated"
-        />
-        <MetricCard
-          title="Blocked Actions"
-          value={loading ? "—" : stats?.metrics.blocked_actions ?? 0}
-          icon={Ban}
-          variant={(stats?.metrics.blocked_actions ?? 0) > 0 ? "critical" : "default"}
-          trend="0 Breaches"
-          trendDirection="down"
-          subtext="Denied by Policy"
-        />
-        <MetricCard
-          title="Authorized Runs"
-          value={loading ? "—" : stats?.metrics.completed_approvals ?? 0}
-          icon={ShieldCheck}
-          variant="success"
-          trend="Cryptographic"
-          trendDirection="down"
-          subtext="Verified Hash"
-        />
-        <MetricCard
-          title="Audit Events"
-          value={loading ? "—" : stats?.metrics.audit_events ?? 0}
-          icon={Activity}
-          variant="info"
-          subtext="PostgreSQL Trail"
-        />
-        <MetricCard
-          title="Protected Customers"
-          value={loading ? "—" : stats?.metrics.customers ?? 0}
-          icon={Users}
-          subtext="Indexed Records"
-        />
-        <MetricCard
-          title="Managed Orders"
-          value={loading ? "—" : stats?.metrics.orders ?? 0}
-          icon={ShoppingBag}
-          subtext="Secured Items"
-        />
-      </div>
-
-      {/* Visual Analytics & Operational Distribution */}
+      {/* Visual Analytics & Operational Guarantees */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Security Decision Distribution */}
-        <div className="p-5 rounded-lg bg-[#111827] border border-[#243044] flex flex-col justify-between">
-          <div className="flex items-center justify-between pb-3 border-b border-[#243044]">
+        <div className="p-5 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] flex flex-col justify-between shadow-sm">
+          <div className="flex items-center justify-between pb-3 border-b border-[#D1CEC7] dark:border-[#26344A]">
             <div>
-              <span className="text-[10px] font-mono uppercase text-slate-500 block">Distribution</span>
-              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+              <span className="text-[10px] font-mono uppercase text-[#D05A40] font-bold block">Telemetry</span>
+              <h3 className="text-xs font-bold text-[#1A202E] dark:text-[#F4F6F9] uppercase tracking-wider font-sans">
                 Security Decision Ratio
               </h3>
             </div>
-            <span className="text-[10px] font-mono text-slate-400">TELEMETRY</span>
+            <span className="text-[10px] font-mono text-slate-400">DISTRIBUTION</span>
           </div>
 
           <div className="py-4 h-48 flex items-center justify-center">
@@ -365,16 +375,16 @@ export default function DashboardPage() {
                     dataKey="value"
                   >
                     {decisionChartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} stroke="#0F172A" strokeWidth={2} />
+                      <Cell key={`cell-${index}`} fill={entry.color} stroke="transparent" />
                     ))}
                   </Pie>
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#0F172A",
-                      borderColor: "#243044",
+                      backgroundColor: "#17202E",
+                      borderColor: "#26344A",
                       borderRadius: "6px",
                       fontSize: "11px",
-                      color: "#F8FAFC",
+                      color: "#F4F6F9",
                     }}
                   />
                 </PieChart>
@@ -384,22 +394,22 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[#243044] text-[11px]">
+          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[#D1CEC7] dark:border-[#26344A] text-[11px]">
             {decisionChartData.map((item) => (
               <div key={item.name} className="flex flex-col items-center">
-                <span className="text-[10px] font-mono text-slate-400 truncate">{item.name}</span>
-                <span className="font-mono-tnum font-bold text-slate-200">{item.value}</span>
+                <span className="text-[10px] font-mono text-[#6B7280] dark:text-slate-400 truncate">{item.name}</span>
+                <span className="font-mono-tnum font-bold text-[#1A202E] dark:text-[#F4F6F9]">{item.value}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Activity by Tool Invocation */}
-        <div className="p-5 rounded-lg bg-[#111827] border border-[#243044] flex flex-col justify-between">
-          <div className="flex items-center justify-between pb-3 border-b border-[#243044]">
+        <div className="p-5 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] flex flex-col justify-between shadow-sm">
+          <div className="flex items-center justify-between pb-3 border-b border-[#D1CEC7] dark:border-[#26344A]">
             <div>
-              <span className="text-[10px] font-mono uppercase text-slate-500 block">Activity</span>
-              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+              <span className="text-[10px] font-mono uppercase text-[#3A8A7F] font-bold block">Activity</span>
+              <h3 className="text-xs font-bold text-[#1A202E] dark:text-[#F4F6F9] uppercase tracking-wider font-sans">
                 Top Invocations by Tool
               </h3>
             </div>
@@ -414,19 +424,19 @@ export default function DashboardPage() {
                   <YAxis
                     dataKey="tool"
                     type="category"
-                    tick={{ fill: "#94A3B8", fontSize: 10 }}
+                    tick={{ fill: "#64748B", fontSize: 10 }}
                     width={90}
                   />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#0F172A",
-                      borderColor: "#243044",
+                      backgroundColor: "#17202E",
+                      borderColor: "#26344A",
                       borderRadius: "6px",
                       fontSize: "11px",
-                      color: "#F8FAFC",
+                      color: "#F4F6F9",
                     }}
                   />
-                  <Bar dataKey="count" fill="#38BDF8" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="count" fill="#D05A40" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -434,47 +444,47 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="pt-3 border-t border-[#243044] flex items-center justify-between text-[11px] text-slate-400 font-mono">
+          <div className="pt-3 border-t border-[#D1CEC7] dark:border-[#26344A] flex items-center justify-between text-[11px] text-[#6B7280] dark:text-slate-400 font-mono">
             <span>FastMCP Pre-hook Enforcement</span>
-            <span className="text-emerald-400">ACTIVE</span>
+            <span className="text-[#3A8A7F] font-bold">ACTIVE</span>
           </div>
         </div>
 
         {/* Security Perimeter Guarantees */}
-        <div className="relative overflow-hidden p-5 rounded-lg bg-[#111827] border border-[#243044] flex flex-col justify-between shadow-lg">
-          <BorderBeam size={220} duration={12} colorFrom="#38BDF8" colorTo="#818CF8" />
-          <div className="flex items-center justify-between pb-3 border-b border-[#243044]">
+        <div className="relative overflow-hidden p-5 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] flex flex-col justify-between shadow-sm">
+          <BorderBeam size={220} duration={12} colorFrom="#D05A40" colorTo="#3A8A7F" />
+          <div className="flex items-center justify-between pb-3 border-b border-[#D1CEC7] dark:border-[#26344A]">
             <div>
-              <span className="text-[10px] font-mono uppercase text-slate-500 block">Perimeter</span>
-              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
-                Active Security Invariants
+              <span className="text-[10px] font-mono uppercase text-[#D05A40] font-bold block">Invariants</span>
+              <h3 className="text-xs font-bold text-[#1A202E] dark:text-[#F4F6F9] uppercase tracking-wider font-sans">
+                Security Core Guarantees
               </h3>
             </div>
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <ShieldCheck className="w-4 h-4 text-[#3A8A7F]" />
           </div>
 
           <div className="space-y-2.5 py-3 text-xs">
-            <div className="flex items-center justify-between p-2 rounded bg-[#0F172A] border border-[#243044]">
-              <span className="text-slate-300">Model Oversight</span>
-              <span className="font-mono text-emerald-400 font-semibold text-[11px]">Server Gated</span>
+            <div className="flex items-center justify-between p-2 rounded bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+              <span className="text-[#475063] dark:text-slate-300">Model Oversight</span>
+              <span className="font-mono text-[#3A8A7F] font-semibold text-[11px]">Server Gated</span>
             </div>
-            <div className="flex items-center justify-between p-2 rounded bg-[#0F172A] border border-[#243044]">
-              <span className="text-slate-300">Parameter Tamper Defense</span>
-              <span className="font-mono text-sky-400 font-semibold text-[11px]">SHA-256 Gated</span>
+            <div className="flex items-center justify-between p-2 rounded bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+              <span className="text-[#475063] dark:text-slate-300">Parameter Tamper Defense</span>
+              <span className="font-mono text-[#D05A40] font-semibold text-[11px]">SHA-256 Gated</span>
             </div>
-            <div className="flex items-center justify-between p-2 rounded bg-[#0F172A] border border-[#243044]">
-              <span className="text-slate-300">Untrusted Data Tagging</span>
-              <span className="font-mono text-emerald-400 font-semibold text-[11px]">Active</span>
+            <div className="flex items-center justify-between p-2 rounded bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+              <span className="text-[#475063] dark:text-slate-300">Untrusted Data Tagging</span>
+              <span className="font-mono text-[#3A8A7F] font-semibold text-[11px]">Active</span>
             </div>
-            <div className="flex items-center justify-between p-2 rounded bg-[#0F172A] border border-[#243044]">
-              <span className="text-slate-300">Replay Protection</span>
-              <span className="font-mono text-purple-400 font-semibold text-[11px]">One-Time Consume</span>
+            <div className="flex items-center justify-between p-2 rounded bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+              <span className="text-[#475063] dark:text-slate-300">Replay Protection</span>
+              <span className="font-mono text-[#E3A03E] font-semibold text-[11px]">One-Time Consume</span>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-[#243044] flex items-center justify-between text-[11px] text-slate-400">
-            <span className="font-mono text-slate-500">Security Gate Status</span>
-            <span className="font-mono text-emerald-400 font-semibold">100% PASS</span>
+          <div className="pt-3 border-t border-[#D1CEC7] dark:border-[#26344A] flex items-center justify-between text-[11px] text-[#6B7280] dark:text-slate-400">
+            <span className="font-mono">Security Gate Status</span>
+            <span className="font-mono text-[#3A8A7F] font-bold">100% ENFORCED</span>
           </div>
         </div>
       </div>
@@ -483,16 +493,16 @@ export default function DashboardPage() {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold text-slate-200 uppercase tracking-wider">
+            <h2 className="text-sm font-bold text-[#1A202E] dark:text-[#F4F6F9] uppercase tracking-wider font-sans">
               Recent Security Decisions
             </h2>
-            <span className="px-2 py-0.2 rounded-full text-[10px] font-mono bg-slate-800 text-slate-400 border border-slate-700">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-[#EFECE5] dark:bg-slate-800 text-[#475063] dark:text-slate-400 border border-[#D1CEC7] dark:border-slate-700">
               {stats?.recent_security_events?.length ?? 0} Events
             </span>
           </div>
           <Link
             href="/audit"
-            className="text-xs font-medium text-sky-400 hover:text-sky-300 inline-flex items-center gap-1 transition-colors"
+            className="text-xs font-semibold text-[#D05A40] hover:text-[#B84E37] inline-flex items-center gap-1 transition-colors"
           >
             <span>View Complete Audit Log</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -513,16 +523,16 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
         <Link
           href="/agent"
-          className="p-4 rounded-lg bg-[#111827] border border-[#243044] hover:border-sky-500/50 hover:bg-[#1A2332] transition-all group flex items-start gap-3.5"
+          className="p-4 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] hover:border-[#D05A40] dark:hover:border-[#D05A40] transition-all group flex items-start gap-3.5 shadow-sm"
         >
-          <div className="p-2.5 rounded-lg bg-sky-950/60 border border-sky-800/60 text-sky-400 group-hover:scale-105 transition-transform">
+          <div className="p-2.5 rounded-lg bg-[#D05A40]/10 border border-[#D05A40]/30 text-[#D05A40] group-hover:scale-105 transition-transform">
             <Bot className="w-5 h-5" />
           </div>
           <div className="flex-1">
-            <h4 className="text-xs font-bold text-slate-200 group-hover:text-white uppercase tracking-wider">
+            <h4 className="text-xs font-bold text-[#1A202E] dark:text-[#F4F6F9] uppercase tracking-wider font-sans">
               Guarded Agent Console
             </h4>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-[#475063] dark:text-[#94A3B8] mt-1 leading-relaxed">
               Interact with Gemini reasoning agent protected by server-side policy and risk evaluation.
             </p>
           </div>
@@ -530,16 +540,16 @@ export default function DashboardPage() {
 
         <Link
           href="/evaluation"
-          className="p-4 rounded-lg bg-[#111827] border border-[#243044] hover:border-purple-500/50 hover:bg-[#1A2332] transition-all group flex items-start gap-3.5"
+          className="p-4 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] hover:border-[#3A8A7F] dark:hover:border-[#3A8A7F] transition-all group flex items-start gap-3.5 shadow-sm"
         >
-          <div className="p-2.5 rounded-lg bg-purple-950/60 border border-purple-800/60 text-purple-400 group-hover:scale-105 transition-transform">
+          <div className="p-2.5 rounded-lg bg-[#3A8A7F]/10 border border-[#3A8A7F]/30 text-[#3A8A7F] group-hover:scale-105 transition-transform">
             <CheckCircle className="w-5 h-5" />
           </div>
           <div className="flex-1">
-            <h4 className="text-xs font-bold text-slate-200 group-hover:text-white uppercase tracking-wider">
+            <h4 className="text-xs font-bold text-[#1A202E] dark:text-[#F4F6F9] uppercase tracking-wider font-sans">
               Security Evaluation Suite
             </h4>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-[#475063] dark:text-[#94A3B8] mt-1 leading-relaxed">
               Run automated attack scenarios testing parameter tampering, replay, and prompt injection.
             </p>
           </div>
@@ -547,16 +557,16 @@ export default function DashboardPage() {
 
         <Link
           href="/policies"
-          className="p-4 rounded-lg bg-[#111827] border border-[#243044] hover:border-amber-500/50 hover:bg-[#1A2332] transition-all group flex items-start gap-3.5"
+          className="p-4 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] hover:border-[#E3A03E] dark:hover:border-[#E3A03E] transition-all group flex items-start gap-3.5 shadow-sm"
         >
-          <div className="p-2.5 rounded-lg bg-amber-950/60 border border-amber-800/60 text-amber-400 group-hover:scale-105 transition-transform">
+          <div className="p-2.5 rounded-lg bg-[#E3A03E]/10 border border-[#E3A03E]/30 text-[#E3A03E] group-hover:scale-105 transition-transform">
             <Sliders className="w-5 h-5" />
           </div>
           <div className="flex-1">
-            <h4 className="text-xs font-bold text-slate-200 group-hover:text-white uppercase tracking-wider">
+            <h4 className="text-xs font-bold text-[#1A202E] dark:text-[#F4F6F9] uppercase tracking-wider font-sans">
               Policy & Risk Matrix
             </h4>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-[#475063] dark:text-[#94A3B8] mt-1 leading-relaxed">
               Inspect deterministic rule hierarchy, risk scoring thresholds, and tool gating criteria.
             </p>
           </div>
@@ -566,56 +576,56 @@ export default function DashboardPage() {
       {/* Inspect Event Modal */}
       {selectedEvent && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           onClick={() => setSelectedEvent(null)}
         >
           <div
-            className="w-full max-w-lg rounded-xl bg-[#0F172A] border border-[#243044] shadow-2xl overflow-hidden p-6 space-y-4"
+            className="w-full max-w-lg rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] shadow-2xl overflow-hidden p-6 space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-3 border-b border-[#243044]">
+            <div className="flex items-center justify-between pb-3 border-b border-[#D1CEC7] dark:border-[#26344A]">
               <div>
-                <span className="text-[10px] font-mono text-slate-400 uppercase block">Event Details</span>
-                <h3 className="text-sm font-bold text-white font-mono">{selectedEvent.event_type}</h3>
+                <span className="text-[10px] font-mono text-[#D05A40] uppercase font-bold block">Event Details</span>
+                <h3 className="text-sm font-bold text-[#1A202E] dark:text-[#F4F6F9] font-mono">{selectedEvent.event_type}</h3>
               </div>
               <button
                 onClick={() => setSelectedEvent(null)}
-                className="p-1 rounded text-slate-400 hover:text-slate-200"
+                className="p-1 rounded text-slate-400 hover:text-[#1A202E] dark:hover:text-slate-200"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between p-2.5 rounded bg-[#111827] border border-[#243044]">
-                <span className="text-slate-400">Target Tool:</span>
-                <code className="text-sky-400 font-mono font-semibold">{selectedEvent.tool_name || "system"}</code>
+              <div className="flex items-center justify-between p-2.5 rounded bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                <span className="text-[#6B7280] dark:text-slate-400">Target Tool:</span>
+                <code className="text-[#D05A40] font-mono font-semibold">{selectedEvent.tool_name || "system"}</code>
               </div>
-              <div className="flex items-center justify-between p-2.5 rounded bg-[#111827] border border-[#243044]">
-                <span className="text-slate-400">Decision Outcome:</span>
+              <div className="flex items-center justify-between p-2.5 rounded bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                <span className="text-[#6B7280] dark:text-slate-400">Decision Outcome:</span>
                 <DecisionBadge decision={selectedEvent.decision} />
               </div>
-              <div className="flex items-center justify-between p-2.5 rounded bg-[#111827] border border-[#243044]">
-                <span className="text-slate-400">Timestamp:</span>
-                <span className="font-mono text-slate-200">{formatDate(selectedEvent.created_at)}</span>
+              <div className="flex items-center justify-between p-2.5 rounded bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                <span className="text-[#6B7280] dark:text-slate-400">Timestamp:</span>
+                <span className="font-mono text-[#1A202E] dark:text-slate-200">{formatDate(selectedEvent.created_at)}</span>
               </div>
-              <div className="flex items-center justify-between p-2.5 rounded bg-[#111827] border border-[#243044]">
-                <span className="text-slate-400">Event ID:</span>
-                <span className="font-mono text-slate-300">{selectedEvent.id}</span>
+              <div className="flex items-center justify-between p-2.5 rounded bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                <span className="text-[#6B7280] dark:text-slate-400">Event ID:</span>
+                <span className="font-mono text-[#1A202E] dark:text-slate-300">{selectedEvent.id}</span>
               </div>
             </div>
 
             <div className="pt-2 flex justify-end gap-2">
               <button
                 onClick={() => handleCopy(JSON.stringify(selectedEvent, null, 2))}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-slate-700 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#EFECE5] dark:bg-slate-800 hover:bg-[#E2DFD8] text-xs text-[#1A202E] dark:text-slate-200 border border-[#D1CEC7] dark:border-slate-700 transition-colors"
               >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? <Check className="w-3.5 h-3.5 text-[#3A8A7F]" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copied ? "Copied" : "Copy JSON"}</span>
               </button>
               <button
                 onClick={() => setSelectedEvent(null)}
-                className="px-3.5 py-1.5 rounded bg-sky-600 hover:bg-sky-500 text-xs font-semibold text-white transition-colors"
+                className="px-3.5 py-1.5 rounded bg-[#D05A40] hover:bg-[#B84E37] text-xs font-semibold text-white transition-colors"
               >
                 Close
               </button>

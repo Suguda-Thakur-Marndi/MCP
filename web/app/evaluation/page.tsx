@@ -135,13 +135,13 @@ export default function SecurityEvaluationPage() {
       width: "110px",
       render: (row) =>
         row.passed ? (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-950/50 text-emerald-300 border border-emerald-800/60 font-mono">
-            <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-teal-50 text-[#2C6E65] border border-teal-300 dark:bg-[#3A8A7F]/15 dark:text-[#4EA699] dark:border-[#3A8A7F]/40 font-mono font-semibold">
+            <CheckCircle className="w-3.5 h-3.5 text-[#3A8A7F]" />
             <span>PASS</span>
           </span>
         ) : (
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-rose-950/50 text-rose-300 border border-rose-800/60 font-mono">
-            <XCircle className="w-3.5 h-3.5 text-rose-400" />
+          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-red-50 text-[#D64541] border border-red-300 dark:bg-[#D64541]/15 dark:text-[#EF5350] dark:border-[#D64541]/40 font-mono font-semibold">
+            <XCircle className="w-3.5 h-3.5 text-[#D64541]" />
             <span>FAIL</span>
           </span>
         ),
@@ -151,7 +151,7 @@ export default function SecurityEvaluationPage() {
       header: "Scenario ID",
       width: "120px",
       render: (row) => (
-        <code className="text-xs font-mono font-bold text-sky-400">
+        <code className="text-xs font-mono font-bold text-[#D05A40]">
           {String(row.scenario_id).substring(0, 16)}
         </code>
       ),
@@ -161,8 +161,8 @@ export default function SecurityEvaluationPage() {
       header: "Scenario Description",
       render: (row) => (
         <div>
-          <span className="text-xs font-semibold text-slate-200 block">{row.name}</span>
-          {row.notes && <span className="text-[11px] text-slate-500 line-clamp-1">{row.notes}</span>}
+          <span className="text-xs font-semibold text-[#1A202E] dark:text-slate-200 block">{row.name}</span>
+          {row.notes && <span className="text-[11px] text-[#6B7280] dark:text-slate-400 line-clamp-1">{row.notes}</span>}
         </div>
       ),
     },
@@ -170,7 +170,7 @@ export default function SecurityEvaluationPage() {
       key: "category",
       header: "Category",
       render: (row) => (
-        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950/40 text-purple-300 border border-purple-800/50 uppercase">
+        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#D05A40]/10 text-[#D05A40] border border-[#D05A40]/30 uppercase font-semibold">
           {row.category}
         </span>
       ),
@@ -181,7 +181,7 @@ export default function SecurityEvaluationPage() {
       render: (row) => (
         <div className="flex items-center gap-1.5 text-[11px] font-mono">
           <DecisionBadge decision={row.expected_decision || row.expected || "ALLOW"} />
-          <span className="text-slate-500">→</span>
+          <span className="text-slate-400">→</span>
           <DecisionBadge decision={row.actual_decision || row.actual || "ALLOW"} />
         </div>
       ),
@@ -200,7 +200,7 @@ export default function SecurityEvaluationPage() {
       key: "latency_ms",
       header: "Latency",
       render: (row) => (
-        <span className="font-mono-tnum text-[11px] text-slate-400">
+        <span className="font-mono-tnum text-[11px] text-[#6B7280] dark:text-slate-400">
           {row.latency_ms ?? row.duration_ms ?? 0} ms
         </span>
       ),
@@ -215,8 +215,8 @@ export default function SecurityEvaluationPage() {
             e.stopPropagation();
             setSelectedScenario(row);
           }}
-          className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
-          title="Inspect Scenario"
+          className="p-1.5 rounded text-[#6B7280] hover:text-[#D05A40] hover:bg-[#EFECE5] dark:hover:bg-slate-800 transition-colors"
+          title="Inspect Scenario Evidence"
         >
           <Eye className="w-3.5 h-3.5" />
         </button>
@@ -227,22 +227,22 @@ export default function SecurityEvaluationPage() {
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#243044]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#D1CEC7] dark:border-[#26344A]">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-1">
-            <span>Security Assurance</span>
+          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#D05A40] font-bold mb-1">
+            <span>SECURITY ASSURANCE</span>
             <span>/</span>
-            <span className="text-purple-400">Automated Attack & Defense Benchmark</span>
+            <span>AUTOMATED ATTACK & DEFENSE BENCHMARK</span>
           </div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-white font-sans">
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#1A202E] dark:text-[#F4F6F9] tracking-tight">
               Security Evaluation Suite
             </h1>
-            <span className="px-2.5 py-0.5 rounded text-xs font-mono bg-purple-950/50 text-purple-400 border border-purple-800/60">
+            <span className="px-2.5 py-0.5 rounded text-xs font-mono bg-teal-50 text-[#2C6E65] border border-teal-300 dark:bg-[#3A8A7F]/20 dark:text-[#4EA699] dark:border-[#3A8A7F]/40 font-bold">
               {result ? `${result.summary.total} AUTOMATED SCENARIOS` : "56 SCENARIOS"}
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+          <p className="text-xs text-[#475063] dark:text-[#94A3B8] mt-1 max-w-2xl leading-relaxed">
             Execute automated red-team security scenarios validating parameter tampering defense, replay rejection, prompt injection neutralization, and database integrity invariance.
           </p>
         </div>
@@ -250,20 +250,20 @@ export default function SecurityEvaluationPage() {
         <button
           onClick={handleRunEval}
           disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-md shadow-purple-950/40 transition-all hover:scale-[1.02] disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#D05A40] hover:bg-[#B84E37] text-white text-xs font-semibold shadow-md shadow-[#D05A40]/25 transition-all hover:scale-[1.01] disabled:opacity-50"
         >
           <Play className={`w-3.5 h-3.5 fill-current ${loading ? "animate-spin" : ""}`} />
-          <span>{loading ? "Executing 56 Scenarios..." : "Run Security Evaluation"}</span>
+          <span>{loading ? "Executing Scenarios..." : "Run Security Evaluation"}</span>
         </button>
       </div>
 
       {error && (
-        <div className="p-3.5 rounded-lg text-xs border border-rose-900/50 bg-rose-950/30 text-rose-200 flex items-center justify-between">
+        <div className="p-3.5 rounded-xl text-xs border border-red-300 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+            <AlertTriangle className="w-4 h-4 text-[#D64541] flex-shrink-0" />
             <span>{error}</span>
           </div>
-          <button onClick={handleRunEval} className="font-semibold underline hover:text-white">
+          <button onClick={handleRunEval} className="font-semibold underline hover:text-red-950">
             Retry
           </button>
         </div>
@@ -310,34 +310,34 @@ export default function SecurityEvaluationPage() {
 
       {/* Category Performance Breakdown Chart */}
       {categoryChartData.length > 0 && (
-        <div className="p-5 rounded-lg bg-[#111827] border border-[#243044] space-y-3">
-          <div className="flex items-center justify-between pb-3 border-b border-[#243044]">
+        <div className="p-5 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] space-y-3 shadow-sm">
+          <div className="flex items-center justify-between pb-3 border-b border-[#D1CEC7] dark:border-[#26344A]">
             <div>
-              <span className="text-[10px] font-mono uppercase text-slate-500 block">Defense Matrix</span>
-              <h3 className="text-xs font-bold text-slate-200 uppercase tracking-wider">
+              <span className="text-[10px] font-mono uppercase text-[#D05A40] font-bold block">Defense Matrix</span>
+              <h3 className="text-xs font-bold text-[#1A202E] dark:text-[#F4F6F9] uppercase tracking-wider font-sans">
                 Category Defense Results Breakdown
               </h3>
             </div>
-            <span className="text-[10px] font-mono text-emerald-400">100% INVARIANCE</span>
+            <span className="text-[10px] font-mono text-[#3A8A7F] font-bold">100% INVARIANCE</span>
           </div>
 
           <div className="py-2 h-44">
             {mounted ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={categoryChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <XAxis dataKey="category" tick={{ fill: "#94A3B8", fontSize: 10 }} />
-                  <YAxis tick={{ fill: "#94A3B8", fontSize: 10 }} />
+                  <XAxis dataKey="category" tick={{ fill: "#64748B", fontSize: 10 }} />
+                  <YAxis tick={{ fill: "#64748B", fontSize: 10 }} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: "#0F172A",
-                      borderColor: "#243044",
+                      backgroundColor: "#17202E",
+                      borderColor: "#26344A",
                       borderRadius: "6px",
                       fontSize: "11px",
-                      color: "#F8FAFC",
+                      color: "#F4F6F9",
                     }}
                   />
-                  <Bar dataKey="passed" name="Passed" fill="#22C55E" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="failed" name="Failed" fill="#EF4444" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="passed" name="Passed" fill="#3A8A7F" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="failed" name="Failed" fill="#D64541" radius={[3, 3, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -349,7 +349,7 @@ export default function SecurityEvaluationPage() {
 
       {/* Category Filter Pills & Search */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-[#0F172A] border border-[#243044] overflow-x-auto w-full sm:w-auto">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] overflow-x-auto w-full sm:w-auto shadow-sm">
           {categories.map((c) => {
             const count =
               c === "ALL"
@@ -361,16 +361,16 @@ export default function SecurityEvaluationPage() {
               <button
                 key={c}
                 onClick={() => setFilterCat(c)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                   isActive
-                    ? "bg-purple-600/20 text-purple-400 border border-purple-500/30 font-semibold"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                    ? "bg-[#D05A40] text-white shadow-xs"
+                    : "text-[#475063] dark:text-slate-400 hover:text-[#1A202E] dark:hover:text-white"
                 }`}
               >
                 <span>{c}</span>
                 <span
                   className={`px-1.5 py-0.2 rounded-full font-mono text-[10px] ${
-                    isActive ? "bg-purple-500/20 text-purple-300" : "bg-slate-800 text-slate-400"
+                    isActive ? "bg-white/20 text-white" : "bg-[#EFECE5] dark:bg-slate-800 text-[#475063] dark:text-slate-400"
                   }`}
                 >
                   {count}
@@ -380,14 +380,15 @@ export default function SecurityEvaluationPage() {
           })}
         </div>
 
+        {/* Quick Search */}
         <div className="relative w-full sm:w-72">
-          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
-            placeholder="Search scenarios by name or category..."
+            placeholder="Search test scenarios by name, ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#111827] border border-[#243044] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-purple-500 font-sans"
+            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] text-xs text-[#1A202E] dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-[#D05A40] font-sans shadow-sm"
           />
         </div>
       </div>
@@ -396,103 +397,96 @@ export default function SecurityEvaluationPage() {
       <DataTable
         columns={columns}
         data={filteredResults}
-        isLoading={loading || initialLoading}
-        emptyTitle="No Evaluation Results Found"
+        isLoading={initialLoading}
+        emptyTitle="No Evaluation Results Recorded"
         emptyMessage="Click 'Run Security Evaluation' above to execute the automated benchmark suite."
         onRowClick={(row) => setSelectedScenario(row)}
       />
 
-      {/* Scenario Detail Modal */}
+      {/* Scenario Evidence Detail Drawer */}
       {selectedScenario && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           onClick={() => setSelectedScenario(null)}
         >
           <div
-            className="w-full max-w-xl rounded-xl bg-[#0F172A] border border-[#243044] shadow-2xl overflow-hidden p-6 space-y-4 max-h-[85vh] flex flex-col"
+            className="w-full max-w-2xl rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] shadow-2xl overflow-hidden p-6 space-y-4 max-h-[85vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-3 border-b border-[#243044]">
+            <div className="flex items-center justify-between pb-3 border-b border-[#D1CEC7] dark:border-[#26344A]">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-bold text-white font-mono">{selectedScenario.name}</h3>
+                  <h3 className="text-sm font-bold text-[#1A202E] dark:text-white font-mono">{selectedScenario.name}</h3>
                   {selectedScenario.passed ? (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-400 border border-emerald-800">
-                      PASSED
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-teal-50 text-[#2C6E65] border border-teal-300 dark:bg-[#3A8A7F]/20 dark:text-[#4EA699] dark:border-[#3A8A7F]/40 font-bold">
+                      PASS
                     </span>
                   ) : (
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-rose-950 text-rose-400 border border-rose-800">
-                      FAILED
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-red-50 text-red-700 border border-red-300 dark:bg-red-950/40 dark:text-red-300 dark:border-red-800/60 font-bold">
+                      FAIL
                     </span>
                   )}
                 </div>
-                <span className="text-xs text-slate-400 font-mono">
-                  Scenario ID: {selectedScenario.scenario_id} • Category: {selectedScenario.category}
+                <span className="text-xs text-[#6B7280] dark:text-slate-400 font-mono">
+                  Scenario: {selectedScenario.scenario_id} • Category: {selectedScenario.category}
                 </span>
               </div>
               <button
                 onClick={() => setSelectedScenario(null)}
-                className="p-1 rounded text-slate-400 hover:text-slate-200"
+                className="p-1 rounded text-slate-400 hover:text-[#1A202E] dark:hover:text-slate-200"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-              <div className="p-2.5 rounded bg-[#111827] border border-[#243044]">
-                <span className="text-[10px] text-slate-500 uppercase font-mono block">Expected</span>
-                <span className="font-mono text-emerald-400 font-semibold">{selectedScenario.expected || selectedScenario.expected_decision}</span>
+              <div className="p-2.5 rounded-lg bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                <span className="text-[10px] text-[#6B7280] dark:text-slate-500 uppercase font-mono block">Expected</span>
+                <DecisionBadge decision={selectedScenario.expected_decision || selectedScenario.expected || "ALLOW"} />
               </div>
-              <div className="p-2.5 rounded bg-[#111827] border border-[#243044]">
-                <span className="text-[10px] text-slate-500 uppercase font-mono block">Actual Decision</span>
-                <span className="font-mono text-sky-400 font-semibold">{selectedScenario.actual || selectedScenario.actual_decision}</span>
+              <div className="p-2.5 rounded-lg bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                <span className="text-[10px] text-[#6B7280] dark:text-slate-500 uppercase font-mono block">Actual Result</span>
+                <DecisionBadge decision={selectedScenario.actual_decision || selectedScenario.actual || "ALLOW"} />
               </div>
-              <div className="p-2.5 rounded bg-[#111827] border border-[#243044]">
-                <span className="text-[10px] text-slate-500 uppercase font-mono block">Latency</span>
-                <span className="font-mono text-slate-200">{selectedScenario.latency_ms ?? selectedScenario.duration_ms} ms</span>
+              <div className="p-2.5 rounded-lg bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                <span className="text-[10px] text-[#6B7280] dark:text-slate-500 uppercase font-mono block">DB Invariance</span>
+                <span className="font-mono font-bold text-xs text-[#3A8A7F]">
+                  {selectedScenario.db_integrity_verified !== false ? "VERIFIED OK" : "FAILED"}
+                </span>
               </div>
-              <div className="p-2.5 rounded bg-[#111827] border border-[#243044]">
-                <span className="text-[10px] text-slate-500 uppercase font-mono block">DB Invariance</span>
-                <span className="font-mono text-emerald-400 font-semibold">VERIFIED</span>
+              <div className="p-2.5 rounded-lg bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                <span className="text-[10px] text-[#6B7280] dark:text-slate-500 uppercase font-mono block">Latency</span>
+                <span className="font-mono text-xs font-bold text-[#1A202E] dark:text-slate-200">
+                  {selectedScenario.latency_ms ?? 0} ms
+                </span>
               </div>
             </div>
 
-            {selectedScenario.notes && (
-              <div className="p-3 rounded bg-[#111827] border border-[#243044] text-xs text-slate-300">
-                <span className="text-slate-400 font-semibold block mb-1">Defense Observation:</span>
-                {selectedScenario.notes}
-              </div>
-            )}
-
-            {selectedScenario.error && (
-              <div className="p-3 rounded bg-rose-950/30 border border-rose-800/50 text-xs text-rose-300">
-                <span className="text-rose-400 font-semibold block mb-1">Execution Failure:</span>
-                {selectedScenario.error}
-              </div>
-            )}
-
+            {/* Evidence Log Payload */}
             <div className="space-y-1.5 flex-1 overflow-hidden flex flex-col">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-300 font-semibold">Complete Scenario Evidence:</span>
+                <span className="text-[#1A202E] dark:text-slate-300 font-bold font-sans">
+                  Scenario Execution Evidence:
+                </span>
                 <button
-                  onClick={() => handleCopy(prettyJson(selectedScenario))}
-                  className="inline-flex items-center gap-1 text-[11px] text-sky-400 hover:text-sky-300 font-mono"
+                  onClick={() => handleCopy(prettyJson(selectedScenario.evidence || selectedScenario))}
+                  className="inline-flex items-center gap-1 text-[11px] text-[#D05A40] hover:text-[#B84E37] font-mono font-semibold"
                 >
-                  {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  {copied ? <Check className="w-3 h-3 text-[#3A8A7F]" /> : <Copy className="w-3 h-3" />}
                   <span>{copied ? "Copied" : "Copy Evidence"}</span>
                 </button>
               </div>
-              <pre className="p-3 rounded bg-[#0B0F14] border border-[#243044] text-[11px] font-mono text-purple-300 overflow-y-auto flex-1 select-all">
-                {prettyJson(selectedScenario)}
+              <pre className="p-3.5 rounded-lg bg-[#F8F6F0] dark:bg-[#0D1117] border border-[#D1CEC7] dark:border-[#26344A] text-[11px] font-mono text-[#1A202E] dark:text-sky-300 overflow-y-auto flex-1 select-all">
+                {prettyJson(selectedScenario.evidence || selectedScenario)}
               </pre>
             </div>
 
             <div className="pt-2 flex justify-end">
               <button
                 onClick={() => setSelectedScenario(null)}
-                className="px-4 py-1.5 rounded bg-purple-600 hover:bg-purple-500 text-xs font-semibold text-white transition-colors"
+                className="px-4 py-1.5 rounded-lg bg-[#D05A40] hover:bg-[#B84E37] text-xs font-semibold text-white transition-colors"
               >
-                Close
+                Close Drawer
               </button>
             </div>
           </div>

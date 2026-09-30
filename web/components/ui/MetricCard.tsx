@@ -22,25 +22,25 @@ export function MetricCard({
   variant?: "default" | "critical" | "warning" | "success" | "info";
   className?: string;
 }) {
-  let borderStyle = "border-[#D1CEC7] dark:border-[#243044]";
-  let valueColor = "text-[#1E1E1E] dark:text-slate-100";
-  let bgStyle = "bg-[#FFFFFF] dark:bg-[#111827]";
+  let borderStyle = "border-[#D1CEC7] dark:border-[#26344A]";
+  let valueColor = "text-[#1A202E] dark:text-[#F4F6F9]";
+  let bgStyle = "bg-[#FFFFFF] dark:bg-[#17202E]";
 
   if (variant === "critical") {
-    borderStyle = "border-rose-300 dark:border-rose-900/50";
-    bgStyle = "bg-rose-50/70 dark:bg-gradient-to-b dark:from-[#111827] dark:to-rose-950/20";
-    valueColor = "text-[#B71C1C] dark:text-rose-400";
+    borderStyle = "border-red-300 dark:border-[#D64541]/40";
+    bgStyle = "bg-red-50/60 dark:bg-gradient-to-b dark:from-[#17202E] dark:to-[#D64541]/10";
+    valueColor = "text-[#D64541] dark:text-[#EF5350]";
   } else if (variant === "warning") {
-    borderStyle = "border-amber-300 dark:border-amber-900/50";
-    bgStyle = "bg-amber-50/70 dark:bg-gradient-to-b dark:from-[#111827] dark:to-amber-950/20";
-    valueColor = "text-[#D95E00] dark:text-amber-400";
+    borderStyle = "border-amber-300 dark:border-[#D05A40]/40";
+    bgStyle = "bg-amber-50/60 dark:bg-gradient-to-b dark:from-[#17202E] dark:to-[#D05A40]/10";
+    valueColor = "text-[#D05A40] dark:text-[#F08060]";
   } else if (variant === "success") {
-    borderStyle = "border-emerald-300 dark:border-emerald-900/50";
-    bgStyle = "bg-emerald-50/70 dark:bg-gradient-to-b dark:from-[#111827] dark:to-emerald-950/20";
-    valueColor = "text-[#0A7A75] dark:text-emerald-400";
+    borderStyle = "border-teal-300 dark:border-[#3A8A7F]/40";
+    bgStyle = "bg-teal-50/60 dark:bg-gradient-to-b dark:from-[#17202E] dark:to-[#3A8A7F]/10";
+    valueColor = "text-[#3A8A7F] dark:text-[#4EA699]";
   } else if (variant === "info") {
-    borderStyle = "border-sky-300 dark:border-sky-900/50";
-    bgStyle = "bg-sky-50/70 dark:bg-gradient-to-b dark:from-[#111827] dark:to-sky-950/20";
+    borderStyle = "border-sky-300 dark:border-sky-800/40";
+    bgStyle = "bg-sky-50/60 dark:bg-gradient-to-b dark:from-[#17202E] dark:to-sky-950/20";
     valueColor = "text-sky-700 dark:text-sky-400";
   }
 

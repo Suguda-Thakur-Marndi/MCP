@@ -17,6 +17,7 @@ import {
   Lock,
   UserCheck,
   X,
+  ArrowRight,
 } from "lucide-react";
 import { api, ApprovalRecord, CurrentUser, ApiError } from "@/lib/api";
 import {
@@ -32,7 +33,7 @@ import { BorderBeam } from "@/components/ui/BorderBeam";
 const STATUS_FILTERS = [
   { label: "Pending Review", value: "PENDING" },
   { label: "Approved / Executed", value: "APPROVED" },
-  { label: "Denied / Failed", value: "DENIED" },
+  { label: "Denied / Blocked", value: "DENIED" },
   { label: "Expired", value: "EXPIRED" },
   { label: "All Tickets", value: "ALL" },
 ];
@@ -78,7 +79,9 @@ export default function ApprovalsPage() {
         }
       });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load approval tickets");
+      startTransition(() => {
+        setError(err instanceof Error ? err.message : "Failed to load approval tickets");
+      });
     } finally {
       setLoading(false);
     }
@@ -86,51 +89,17 @@ export default function ApprovalsPage() {
 
   useEffect(() => {
     let active = true;
-    api.approvals
-      .list({
-        status: filterStatus && filterStatus !== "ALL" ? filterStatus : undefined,
-      })
-      .then((res) => {
-        if (active) {
-          startTransition(() => {
-            setApprovals(res);
-            setLoading(false);
-            if (res.length > 0) {
-              setSelectedTicket((curr) => {
-                if (!curr) return res[0];
-                const found = res.find((r) => r.ticket_id === curr.ticket_id);
-                return found || res[0];
-              });
-            } else {
-              setSelectedTicket(null);
-            }
-          });
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) {
-          startTransition(() => {
-            setError(err instanceof Error ? err.message : "Failed to load approvals");
-            setLoading(false);
-          });
-        }
-      });
-
-    api.auth
-      .me()
-      .then((user) => {
-        if (active) {
-          startTransition(() => {
-            setCurrentUser(user);
-          });
-        }
+    api.auth.me()
+      .then((u) => {
+        if (active) setCurrentUser(u);
       })
       .catch(() => {
         if (active) {
           const role = typeof window !== "undefined" ? localStorage.getItem("sentinel_role") || "ADMIN" : "ADMIN";
+          const email = typeof window !== "undefined" ? localStorage.getItem("sentinel_email") || "admin@sentinel.test" : "admin@sentinel.test";
           setCurrentUser({
             id: "usr_local",
-            email: "admin@sentinel.test",
+            email,
             name: "Security Admin",
             display_name: "Security Admin",
             role,
@@ -141,10 +110,12 @@ export default function ApprovalsPage() {
         }
       });
 
+    fetchApprovals(filterStatus);
+
     return () => {
       active = false;
     };
-  }, [filterStatus]);
+  }, [fetchApprovals, filterStatus]);
 
   const executeApprove = async () => {
     if (!confirmModal || confirmModal.type !== "approve") return;
@@ -158,7 +129,7 @@ export default function ApprovalsPage() {
           prev.map((a) => (a.ticket_id === ticketId ? updated : a))
         );
         setSelectedTicket(updated);
-        setActionSuccess(`Ticket ${shortId(ticketId)} successfully approved.`);
+        setActionSuccess(`Ticket ${shortId(ticketId)} authorized & dispatched.`);
         setActionNotes("");
       });
       setTimeout(() => setActionSuccess(null), 4000);
@@ -251,44 +222,55 @@ export default function ApprovalsPage() {
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#243044]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#D1CEC7] dark:border-[#26344A]">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-slate-400 mb-1">
-            <span>Governance</span>
+          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-[#D05A40] font-bold mb-1">
+            <span>GOVERNANCE</span>
             <span>/</span>
-            <span className="text-amber-400">Human-in-the-Loop Gating</span>
+            <span>HUMAN-IN-THE-LOOP GATING</span>
           </div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-white font-sans">
-              Approval Queue & Gating
+            <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#1A202E] dark:text-[#F4F6F9] tracking-tight">
+              Dual-Custody Approval Queue
             </h1>
-            <span className="px-2.5 py-0.5 rounded text-xs font-mono bg-amber-950/50 text-amber-400 border border-amber-800/60">
+            <span className="px-2.5 py-0.5 rounded text-xs font-mono bg-amber-50 text-[#B87000] border border-amber-300 dark:bg-[#E3A03E]/15 dark:text-[#F3BA63] dark:border-[#E3A03E]/40 font-bold">
               {approvals.filter((a) => a.status === "PENDING").length} PENDING GATED
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-            Cryptographic parameter binding and dual-authorization workflow. High-risk actions require explicit human sign-off before FastMCP server dispatch.
+          <p className="text-xs text-[#475063] dark:text-[#94A3B8] mt-1 max-w-2xl leading-relaxed">
+            High-risk operations and destructive tool calls intercepted by policy rules. Review cryptographically sealed parameter payloads before authorizing FastMCP execution.
           </p>
         </div>
 
-        <button
-          onClick={() => fetchApprovals(filterStatus)}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#111827] border border-[#243044] text-xs font-medium text-slate-300 hover:text-white hover:border-slate-600 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          <span>Refresh Queue</span>
-        </button>
+        {/* Current Identity & Sync */}
+        <div className="flex items-center gap-3">
+          {currentUser && (
+            <div className="flex items-center gap-2 p-1.5 rounded-lg bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] text-xs shadow-sm">
+              <RoleBadge role={currentUser.role} />
+              <span className="font-mono text-[#6B7280] dark:text-slate-400 hidden sm:inline text-[11px]">
+                {currentUser.email}
+              </span>
+            </div>
+          )}
+          <button
+            onClick={() => fetchApprovals(filterStatus)}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] text-xs font-medium text-[#1A202E] dark:text-slate-300 hover:border-[#D05A40] transition-colors disabled:opacity-50 shadow-sm"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+            <span>Sync</span>
+          </button>
+        </div>
       </div>
 
       {/* Success Notification */}
       {actionSuccess && (
-        <div className="p-3.5 rounded-lg text-xs flex items-center justify-between border border-emerald-900/50 bg-emerald-950/30 text-emerald-200">
+        <div className="p-3.5 rounded-xl text-xs flex items-center justify-between border border-teal-300 dark:border-teal-900/50 bg-teal-50 dark:bg-teal-950/30 text-teal-800 dark:text-teal-200 shadow-sm">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <CheckCircle2 className="w-4 h-4 text-[#3A8A7F]" />
             <span>{actionSuccess}</span>
           </div>
-          <button onClick={() => setActionSuccess(null)} className="text-slate-400 hover:text-white">
+          <button onClick={() => setActionSuccess(null)} className="text-slate-400 hover:text-slate-600">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -296,12 +278,12 @@ export default function ApprovalsPage() {
 
       {/* Error Notification */}
       {error && (
-        <div className="p-3.5 rounded-lg text-xs flex items-center justify-between border border-rose-900/50 bg-rose-950/30 text-rose-200">
+        <div className="p-3.5 rounded-xl text-xs flex items-center justify-between border border-red-300 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 text-red-800 dark:text-red-200 shadow-sm">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+            <AlertTriangle className="w-4 h-4 text-[#D64541] flex-shrink-0" />
             <span>{error}</span>
           </div>
-          <button onClick={() => setError(null)} className="text-slate-400 hover:text-white">
+          <button onClick={() => setError(null)} className="text-slate-400 hover:text-slate-600">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -309,7 +291,7 @@ export default function ApprovalsPage() {
 
       {/* Status Filter Tabs & Search Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 p-1 rounded-lg bg-[#0F172A] border border-[#243044] overflow-x-auto w-full sm:w-auto">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] overflow-x-auto w-full sm:w-auto shadow-sm">
           {STATUS_FILTERS.map((f) => {
             const count =
               f.value === "ALL"
@@ -321,16 +303,16 @@ export default function ApprovalsPage() {
               <button
                 key={f.value}
                 onClick={() => setFilterStatus(f.value)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                   isActive
-                    ? "bg-blue-600/20 text-sky-400 border border-sky-500/30 font-semibold"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                    ? "bg-[#D05A40] text-white shadow-xs"
+                    : "text-[#475063] dark:text-slate-400 hover:text-[#1A202E] dark:hover:text-white"
                 }`}
               >
                 <span>{f.label}</span>
                 <span
                   className={`px-1.5 py-0.2 rounded-full font-mono text-[10px] ${
-                    isActive ? "bg-sky-500/20 text-sky-300" : "bg-slate-800 text-slate-400"
+                    isActive ? "bg-white/20 text-white" : "bg-[#EFECE5] dark:bg-slate-800 text-[#475063] dark:text-slate-400"
                   }`}
                 >
                   {count}
@@ -342,22 +324,22 @@ export default function ApprovalsPage() {
 
         {/* Quick Ticket Search */}
         <div className="relative w-full sm:w-72">
-          <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
             placeholder="Search tickets, tools, actions..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[#111827] border border-[#243044] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 font-sans"
+            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] text-xs text-[#1A202E] dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-[#D05A40] font-sans shadow-sm"
           />
         </div>
       </div>
 
       {/* Split Master-Detail Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Ticket List */}
+        {/* Left Column: Ticket List (5 cols) */}
         <div className="lg:col-span-5 space-y-3">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-1">
+          <div className="text-xs font-bold text-[#1A202E] dark:text-slate-400 uppercase tracking-wider px-1 font-sans">
             Gating Tickets ({filteredApprovals.length})
           </div>
 
@@ -381,18 +363,18 @@ export default function ApprovalsPage() {
                   <div
                     key={ticket.ticket_id}
                     onClick={() => setSelectedTicket(ticket)}
-                    className={`p-3.5 rounded-lg border transition-all cursor-pointer ${
+                    className={`p-4 rounded-xl border transition-all cursor-pointer shadow-sm ${
                       isSelected
-                        ? "bg-[#1A2332] border-sky-500/50 shadow-md shadow-sky-950/20"
-                        : "bg-[#111827] border-[#243044] hover:border-slate-600 hover:bg-slate-800/40"
+                        ? "bg-[#FFFFFF] dark:bg-[#17202E] border-[#D05A40] shadow-md shadow-[#D05A40]/10 ring-1 ring-[#D05A40]"
+                        : "bg-[#FFFFFF] dark:bg-[#17202E] border-[#D1CEC7] dark:border-[#26344A] hover:border-[#D05A40]/50"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <div className="flex items-center gap-1.5">
-                        <code className="text-xs font-mono font-bold text-sky-400">
+                        <code className="text-xs font-mono font-bold text-[#D05A40]">
                           {shortId(ticket.ticket_id)}
                         </code>
-                        <span className="text-[10px] text-slate-500 font-mono">
+                        <span className="text-[10px] text-[#6B7280] dark:text-slate-400 font-mono">
                           {relativeTime(ticket.created_at)}
                         </span>
                       </div>
@@ -400,20 +382,20 @@ export default function ApprovalsPage() {
                     </div>
 
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-xs font-semibold text-slate-200">
+                      <span className="text-xs font-semibold text-[#1A202E] dark:text-slate-200">
                         {ticket.action || ticket.tool_name}
                       </span>
-                      <span className="text-xs text-slate-500 font-mono">on</span>
-                      <code className="text-[11px] font-mono text-slate-300 px-1 py-0.2 rounded bg-slate-800">
+                      <span className="text-xs text-[#6B7280] dark:text-slate-500 font-mono">on</span>
+                      <code className="text-[11px] font-mono text-[#1A202E] dark:text-slate-300 px-1 py-0.2 rounded bg-[#EFECE5] dark:bg-slate-800">
                         {ticket.target_id || "resource"}
                       </code>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2 border-t border-[#243044]/60 text-xs">
+                    <div className="flex items-center justify-between pt-2 border-t border-[#D1CEC7] dark:border-[#26344A]/60 text-xs">
                       <div className="flex items-center gap-2">
                         <RiskBadge severity={ticket.risk_level} score={ticket.risk_score} />
                       </div>
-                      <span className="font-mono text-[10px] text-slate-400">
+                      <span className="font-mono text-[10px] text-[#6B7280] dark:text-slate-400">
                         Tool: {ticket.tool_name}
                       </span>
                     </div>
@@ -424,25 +406,25 @@ export default function ApprovalsPage() {
           )}
         </div>
 
-        {/* Right Column: Detailed Ticket Inspector */}
+        {/* Right Column: Detailed Ticket Inspector (7 cols) */}
         <div className="lg:col-span-7">
           {selectedTicket ? (
-            <div className="relative overflow-hidden p-6 rounded-lg bg-[#111827] border border-[#243044] space-y-6 shadow-xl">
+            <div className="relative overflow-hidden p-6 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] space-y-6 shadow-md">
               {selectedTicket.status === "PENDING" && (
-                <BorderBeam size={260} duration={12} colorFrom="#F59E0B" colorTo="#EF4444" />
+                <BorderBeam size={260} duration={12} colorFrom="#D05A40" colorTo="#E3A03E" />
               )}
               {/* Ticket Top Banner */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#243044]">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#D1CEC7] dark:border-[#26344A]">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-base font-bold text-white font-mono">
+                    <h2 className="text-base font-bold text-[#1A202E] dark:text-white font-mono">
                       Ticket {selectedTicket.ticket_id}
                     </h2>
                     <StatusBadge status={selectedTicket.status} />
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-[#475063] dark:text-slate-400 mt-1">
                     Gated execution request initiated by agent{" "}
-                    <code className="text-sky-400 font-mono">{selectedTicket.agent_id}</code>
+                    <code className="text-[#D05A40] font-mono font-semibold">{selectedTicket.agent_id}</code>
                   </p>
                 </div>
 
@@ -455,106 +437,93 @@ export default function ApprovalsPage() {
                 </div>
               </div>
 
-              {/* Critical Risk Assessment Overview */}
-              <div className="p-3.5 rounded-lg bg-[#0F172A] border border-[#243044] space-y-2">
+              {/* Action Emphasized in Bordered Architectural Box (deep-research-report.md) */}
+              <div className="p-4 rounded-xl bg-[#F8F6F0] dark:bg-[#131923] border-2 border-[#D05A40]/40 space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-medium">Gating Reason & Policy Invariant:</span>
-                  <span className="font-mono text-[11px] text-amber-400 font-semibold">
-                    Policy: {selectedTicket.policy_id}
+                  <span className="text-[#D05A40] font-bold font-mono uppercase tracking-wider text-[10px]">
+                    INTERCEPTED ACTION & REASON
+                  </span>
+                  <span className="font-mono text-[11px] text-[#475063] dark:text-slate-400 font-semibold">
+                    Policy Rule: {selectedTicket.policy_id}
                   </span>
                 </div>
-                <p className="text-xs text-slate-200">
+                <div className="text-sm font-bold text-[#1A202E] dark:text-[#F4F6F9] font-mono">
+                  {selectedTicket.action} on {selectedTicket.target_id}
+                </div>
+                <p className="text-xs text-[#475063] dark:text-slate-300 leading-relaxed">
                   {selectedTicket.reason || "Operation exceeded standard risk scoring threshold. Explicit human approval mandatory."}
                 </p>
               </div>
 
               {/* Ticket Metadata Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                <div className="p-2.5 rounded bg-[#0F172A] border border-[#243044]">
-                  <span className="text-[10px] uppercase font-mono text-slate-500 block">Requested Tool</span>
-                  <span className="font-mono font-semibold text-sky-400">{selectedTicket.tool_name}</span>
+                <div className="p-2.5 rounded-lg bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                  <span className="text-[10px] uppercase font-mono text-[#6B7280] dark:text-slate-500 block">Requested Tool</span>
+                  <span className="font-mono font-semibold text-[#D05A40]">{selectedTicket.tool_name}</span>
                 </div>
-                <div className="p-2.5 rounded bg-[#0F172A] border border-[#243044]">
-                  <span className="text-[10px] uppercase font-mono text-slate-500 block">Action Verb</span>
-                  <span className="font-mono font-semibold text-slate-200">{selectedTicket.action}</span>
+                <div className="p-2.5 rounded-lg bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                  <span className="text-[10px] uppercase font-mono text-[#6B7280] dark:text-slate-500 block">Action Verb</span>
+                  <span className="font-mono font-semibold text-[#1A202E] dark:text-slate-200">{selectedTicket.action}</span>
                 </div>
-                <div className="p-2.5 rounded bg-[#0F172A] border border-[#243044]">
-                  <span className="text-[10px] uppercase font-mono text-slate-500 block">Target ID</span>
-                  <span className="font-mono font-semibold text-slate-200 truncate block">{selectedTicket.target_id}</span>
+                <div className="p-2.5 rounded-lg bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                  <span className="text-[10px] uppercase font-mono text-[#6B7280] dark:text-slate-500 block">Target ID</span>
+                  <span className="font-mono font-semibold text-[#1A202E] dark:text-slate-200 truncate block">{selectedTicket.target_id}</span>
                 </div>
-                <div className="p-2.5 rounded bg-[#0F172A] border border-[#243044]">
-                  <span className="text-[10px] uppercase font-mono text-slate-500 block">Environment</span>
-                  <span className="font-mono font-semibold text-emerald-400 uppercase">{selectedTicket.environment}</span>
+                <div className="p-2.5 rounded-lg bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A]">
+                  <span className="text-[10px] uppercase font-mono text-[#6B7280] dark:text-slate-500 block">Environment</span>
+                  <span className="font-mono font-semibold text-[#3A8A7F] uppercase">{selectedTicket.environment}</span>
                 </div>
               </div>
 
               {/* Cryptographic Parameter Binding */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-300 font-semibold flex items-center gap-1.5">
-                    <Fingerprint className="w-3.5 h-3.5 text-sky-400" />
+                  <span className="text-[#1A202E] dark:text-slate-300 font-semibold flex items-center gap-1.5">
+                    <Fingerprint className="w-3.5 h-3.5 text-[#D05A40]" />
                     Cryptographic Parameter Fingerprint (SHA-256)
                   </span>
                   <button
                     onClick={() => handleCopy(selectedTicket.parameter_hash, "hash")}
-                    className="inline-flex items-center gap-1 text-[11px] text-sky-400 hover:text-sky-300 font-mono"
+                    className="inline-flex items-center gap-1 text-[11px] text-[#D05A40] hover:text-[#B84E37] font-mono font-semibold"
                   >
-                    {copiedHash ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    {copiedHash ? <Check className="w-3 h-3 text-[#3A8A7F]" /> : <Copy className="w-3 h-3" />}
                     <span>{copiedHash ? "Copied" : "Copy Hash"}</span>
                   </button>
                 </div>
-                <div className="p-2.5 rounded bg-[#0B0F14] border border-[#243044] font-mono text-[11px] text-slate-300 break-all select-all">
+                <div className="p-2.5 rounded-lg bg-[#F8F6F0] dark:bg-[#0D1117] border border-[#D1CEC7] dark:border-[#26344A] font-mono text-[11px] text-[#1A202E] dark:text-slate-300 break-all select-all">
                   {selectedTicket.parameter_hash || "No parameter hash sealed"}
                 </div>
-                <p className="text-[11px] text-slate-500">
-                  Any runtime parameter alteration before server execution invalidates this fingerprint and blocks dispatch.
+                <p className="text-[11px] text-[#6B7280] dark:text-slate-500">
+                  Any in-flight parameter tampering alters this fingerprint and immediately invalidates execution.
                 </p>
               </div>
 
               {/* Authorized Payload JSON Inspector */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-300 font-semibold flex items-center gap-1.5">
-                    <FileCode className="w-3.5 h-3.5 text-sky-400" />
+                  <span className="text-[#1A202E] dark:text-slate-300 font-semibold flex items-center gap-1.5">
+                    <FileCode className="w-3.5 h-3.5 text-[#3A8A7F]" />
                     Request Parameter Payload
                   </span>
                   <button
                     onClick={() => handleCopy(prettyJson(selectedTicket.parameters), "json")}
-                    className="inline-flex items-center gap-1 text-[11px] text-sky-400 hover:text-sky-300 font-mono"
+                    className="inline-flex items-center gap-1 text-[11px] text-[#D05A40] hover:text-[#B84E37] font-mono font-semibold"
                   >
-                    {copiedJson ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                    {copiedJson ? <Check className="w-3 h-3 text-[#3A8A7F]" /> : <Copy className="w-3 h-3" />}
                     <span>{copiedJson ? "Copied" : "Copy JSON"}</span>
                   </button>
                 </div>
-                <pre className="p-3.5 rounded bg-[#0B0F14] border border-[#243044] text-[11px] font-mono text-sky-300 max-h-48 overflow-y-auto select-all">
+                <pre className="p-3.5 rounded-lg bg-[#F8F6F0] dark:bg-[#0D1117] border border-[#D1CEC7] dark:border-[#26344A] text-[11px] font-mono text-[#1A202E] dark:text-sky-300 max-h-48 overflow-y-auto select-all">
                   {prettyJson(selectedTicket.parameters)}
                 </pre>
               </div>
 
-              {/* Timing & Expiration Invariant */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-lg bg-[#0F172A] border border-[#243044] text-xs">
-                <div>
-                  <span className="text-[10px] uppercase font-mono text-slate-500 block">Requested At</span>
-                  <span className="font-mono text-slate-300">{formatDate(selectedTicket.created_at)}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] uppercase font-mono text-slate-500 block">Expires At</span>
-                  <span className="font-mono text-amber-400">{formatDate(selectedTicket.expires_at)}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] uppercase font-mono text-slate-500 block">Decision By</span>
-                  <span className="font-mono text-slate-300">
-                    {selectedTicket.approver_id || (selectedTicket.status === "PENDING" ? "Awaiting Reviewer" : "System")}
-                  </span>
-                </div>
-              </div>
-
               {/* Decision Section */}
               {isPending && (
-                <div className="pt-4 border-t border-[#243044] space-y-4">
+                <div className="pt-4 border-t border-[#D1CEC7] dark:border-[#26344A] space-y-4">
                   {isViewer ? (
-                    <div className="p-3 rounded-lg bg-amber-950/20 border border-amber-800/40 text-xs text-amber-300 flex items-center gap-2">
-                      <Lock className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                    <div className="p-3 rounded-lg bg-amber-50 text-[#B87000] border border-amber-300 dark:bg-amber-950/20 dark:border-amber-800/40 text-xs flex items-center gap-2">
+                      <Lock className="w-4 h-4 flex-shrink-0" />
                       <span>
                         Your account has <strong>VIEWER</strong> role. You can inspect parameters but lack permission to sign off.
                       </span>
@@ -562,15 +531,15 @@ export default function ApprovalsPage() {
                   ) : (
                     <>
                       <div>
-                        <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                        <label className="block text-xs font-semibold text-[#1A202E] dark:text-slate-300 mb-1.5">
                           Audit Decision Notes (Mandatory for Denials, Optional for Approvals):
                         </label>
                         <textarea
                           rows={2}
-                          placeholder="e.g. Identity verified via secondary channel; parameters checked against operational request."
+                          placeholder="e.g. Identity verified; parameter checked against customer maintenance ticket."
                           value={actionNotes}
                           onChange={(e) => setActionNotes(e.target.value)}
-                          className="w-full p-2.5 rounded-lg bg-[#0B0F14] border border-[#243044] text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-sky-500 font-sans"
+                          className="w-full p-2.5 rounded-lg bg-[#F8F6F0] dark:bg-[#0D1117] border border-[#D1CEC7] dark:border-[#26344A] text-xs text-[#1A202E] dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-[#D05A40] font-sans"
                         />
                       </div>
 
@@ -580,28 +549,30 @@ export default function ApprovalsPage() {
                             setConfirmModal({ type: "cancel", ticket: selectedTicket })
                           }
                           disabled={actionLoading}
-                          className="px-3 py-1.5 rounded-md border border-slate-700 bg-slate-800/60 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-colors"
+                          className="px-3 py-1.5 rounded-lg border border-[#D1CEC7] dark:border-slate-700 bg-[#EFECE5] dark:bg-slate-800/60 hover:bg-[#E2DFD8] text-xs font-medium text-[#1A202E] dark:text-slate-300 transition-colors"
                         >
                           Cancel Ticket
                         </button>
 
                         <div className="flex items-center gap-2.5">
+                          {/* Reject Button (Rich Red) */}
                           <button
                             onClick={() =>
                               setConfirmModal({ type: "deny", ticket: selectedTicket })
                             }
                             disabled={actionLoading}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 border border-rose-800/70 text-xs font-semibold transition-colors disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#D64541] hover:bg-[#B71C1C] text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-50"
                           >
                             <XCircle className="w-4 h-4" />
-                            <span>Deny Request</span>
+                            <span>Reject</span>
                           </button>
+                          {/* Approve Button (Burnt Orange) */}
                           <button
                             onClick={() =>
                               setConfirmModal({ type: "approve", ticket: selectedTicket })
                             }
                             disabled={actionLoading}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold shadow-md shadow-emerald-950/40 transition-all hover:scale-[1.02] disabled:opacity-50"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#D05A40] hover:bg-[#B84E37] text-white text-xs font-semibold shadow-md shadow-[#D05A40]/25 transition-all hover:scale-[1.01] disabled:opacity-50"
                           >
                             <CheckCircle2 className="w-4 h-4" />
                             <span>Authorize & Dispatch</span>
@@ -614,29 +585,29 @@ export default function ApprovalsPage() {
               )}
             </div>
           ) : (
-            <div className="p-12 rounded-lg bg-[#111827] border border-[#243044] text-center text-slate-500">
+            <div className="p-12 rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] text-center text-[#6B7280] dark:text-slate-500 shadow-sm">
               Select an approval ticket from the left panel to inspect parameters and cryptographic hash.
             </div>
           )}
         </div>
       </div>
 
-      {/* Confirmation Modal */}
+      {/* Confirmation Dialog (Restates exact action before committing) */}
       {confirmModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
           onClick={() => setConfirmModal(null)}
         >
           <div
-            className="w-full max-w-md rounded-xl bg-[#0F172A] border border-[#243044] shadow-2xl overflow-hidden p-6 space-y-4"
+            className="w-full max-w-md rounded-xl bg-[#FFFFFF] dark:bg-[#17202E] border border-[#D1CEC7] dark:border-[#26344A] shadow-2xl overflow-hidden p-6 space-y-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3">
               <div
                 className={`p-2.5 rounded-full ${
                   confirmModal.type === "approve"
-                    ? "bg-emerald-950/60 border border-emerald-700/60 text-emerald-400"
-                    : "bg-rose-950/60 border border-rose-700/60 text-rose-400"
+                    ? "bg-[#D05A40]/15 text-[#D05A40]"
+                    : "bg-[#D64541]/15 text-[#D64541]"
                 }`}
               >
                 {confirmModal.type === "approve" ? (
@@ -646,40 +617,40 @@ export default function ApprovalsPage() {
                 )}
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">
-                  Confirm {confirmModal.type === "approve" ? "Authorization" : "Denial"}
+                <h3 className="text-sm font-bold text-[#1A202E] dark:text-white">
+                  Confirm {confirmModal.type === "approve" ? "Authorization" : "Rejection"}
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[#6B7280] dark:text-slate-400">
                   Ticket {shortId(confirmModal.ticket.ticket_id)} ({confirmModal.ticket.tool_name})
                 </p>
               </div>
             </div>
 
-            <div className="p-3 rounded bg-[#111827] border border-[#243044] text-xs space-y-1.5">
+            <div className="p-3 rounded-lg bg-[#F8F6F0] dark:bg-[#131923] border border-[#D1CEC7] dark:border-[#26344A] text-xs space-y-1.5">
               <div className="flex justify-between">
-                <span className="text-slate-400">Target Action:</span>
-                <span className="font-mono text-white font-semibold">{confirmModal.ticket.action}</span>
+                <span className="text-[#6B7280] dark:text-slate-400">Target Action:</span>
+                <span className="font-mono text-[#1A202E] dark:text-white font-semibold">{confirmModal.ticket.action}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Resource:</span>
-                <span className="font-mono text-slate-200">{confirmModal.ticket.target_id}</span>
+                <span className="text-[#6B7280] dark:text-slate-400">Resource:</span>
+                <span className="font-mono text-[#1A202E] dark:text-slate-200">{confirmModal.ticket.target_id}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">Risk Score:</span>
+                <span className="text-[#6B7280] dark:text-slate-400">Risk Score:</span>
                 <RiskBadge severity={confirmModal.ticket.risk_level} score={confirmModal.ticket.risk_score} />
               </div>
             </div>
 
-            <p className="text-xs text-slate-300">
+            <p className="text-xs text-[#475063] dark:text-slate-300 leading-relaxed">
               {confirmModal.type === "approve"
-                ? "Authorizing will cryptographically unlock the tool execution on the FastMCP server. This token is strictly one-time use."
-                : "Denying this ticket will permanently abort the agent request and record the rejection in the immutable audit log."}
+                ? "Authorizing will cryptographically unlock the tool execution on the FastMCP server. This approval token is strictly single-use."
+                : "Rejecting this ticket will permanently abort the agent request and record the rejection in the immutable audit log."}
             </p>
 
             <div className="flex items-center justify-end gap-2.5 pt-2">
               <button
                 onClick={() => setConfirmModal(null)}
-                className="px-3.5 py-1.5 rounded-md border border-slate-700 bg-slate-800 text-xs font-medium text-slate-300 hover:bg-slate-700 transition-colors"
+                className="px-3.5 py-1.5 rounded-lg border border-[#D1CEC7] dark:border-slate-700 bg-[#EFECE5] dark:bg-slate-800 text-xs font-medium text-[#1A202E] dark:text-slate-300 hover:bg-[#E2DFD8] transition-colors"
               >
                 Cancel
               </button>
@@ -692,10 +663,10 @@ export default function ApprovalsPage() {
                     : executeCancel
                 }
                 disabled={actionLoading}
-                className={`px-4 py-1.5 rounded-md text-xs font-semibold text-white transition-colors ${
+                className={`px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors ${
                   confirmModal.type === "approve"
-                    ? "bg-emerald-600 hover:bg-emerald-500 shadow-md shadow-emerald-950/40"
-                    : "bg-rose-600 hover:bg-rose-500 shadow-md shadow-rose-950/40"
+                    ? "bg-[#D05A40] hover:bg-[#B84E37] shadow-md shadow-[#D05A40]/25"
+                    : "bg-[#D64541] hover:bg-[#B71C1C] shadow-md shadow-[#D64541]/25"
                 }`}
               >
                 {actionLoading ? "Processing..." : `Confirm ${confirmModal.type === "approve" ? "Sign-off" : "Rejection"}`}

@@ -179,6 +179,7 @@ export interface PolicyRule {
   target_decision?: string;
   priority: number;
   reason?: string;
+  condition?: string;
 }
 
 export interface PolicyResponse {
@@ -210,6 +211,7 @@ export interface ToolInfo {
   operation_type?: string;
   resource_type?: string;
   data_sensitivity?: string;
+  parameters?: Record<string, unknown>;
 }
 
 export interface SecurityEvalScenario {
@@ -226,6 +228,7 @@ export interface SecurityEvalScenario {
   db_integrity_verified?: boolean;
   notes?: string;
   error?: string | null;
+  evidence?: string;
 }
 
 export interface SecurityEvalResult {
