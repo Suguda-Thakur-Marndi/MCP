@@ -2,6 +2,17 @@
  * Utility helpers for the security console UI.
  */
 
+export function cn(...classes: (string | undefined | null | false | Record<string, boolean>)[]): string {
+  return classes
+    .flatMap((c) => {
+      if (!c) return [];
+      if (typeof c === "string") return c.split(" ");
+      return Object.entries(c).filter(([, v]) => Boolean(v)).map(([k]) => k);
+    })
+    .filter(Boolean)
+    .join(" ");
+}
+
 // --------------------------------------------------------------------------
 // Risk level utilities
 // --------------------------------------------------------------------------

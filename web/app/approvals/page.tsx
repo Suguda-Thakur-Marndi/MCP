@@ -27,6 +27,7 @@ import {
 } from "@/lib/utils";
 import { RiskBadge, StatusBadge, VerificationBadge, RoleBadge } from "@/components/ui/Badges";
 import { LoadingState, EmptyState, ErrorState } from "@/components/ui/FeedbackStates";
+import { BorderBeam } from "@/components/ui/BorderBeam";
 
 const STATUS_FILTERS = [
   { label: "Pending Review", value: "PENDING" },
@@ -426,7 +427,10 @@ export default function ApprovalsPage() {
         {/* Right Column: Detailed Ticket Inspector */}
         <div className="lg:col-span-7">
           {selectedTicket ? (
-            <div className="p-6 rounded-lg bg-[#111827] border border-[#243044] space-y-6">
+            <div className="relative overflow-hidden p-6 rounded-lg bg-[#111827] border border-[#243044] space-y-6 shadow-xl">
+              {selectedTicket.status === "PENDING" && (
+                <BorderBeam size={260} duration={12} colorFrom="#F59E0B" colorTo="#EF4444" />
+              )}
               {/* Ticket Top Banner */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#243044]">
                 <div>

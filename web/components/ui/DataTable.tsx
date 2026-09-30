@@ -71,10 +71,10 @@ export function DataTable<T extends object>({
   const totalPages = Math.max(1, Math.ceil((totalItems ?? data.length) / pageSize));
 
   return (
-    <div className={`rounded-lg border border-[#243044] bg-[#111827] overflow-hidden flex flex-col ${className}`}>
+    <div className={`rounded-lg border border-[#D1CEC7] dark:border-[#243044] bg-[#FFFFFF] dark:bg-[#111827] overflow-hidden flex flex-col shadow-xs ${className}`}>
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs text-slate-300 border-collapse">
-          <thead className="bg-[#1A2332] text-slate-400 uppercase text-[11px] font-semibold tracking-wider sticky top-0 border-b border-[#243044] z-10">
+        <table className="w-full text-left text-xs text-[#1E1E1E] dark:text-slate-300 border-collapse">
+          <thead className="bg-[#EAE7E1] dark:bg-[#1A2332] text-[#4A4A4A] dark:text-slate-400 uppercase text-[11px] font-semibold tracking-wider sticky top-0 border-b border-[#D1CEC7] dark:border-[#243044] z-10">
             <tr>
               {columns.map((col) => (
                 <th
@@ -86,7 +86,7 @@ export function DataTable<T extends object>({
                       : col.align === "center"
                       ? "text-center"
                       : "text-left"
-                  } ${col.sortable ? "cursor-pointer select-none hover:text-slate-200" : ""}`}
+                  } ${col.sortable ? "cursor-pointer select-none hover:text-[#1E1E1E] dark:hover:text-slate-200" : ""}`}
                   onClick={() => col.sortable && handleSort(col.key)}
                 >
                   <div
@@ -96,7 +96,7 @@ export function DataTable<T extends object>({
                   >
                     <span>{col.header}</span>
                     {col.sortable && sortKey === col.key && (
-                      <span className="text-sky-400">
+                      <span className="text-[#D95E00] dark:text-sky-400">
                         {sortDirection === "asc" ? (
                           <ChevronUp className="w-3.5 h-3.5" />
                         ) : (
@@ -109,7 +109,7 @@ export function DataTable<T extends object>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#243044]/60">
+          <tbody className="divide-y divide-[#E2DFDA] dark:divide-[#243044]/60">
             {isLoading ? (
               <tr>
                 <td colSpan={columns.length} className="p-0">
@@ -128,7 +128,7 @@ export function DataTable<T extends object>({
                   key={(row as { id?: string | number; ticket_id?: string }).ticket_id || (row as { id?: string | number }).id || idx}
                   onClick={() => onRowClick && onRowClick(row)}
                   className={`transition-colors duration-150 ${
-                    onRowClick ? "cursor-pointer hover:bg-slate-800/60" : "hover:bg-slate-800/30"
+                    onRowClick ? "cursor-pointer hover:bg-[#F5F4F0] dark:hover:bg-slate-800/60" : "hover:bg-[#F5F4F0]/60 dark:hover:bg-slate-800/30"
                   }`}
                 >
                   {columns.map((col) => (
@@ -154,19 +154,19 @@ export function DataTable<T extends object>({
 
       {/* Pagination Footer */}
       {onPageChange && totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-2.5 bg-[#0F172A] border-t border-[#243044] text-xs text-slate-400">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-[#EAE7E1] dark:bg-[#0F172A] border-t border-[#D1CEC7] dark:border-[#243044] text-xs text-[#4A4A4A] dark:text-slate-400">
           <div className="font-mono text-[11px]">
-            Page <span className="font-bold text-slate-200">{currentPage}</span> of{" "}
-            <span className="font-bold text-slate-200">{totalPages}</span>
+            Page <span className="font-bold text-[#1E1E1E] dark:text-slate-200">{currentPage}</span> of{" "}
+            <span className="font-bold text-[#1E1E1E] dark:text-slate-200">{totalPages}</span>
             {totalItems !== undefined && (
-              <span className="ml-2 text-slate-500">({totalItems} total records)</span>
+              <span className="ml-2 text-[#7A7670] dark:text-slate-500">({totalItems} total records)</span>
             )}
           </div>
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage <= 1 || isLoading}
-              className="p-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="p-1 rounded bg-[#E2DFDA] dark:bg-slate-800 border border-[#D1CEC7] dark:border-slate-700 text-[#1E1E1E] dark:text-slate-300 hover:bg-[#D1CEC7] dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               title="Previous Page"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -174,7 +174,7 @@ export function DataTable<T extends object>({
             <button
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage >= totalPages || isLoading}
-              className="p-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="p-1 rounded bg-[#E2DFDA] dark:bg-slate-800 border border-[#D1CEC7] dark:border-slate-700 text-[#1E1E1E] dark:text-slate-300 hover:bg-[#D1CEC7] dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               title="Next Page"
             >
               <ChevronRight className="w-4 h-4" />

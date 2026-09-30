@@ -126,12 +126,19 @@ The MCP server exposes strictly defined tools with explicit Pydantic schemas. It
   - `operator`: Initiate agent runs, view customer data, and submit notes.
   - `viewer`: Read-only telemetry, audit stream, and dashboard metrics.
 
-### 6. Interactive Next.js 16 Security Console
-A modern dark-themed web console built with Next.js 16, React 19, Tailwind CSS, and Radix UI:
-- **Live Approval Queue**: Real-time listing of pending high-risk tickets with risk score badges, target entity details, and approve/reject actions.
-- **Audit Trail Stream**: Searchable, real-time log of every tool requested, policy decision, approval lifecycle event, and blocked attempt.
-- **Evaluation Dashboard**: Visual breakdown of benchmark metrics, category pass rates, attack defense stats, and security KPIs.
-- **Policy Inspector**: Live view of active policies, risk rules, threshold boundaries, and least-privilege role assignments.
+### 6. Interactive Next.js 16 Security Console (Architectural Intelligence)
+A state-of-the-art security console designed under the **Architectural Intelligence** design system (Warm Ivory `#F5F4F0`, Stone Gray `#E2DFDA`, Graphite `#1E1E1E`, and Burnt Orange `#D95E00`) with seamless live toggling to **Architectural Midnight** (Cyber Dark):
+- **3D Security Machine Centerpiece**: Real-time spatial model on the Command Center (`/` and `/overview`) with hardware-accelerated CSS 3D transforms, interactive perspective tilt, and live telemetry nodes for agent reasoning, FastMCP tools, dual-custody gating, and database persistence.
+- **Dimensional 3D Cards (Aceternity UI)**: Interactive 3D perspective cards on the MCP Tools registry (`/tools`, `/mcp-tools`) displaying parameters, projections, and risk tiers with cursor parallax.
+- **Perimeter BorderBeam (Magic UI)**: Luminous border tracer highlighting active authentication boundaries (`/auth`), pending approval tickets (`/approvals`), and active security invariants.
+- **Live Approval Queue**: Real-time listing of pending high-risk tickets with risk score badges, target entity details, SHA-256 hash parameter review, and dual-custody approve/reject actions.
+- **Audit Trail Stream**: Searchable, real-time log of every tool requested, policy decision, approval lifecycle event, and blocked attempt (`/audit`, `/audit-logs`).
+- **Evaluation Dashboard**: Visual breakdown of benchmark metrics, category pass rates, attack defense stats, and security KPIs (`/evaluation`).
+- **Policy Inspector**: Live view of active policies, risk rules, threshold boundaries, and least-privilege role assignments (`/policies`, `/policy-inspector`).
+- **Authentication Gateway**: Google Workspace Single Sign-On and local RBAC test harness identity switcher (`/auth`, `/login`).
+- **Authoritative 404 Fallback**: Security Boundary Enforced card for unmapped routes or access violations.
+
+*For complete design token definitions, route mappings, and verification screenshots, see [UI-REPORT.md](UI-REPORT.md) and [CLEANUP-REPORT.md](CLEANUP-REPORT.md).*
 
 ---
 

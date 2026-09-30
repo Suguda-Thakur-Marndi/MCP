@@ -7,6 +7,17 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
   },
+  async rewrites() {
+    return [
+      { source: "/overview", destination: "/" },
+      { source: "/agent-runs", destination: "/agent" },
+      { source: "/mcp-tools", destination: "/tools" },
+      { source: "/audit-logs", destination: "/audit" },
+      { source: "/policy-inspector", destination: "/policies" },
+      { source: "/system-health", destination: "/settings" },
+      { source: "/login", destination: "/auth" },
+    ];
+  },
 };
 
 export default nextConfig;

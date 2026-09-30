@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { GlobalSearchModal } from "./GlobalSearchModal";
+import { ThemeProvider } from "./ThemeProvider";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -11,7 +12,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#0B0F14] text-slate-100 flex flex-col font-sans selection:bg-sky-500/30 selection:text-sky-200">
+    <ThemeProvider>
+      <div className="min-h-screen bg-[#F5F4F0] dark:bg-[#0B0F14] text-[#1E1E1E] dark:text-slate-100 flex flex-col font-sans transition-colors duration-200 selection:bg-[#D95E00]/30 selection:text-[#D95E00]">
       {/* Mobile Drawer Backdrop */}
       {mobileMenuOpen && (
         <div
@@ -52,5 +54,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </main>
     </div>
+    </ThemeProvider>
   );
 }

@@ -36,6 +36,8 @@ import { MetricCard } from "@/components/ui/MetricCard";
 import { DecisionBadge } from "@/components/ui/Badges";
 import { DataTable, Column } from "@/components/ui/DataTable";
 import { Skeleton } from "@/components/ui/FeedbackStates";
+import { SecurityCore3D } from "@/components/visualization/SecurityCore3D";
+import { BorderBeam } from "@/components/ui/BorderBeam";
 
 interface DecisionEvent {
   id: string;
@@ -277,6 +279,14 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Distinctive 3D Security-Core Centerpiece */}
+      <SecurityCore3D
+        systemHealthy={!error}
+        pendingCount={stats?.metrics?.pending_approvals ?? 0}
+        blockedCount={stats?.metrics?.blocked_actions ?? 0}
+        toolCount={6}
+      />
+
       {/* KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
         <MetricCard
@@ -431,7 +441,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Security Perimeter Guarantees */}
-        <div className="p-5 rounded-lg bg-[#111827] border border-[#243044] flex flex-col justify-between">
+        <div className="relative overflow-hidden p-5 rounded-lg bg-[#111827] border border-[#243044] flex flex-col justify-between shadow-lg">
+          <BorderBeam size={220} duration={12} colorFrom="#38BDF8" colorTo="#818CF8" />
           <div className="flex items-center justify-between pb-3 border-b border-[#243044]">
             <div>
               <span className="text-[10px] font-mono uppercase text-slate-500 block">Perimeter</span>

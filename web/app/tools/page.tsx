@@ -20,6 +20,7 @@ import { api, ToolInfo } from "@/lib/api";
 import { prettyJson } from "@/lib/utils";
 import { RiskBadge, VerificationBadge } from "@/components/ui/Badges";
 import { LoadingState, EmptyState } from "@/components/ui/FeedbackStates";
+import { CardContainer, CardBody, CardItem } from "@/components/ui/Card3D";
 
 export default function ToolsRegistryPage() {
   const [tools, setTools] = useState<ToolInfo[]>([]);
@@ -139,60 +140,61 @@ export default function ToolsRegistryPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredTools.map((tool) => (
-            <div
-              key={tool.name}
-              className="p-5 rounded-lg bg-[#111827] border border-[#243044] hover:border-slate-600 transition-all flex flex-col justify-between space-y-4 group"
-            >
-              <div>
-                <div className="flex items-start justify-between gap-3 mb-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="p-1.5 rounded bg-[#0F172A] border border-[#243044] text-sky-400 group-hover:text-sky-300">
-                      <Wrench className="w-4 h-4" />
-                    </div>
-                    <code className="text-sm font-bold text-white font-mono tracking-wide">
-                      {tool.name}
-                    </code>
+            <CardContainer key={tool.name} containerClassName="w-full" className="w-full">
+              <CardBody className="w-full p-5 rounded-lg bg-[#111827] border border-[#243044] hover:border-slate-500/80 transition-all flex flex-col justify-between space-y-4 group shadow-md hover:shadow-cyan-500/5">
+                <div>
+                  <div className="flex items-start justify-between gap-3 mb-2.5">
+                    <CardItem translateZ={25} className="flex items-center gap-2">
+                      <div className="p-1.5 rounded bg-[#0F172A] border border-[#243044] text-sky-400 group-hover:text-sky-300">
+                        <Wrench className="w-4 h-4" />
+                      </div>
+                      <code className="text-sm font-bold text-white font-mono tracking-wide">
+                        {tool.name}
+                      </code>
+                    </CardItem>
+                    <CardItem translateZ={30}>
+                      <RiskBadge severity={tool.risk_level} />
+                    </CardItem>
                   </div>
-                  <RiskBadge severity={tool.risk_level} />
+
+                  <CardItem translateZ={15} as="p" className="text-xs text-slate-300 leading-relaxed">
+                    {tool.description}
+                  </CardItem>
                 </div>
 
-                <p className="text-xs text-slate-300 leading-relaxed">
-                  {tool.description}
-                </p>
-              </div>
+                <div className="pt-3 border-t border-[#243044] flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+                  <CardItem translateZ={20} className="flex flex-wrap items-center gap-1.5">
+                    {tool.is_destructive && (
+                      <span className="px-2 py-0.5 rounded bg-rose-950/40 text-rose-300 border border-rose-800/60 font-semibold">
+                        DESTRUCTIVE
+                      </span>
+                    )}
+                    {tool.requires_approval ? (
+                      <span className="px-2 py-0.5 rounded bg-amber-950/40 text-amber-300 border border-amber-800/60 font-semibold">
+                        HUMAN GATED
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded bg-emerald-950/40 text-emerald-300 border border-emerald-800/60">
+                        DIRECT EXECUTE
+                      </span>
+                    )}
+                    {tool.read_only && (
+                      <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                        READ ONLY
+                      </span>
+                    )}
+                  </CardItem>
 
-              <div className="pt-3 border-t border-[#243044] flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {tool.is_destructive && (
-                    <span className="px-2 py-0.5 rounded bg-rose-950/40 text-rose-300 border border-rose-800/60 font-semibold">
-                      DESTRUCTIVE
-                    </span>
-                  )}
-                  {tool.requires_approval ? (
-                    <span className="px-2 py-0.5 rounded bg-amber-950/40 text-amber-300 border border-amber-800/60 font-semibold">
-                      HUMAN GATED
-                    </span>
-                  ) : (
-                    <span className="px-2 py-0.5 rounded bg-emerald-950/40 text-emerald-300 border border-emerald-800/60">
-                      DIRECT EXECUTE
-                    </span>
-                  )}
-                  {tool.read_only && (
-                    <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
-                      READ ONLY
-                    </span>
-                  )}
+                  <button
+                    onClick={() => setSelectedTool(tool)}
+                    className="inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 font-sans text-xs font-semibold"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>Inspect</span>
+                  </button>
                 </div>
-
-                <button
-                  onClick={() => setSelectedTool(tool)}
-                  className="inline-flex items-center gap-1 text-sky-400 hover:text-sky-300 font-sans text-xs font-semibold"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Inspect</span>
-                </button>
-              </div>
-            </div>
+              </CardBody>
+            </CardContainer>
           ))}
         </div>
       )}

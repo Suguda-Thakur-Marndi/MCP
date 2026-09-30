@@ -3,14 +3,72 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-surface: #111827;
-  --color-surface-high: #1A2332;
-  --color-border-hairline: #243044;
-  --font-sans: var(--font-sans), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --color-surface: var(--bg-card);
+  --color-surface-high: var(--bg-card-hover);
+  --color-border-hairline: var(--border);
+  --color-accent-burnt: #D95E00;
+  --color-accent-teal: #0A7A75;
+  --font-sans: var(--font-sans), Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 :root {
+  /* Architectural Intelligence Design Tokens (deep-research-report.md Section 2) */
+  --color-bg-primary: #F5F4F0;
+  --color-bg-secondary: #E2DFDA;
+  --color-text-primary: #1E1E1E;
+  --color-text-secondary: #4A4A4A;
+  --color-accent: #D95E00;
+  --color-accent-2: #0A7A75;
+  --color-warning: #E88D00;
+  --color-danger: #B71C1C;
+  --color-border: #D1CEC7;
+
+  /* Theme mappings (Architectural Intelligence) */
+  --background: #F5F4F0;
+  --foreground: #1E1E1E;
+  --bg-primary: #F5F4F0;
+  --bg-secondary: #E2DFDA;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #EBE8E3;
+  --border: #D1CEC7;
+  --border-accent: #D95E00;
+  --accent: #D95E00;
+  --accent-2: #0A7A75;
+  --text-primary: #1E1E1E;
+  --text-secondary: #4A4A4A;
+  --text-muted: #737373;
+  --success: #0A7A75;
+  --warning: #E88D00;
+  --danger: #B71C1C;
+  --info: #0284C7;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+  /* Motion */
+  --motion-fast: 150ms ease-in-out;
+  --motion-medium: 300ms ease-in-out;
+  --motion-slow: 500ms ease;
+}
+
+/* Midnight Dark Theme Option */
+[data-theme="midnight"],
+.dark {
   --background: #0B0F14;
   --foreground: #F8FAFC;
   --bg-primary: #0B0F14;
@@ -18,16 +76,20 @@
   --bg-card: #111827;
   --bg-card-hover: #1A2332;
   --border: #243044;
-  --border-accent: #3B82F6;
+  --border-accent: #38BDF8;
   --accent: #38BDF8;
-  --accent-dim: #0EA5E9;
+  --accent-2: #34D399;
   --text-primary: #F8FAFC;
   --text-secondary: #94A3B8;
   --text-muted: #64748B;
   --success: #22C55E;
   --warning: #F59E0B;
   --danger: #EF4444;
-  --info: #3B82F6;
+  --info: #38BDF8;
+
+  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
 * {
@@ -115,6 +177,82 @@ body {
   background-size: 200% 100%;
   animation: shimmer 1.8s infinite;
   border-radius: 6px;
+}
+
+/* 3D Perspective & Spatial Depth */
+.perspective-800 {
+  perspective: 800px;
+}
+.perspective-1000 {
+  perspective: 1000px;
+}
+.perspective-1200 {
+  perspective: 1200px;
+}
+.transform-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+/* Cyber Patterns & Accents */
+.cyber-grid {
+  background-size: 32px 32px;
+  background-image: 
+    linear-gradient(to right, rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+}
+
+.cyber-grid-dense {
+  background-size: 16px 16px;
+  background-image: 
+    linear-gradient(to right, rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(99, 102, 241, 0.05) 1px, transparent 1px);
+}
+
+/* Rotational Orbit Animations */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spin-reverse-slow {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 30s linear infinite;
+}
+
+.animate-spin-reverse-slow {
+  animation: spin-reverse-slow 40s linear infinite;
+}
+
+/* SVG Beam Pulse Animation */
+@keyframes beam-travel {
+  0% {
+    stroke-dashoffset: 120;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-beam-flow {
+  stroke-dasharray: 12 18;
+  animation: beam-travel 2.4s linear infinite;
+}
+
+/* Border Beam Effect */
+@keyframes border-beam-sweep {
+  0% {
+    offset-distance: 0%;
+  }
+  100% {
+    offset-distance: 100%;
+  }
 }
 
 /* Reduced motion preference */

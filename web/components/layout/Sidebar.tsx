@@ -120,27 +120,27 @@ export function Sidebar({
 
   return (
     <aside
-      className={`fixed left-0 top-0 bottom-0 z-40 bg-[#0F172A] border-r border-[#243044] flex flex-col transition-all duration-200 select-none ${
+      className={`fixed left-0 top-0 bottom-0 z-40 bg-[#EAE7E1] dark:bg-[#0F172A] border-r border-[#D1CEC7] dark:border-[#243044] flex flex-col transition-all duration-200 select-none shadow-sm ${
         isCollapsed ? "w-16" : "w-64"
       } ${
         isMobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
       }`}
     >
       {/* Brand Header */}
-      <div className="h-14 border-b border-[#243044] px-4 flex items-center justify-between">
+      <div className="h-14 border-b border-[#D1CEC7] dark:border-[#243044] px-4 flex items-center justify-between">
         <Link href="/" onClick={onCloseMobile} className="flex items-center gap-2.5 overflow-hidden group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-600 p-[1px] shadow-md shadow-cyan-500/20 flex-shrink-0 group-hover:scale-105 transition-transform">
-            <div className="w-full h-full rounded-[7px] bg-[#0A0E17] flex items-center justify-center font-black text-cyan-400 text-xs tracking-wider">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#D95E00] via-amber-600 to-[#0A7A75] p-[1px] shadow-md shadow-[#D95E00]/20 flex-shrink-0 group-hover:scale-105 transition-transform">
+            <div className="w-full h-full rounded-[7px] bg-[#1E1E1E] dark:bg-[#0A0E17] flex items-center justify-center font-black text-white dark:text-cyan-400 text-xs tracking-wider">
               MS
             </div>
           </div>
           {!isCollapsed && (
             <div className="flex flex-col truncate">
-              <span className="text-xs font-black tracking-[0.14em] text-white flex items-center">
-                MCP<span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-400">SENTINEL</span>
+              <span className="text-xs font-black tracking-[0.14em] text-[#1E1E1E] dark:text-white flex items-center">
+                MCP<span className="text-[#D95E00] dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-cyan-400 dark:via-sky-400 dark:to-indigo-400">SENTINEL</span>
               </span>
-              <span className="text-[9px] text-slate-400 font-mono tracking-wider flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+              <span className="text-[9px] text-[#7A7670] dark:text-slate-400 font-mono tracking-wider flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#0A7A75] dark:bg-emerald-400 animate-pulse inline-block" />
                 SECURITY GATEWAY
               </span>
             </div>
@@ -150,7 +150,7 @@ export function Sidebar({
           {/* Mobile close button */}
           <button
             onClick={onCloseMobile}
-            className="p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors lg:hidden"
+            className="p-1 rounded text-[#4A4A4A] dark:text-slate-400 hover:text-[#1E1E1E] dark:hover:text-slate-200 hover:bg-[#D1CEC7]/60 dark:hover:bg-slate-800 transition-colors lg:hidden"
             title="Close sidebar"
           >
             <X className="w-4 h-4" />
@@ -158,7 +158,7 @@ export function Sidebar({
           {/* Desktop collapse toggle */}
           <button
             onClick={onToggleCollapse}
-            className="hidden lg:block p-1 rounded text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            className="hidden lg:block p-1 rounded text-[#4A4A4A] dark:text-slate-400 hover:text-[#1E1E1E] dark:hover:text-slate-200 hover:bg-[#D1CEC7]/60 dark:hover:bg-slate-800 transition-colors"
             title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -168,10 +168,10 @@ export function Sidebar({
 
       {/* Organization Header */}
       {!isCollapsed && (
-        <div className="px-3 py-2 bg-[#111827] border-b border-[#243044] flex items-center justify-between">
+        <div className="px-3 py-2 bg-[#E2DFDA] dark:bg-[#111827] border-b border-[#D1CEC7] dark:border-[#243044] flex items-center justify-between">
           <div className="truncate">
-            <span className="text-[10px] uppercase font-semibold tracking-wider text-slate-500 block">Organization</span>
-            <span className="text-xs font-medium text-slate-200 truncate block">
+            <span className="text-[10px] uppercase font-semibold tracking-wider text-[#7A7670] dark:text-slate-500 block">Organization</span>
+            <span className="text-xs font-medium text-[#1E1E1E] dark:text-slate-200 truncate block">
               {currentUser?.organization || "Sentinel Enterprise"}
             </span>
           </div>
@@ -184,7 +184,7 @@ export function Sidebar({
         {NAVIGATION.map((grp) => (
           <div key={grp.group}>
             {!isCollapsed && (
-              <h5 className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+              <h5 className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-wider text-[#7A7670] dark:text-slate-500">
                 {grp.group}
               </h5>
             )}
@@ -200,17 +200,17 @@ export function Sidebar({
                       onClick={onCloseMobile}
                       className={`flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
                         isActive
-                          ? "bg-blue-600/20 text-sky-400 border border-sky-500/30 font-semibold"
-                          : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                          ? "bg-[#D95E00]/10 text-[#D95E00] border border-[#D95E00]/30 font-semibold dark:bg-blue-600/20 dark:text-sky-400 dark:border-sky-500/30"
+                          : "text-[#4A4A4A] dark:text-slate-400 hover:text-[#1E1E1E] dark:hover:text-slate-200 hover:bg-[#D1CEC7]/50 dark:hover:bg-slate-800/60"
                       } ${isCollapsed ? "justify-center px-0" : ""}`}
                       title={isCollapsed ? item.label : undefined}
                     >
                       <div className="flex items-center gap-2.5 truncate">
-                        <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-sky-400" : "text-slate-400"}`} />
+                        <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-[#D95E00] dark:text-sky-400" : "text-[#7A7670] dark:text-slate-400"}`} />
                         {!isCollapsed && <span className="truncate">{item.label}</span>}
                       </div>
                       {!isCollapsed && (item.badgeCount ?? 0) > 0 && (
-                        <span className="px-1.5 py-0.2 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 font-mono text-[10px] font-bold">
+                        <span className="px-1.5 py-0.2 rounded-full bg-[#D95E00]/20 border border-[#D95E00]/40 text-[#D95E00] dark:bg-amber-500/20 dark:border-amber-500/40 dark:text-amber-300 font-mono text-[10px] font-bold">
                           {item.badgeCount}
                         </span>
                       )}
@@ -224,15 +224,15 @@ export function Sidebar({
       </div>
 
       {/* Footer / User Profile summary */}
-      <div className="p-3 border-t border-[#243044] bg-[#0B0F14]/50">
+      <div className="p-3 border-t border-[#D1CEC7] dark:border-[#243044] bg-[#E2DFDA]/70 dark:bg-[#0B0F14]/50">
         <div className={`flex items-center gap-2.5 ${isCollapsed ? "justify-center" : ""}`}>
-          <div className="w-7 h-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-semibold text-slate-300 flex-shrink-0">
+          <div className="w-7 h-7 rounded-full bg-[#D1CEC7] dark:bg-slate-800 border border-[#B5B2AB] dark:border-slate-700 flex items-center justify-center text-xs font-semibold text-[#1E1E1E] dark:text-slate-300 flex-shrink-0">
             {currentUser?.name ? currentUser.name[0].toUpperCase() : "A"}
           </div>
           {!isCollapsed && (
             <div className="truncate flex-1">
-              <p className="text-xs font-medium text-slate-200 truncate">{currentUser?.name || "Operator"}</p>
-              <p className="text-[10px] text-slate-500 truncate font-mono">{currentUser?.email || "admin@sentinel.test"}</p>
+              <p className="text-xs font-medium text-[#1E1E1E] dark:text-slate-200 truncate">{currentUser?.name || "Operator"}</p>
+              <p className="text-[10px] text-[#7A7670] dark:text-slate-500 truncate font-mono">{currentUser?.email || "admin@sentinel.test"}</p>
             </div>
           )}
         </div>
