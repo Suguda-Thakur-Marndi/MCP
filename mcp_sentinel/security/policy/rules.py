@@ -30,6 +30,8 @@ def cond_rule_006_missing_context(ctx: PolicyContext, risk: RiskExplanation) -> 
 
 def cond_rule_007_unknown_high_risk_tool(ctx: PolicyContext, risk: RiskExplanation) -> bool:
     """RULE-007: Unknown tool marked destructive or high risk fails closed."""
+    if ctx.is_server_approved:
+        return False
     is_unknown = ctx.tool_name not in TRUSTED_TOOL_REGISTRY
     return is_unknown and (ctx.destructive or risk.clamped_score >= 50)
 
@@ -56,8 +58,8 @@ def cond_rule_005_bulk_critical_operation(ctx: PolicyContext, risk: RiskExplanat
 
 
 def cond_rule_010_approved_destructive(ctx: PolicyContext, risk: RiskExplanation) -> bool:
-    """RULE-010: Destructive operation with verified server-side approval ticket."""
-    return ctx.destructive and ctx.is_server_approved
+    """RULE-010: High-risk or destructive operation with verified server-side approval ticket."""
+    return ctx.is_server_approved
 
 
 def cond_rule_008_safe_read_allow(ctx: PolicyContext, risk: RiskExplanation) -> bool:

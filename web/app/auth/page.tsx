@@ -13,6 +13,7 @@ import {
   User,
   Users,
   Mail,
+  Terminal,
 } from "lucide-react";
 import { api, type CurrentUser } from "@/lib/api";
 import { RoleBadge } from "@/components/ui/Badges";
@@ -104,34 +105,34 @@ function AuthContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] flex flex-col justify-center items-center p-4 sm:p-6 transition-colors duration-150">
-      <div className="w-full max-w-md space-y-6">
+    <div className="min-h-screen bg-[var(--surface-container-lowest)] text-[var(--text-primary)] flex flex-col justify-center items-center p-3 sm:p-6 transition-colors duration-150 font-sans select-none">
+      <div className="w-full max-w-md space-y-4 animate-in fade-in duration-150">
         {/* Brand Header */}
-        <div className="text-center">
-          <Link href="/" className="inline-flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-xs bg-[var(--accent)] text-white flex items-center justify-center font-bold text-xs tracking-wider shadow-xs">
+        <div className="text-center space-y-2">
+          <Link href="/" className="inline-flex items-center gap-2 group">
+            <div className="w-7 h-7 rounded-xs bg-[var(--surface-container-high)] border border-[var(--primary-container)]/40 text-[var(--primary-container)] flex items-center justify-center font-bold text-xs tracking-wider shadow-sm">
               <Shield className="w-4 h-4" />
             </div>
             <div className="flex flex-col text-left">
-              <span className="text-sm font-bold tracking-wider text-[var(--text-primary)]">
-                MCP<span className="text-[var(--accent)] font-semibold ml-0.5">SENTINEL</span>
+              <span className="text-sm font-bold tracking-wider text-[var(--primary)] font-mono">
+                MCP<span className="text-[var(--primary-container)] font-semibold ml-0.5">SENTINEL</span>
               </span>
-              <span className="text-[9px] text-[var(--text-muted)] font-mono-tnum tracking-wider">
-                UNIVERSAL AI AGENT SECURITY GATEWAY
+              <span className="font-label-caps text-[8px] text-[var(--text-muted)] tracking-widest">
+                ZERO-TRUST GATEWAY // MISSION CONTROL
               </span>
             </div>
           </Link>
-          <h1 className="text-lg md:text-xl font-bold mt-4 tracking-tight text-[var(--text-primary)]">
-            Security Gateway Authentication
+          <h1 className="font-headline-md text-base sm:text-lg font-bold tracking-tight text-[var(--primary)]">
+            GATEWAY IDENTITY AUTHENTICATION
           </h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-1">
-            One security layer for every AI tool.
+          <p className="font-body-sm text-xs text-[var(--text-secondary)]">
+            Cryptographic authentication and human-in-the-loop authorization console.
           </p>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="p-3.5 rounded-xs text-xs flex items-center gap-2.5 border border-[var(--danger)] bg-[var(--danger)]/10 text-[var(--danger)]">
+          <div className="p-3 rounded-xs text-xs flex items-center gap-2 border border-[var(--error)]/40 bg-[var(--error-container)] text-[var(--on-error-container)] font-code-sm">
             <AlertTriangle className="w-4 h-4 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -139,23 +140,25 @@ function AuthContent() {
 
         {/* Current Active Session Card */}
         {currentUser && (
-          <div className="p-4 rounded-xs border border-[var(--border)] bg-[var(--bg-card)] shadow-2xs">
-            <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
-              <span className="text-[10px] font-mono-tnum font-semibold uppercase text-[var(--text-muted)]">
-                Active Session Detected
+          <div className="p-3.5 rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)] space-y-2">
+            <div className="flex items-center justify-between pb-1.5 border-b border-[var(--border)] font-code-sm">
+              <span className="font-label-caps text-[8px] font-bold uppercase text-[var(--text-muted)]">
+                ACTIVE IDENTITY DETECTED
               </span>
-              <RoleBadge role={currentUser.role} />
+              <span className="px-1.5 py-0.2 rounded-xs font-label-caps text-[8px] font-bold bg-[var(--secondary-container)]/20 text-[var(--secondary-container)] border border-[var(--secondary-container)]/30">
+                {currentUser.role}
+              </span>
             </div>
-            <div className="pt-2 flex items-center justify-between">
+            <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-[var(--text-primary)]">{currentUser.name}</p>
-                <p className="text-[10px] font-mono-tnum text-[var(--text-muted)]">{currentUser.email}</p>
+                <p className="text-xs font-bold text-[var(--primary)] font-mono">{currentUser.name}</p>
+                <p className="font-code-sm text-[10px] text-[var(--text-muted)]">{currentUser.email}</p>
               </div>
               <Link
                 href="/"
-                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xs bg-[var(--accent)] text-white text-xs font-semibold hover:opacity-90 shadow-2xs"
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xs bg-[var(--primary-container)] text-[var(--surface-container-lowest)] text-xs font-bold font-code-sm hover:brightness-110 shadow-sm"
               >
-                <span>Enter Gateway</span>
+                <span>ENTER GATEWAY</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
@@ -163,16 +166,16 @@ function AuthContent() {
         )}
 
         {/* Authentication Options Container */}
-        <div className="rounded-xs border border-[var(--border)] bg-[var(--bg-card)] shadow-2xs p-6 space-y-5">
+        <div className="rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)] p-4 sm:p-5 space-y-4">
           {/* Google OAuth Section */}
           <div>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2.5">
-              Enterprise Single Sign-On
+            <h2 className="font-label-caps text-[8px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+              ENTERPRISE FEDERATED SSO
             </h2>
             <button
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-xs border border-[var(--border)] bg-[var(--bg-secondary)] hover:bg-[var(--bg-card-hover)] text-xs font-semibold text-[var(--text-primary)] transition-colors shadow-2xs"
+              className="w-full flex items-center justify-center gap-2.5 px-3 py-2 rounded-xs border border-[var(--border)] bg-[var(--surface-container-lowest)] hover:border-[var(--secondary-container)] text-xs font-semibold text-[var(--text-primary)] transition-all shadow-xs cursor-pointer font-mono"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
                 <path
@@ -199,16 +202,16 @@ function AuthContent() {
           {/* Divider */}
           <div className="relative flex items-center justify-center">
             <div className="border-t border-[var(--border)] w-full"></div>
-            <span className="bg-[var(--bg-card)] px-3 text-[10px] font-mono-tnum text-[var(--text-muted)] uppercase">
-              Or Sign In With Email
+            <span className="bg-[var(--surface-container-low)] px-2.5 font-label-caps text-[8px] text-[var(--text-muted)] uppercase">
+              OR DIRECT OPERATOR CREDENTIALS
             </span>
           </div>
 
           {/* Email / Password Form */}
-          <form onSubmit={handleEmailPasswordLogin} className="space-y-3 font-mono-tnum text-xs">
+          <form onSubmit={handleEmailPasswordLogin} className="space-y-2.5 font-code-sm text-xs">
             <div>
-              <label className="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">
-                Enterprise Email
+              <label className="block font-label-caps text-[8px] uppercase font-bold text-[var(--text-muted)] mb-1">
+                OPERATOR EMAIL
               </label>
               <input
                 type="email"
@@ -216,12 +219,12 @@ function AuthContent() {
                 placeholder="operator@sentinel.corp"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-2.5 rounded-xs border border-[var(--border)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                className="w-full p-2 rounded-xs border border-[var(--border)] bg-[var(--surface-container-lowest)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--secondary-container)] font-mono"
               />
             </div>
             <div>
-              <label className="block text-[10px] uppercase font-bold text-[var(--text-muted)] mb-1">
-                Password
+              <label className="block font-label-caps text-[8px] uppercase font-bold text-[var(--text-muted)] mb-1">
+                OPERATOR PASSWORD
               </label>
               <input
                 type="password"
@@ -229,40 +232,42 @@ function AuthContent() {
                 placeholder="••••••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-2.5 rounded-xs border border-[var(--border)] bg-[var(--bg-secondary)] text-xs text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                className="w-full p-2 rounded-xs border border-[var(--border)] bg-[var(--surface-container-lowest)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--secondary-container)] font-mono"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-2.5 rounded-xs bg-[var(--accent)] text-white text-xs font-semibold hover:opacity-95 shadow-2xs"
+              className="w-full py-2 rounded-xs bg-[var(--primary-container)] text-[var(--surface-container-lowest)] text-xs font-bold font-code-sm hover:brightness-110 shadow-sm cursor-pointer"
             >
-              Sign In to Security Gateway
+              SIGN IN TO SECURITY GATEWAY
             </button>
           </form>
 
           {/* Development Fast Identifiers */}
-          <div className="pt-2 border-t border-[var(--border-subtle)]">
+          <div className="pt-2 border-t border-[var(--border)]">
             <div className="flex items-center gap-1.5 mb-2">
               <Users className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-              <h2 className="text-[10px] font-mono-tnum font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                Local RBAC Test Personas
+              <h2 className="font-label-caps text-[8px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                RAPID RBAC TEST PERSONAS
               </h2>
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {TEST_IDENTITIES.map((ident) => (
                 <button
                   key={ident.role}
                   onClick={() => handleTestLogin(ident)}
                   disabled={loading}
-                  className="w-full p-2 rounded-xs border border-[var(--border-subtle)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-secondary)] hover:border-[var(--border)] text-left flex items-center justify-between transition-colors"
+                  className="w-full p-2 rounded-xs border border-[var(--border)] bg-[var(--surface-container-lowest)] hover:border-[var(--secondary-container)] text-left flex items-center justify-between transition-colors cursor-pointer"
                 >
                   <div className="truncate pr-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[var(--text-primary)]">{ident.name}</span>
-                      <RoleBadge role={ident.role} />
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-[var(--primary)] font-mono">{ident.name}</span>
+                      <span className="px-1.5 py-0.2 rounded-xs font-label-caps text-[8px] font-bold bg-[var(--surface-container-high)] text-[var(--secondary-container)] border border-[var(--border)]">
+                        {ident.role}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-[var(--text-muted)] block truncate">{ident.desc}</span>
+                    <span className="font-body-sm text-[10px] text-[var(--text-muted)] block truncate">{ident.desc}</span>
                   </div>
                   <ArrowRight className="w-3.5 h-3.5 text-[var(--text-muted)] flex-shrink-0" />
                 </button>
@@ -272,12 +277,12 @@ function AuthContent() {
         </div>
 
         {/* Security Messaging */}
-        <div className="p-3.5 rounded-xs border border-[var(--border)] bg-[var(--bg-card)]/60 text-center font-mono-tnum text-[11px] text-[var(--text-muted)] space-y-1">
+        <div className="p-3 rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)] text-center font-code-sm text-[11px] text-[var(--text-muted)] space-y-0.5">
           <div className="flex items-center justify-center gap-1.5 text-[var(--text-primary)] font-semibold text-xs">
-            <Lock className="w-3.5 h-3.5 text-[var(--accent)]" />
-            <span>Zero-Trust Protocol Gateway</span>
+            <Lock className="w-3.5 h-3.5 text-[var(--primary-container)]" />
+            <span>Zero-Trust Protocol Security Boundary</span>
           </div>
-          <p className="text-[10px] text-[var(--text-secondary)]">
+          <p className="font-body-sm text-[10px] text-[var(--text-secondary)]">
             All AI tool invocations subject to policy invariant evaluation and cryptographic dual-custody verification.
           </p>
         </div>
@@ -290,8 +295,8 @@ export default function AuthPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-4">
-          <div className="text-xs font-mono-tnum text-[var(--text-muted)]">
+        <div className="min-h-screen bg-[var(--surface-container-lowest)] flex items-center justify-center p-4">
+          <div className="text-xs font-mono text-[var(--text-muted)]">
             Loading Sentinel Identity Gateway...
           </div>
         </div>

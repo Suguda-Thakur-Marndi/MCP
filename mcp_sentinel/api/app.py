@@ -28,9 +28,12 @@ from mcp_sentinel.api.routers import (
     auth,
     dashboard,
     health,
+    integrations,
+    mcp_servers,
     policies,
     security,
     security_eval,
+    tools,
 )
 from mcp_sentinel.config.settings import get_settings
 from mcp_sentinel.database.connection import check_db_health, close_db_pool, get_pool_status
@@ -259,6 +262,9 @@ def create_app() -> FastAPI:
     app.include_router(policies.router)
     app.include_router(security.router)
     app.include_router(security_eval.router)
+    app.include_router(integrations.router)
+    app.include_router(tools.router)
+    app.include_router(mcp_servers.router)
 
     return app
 

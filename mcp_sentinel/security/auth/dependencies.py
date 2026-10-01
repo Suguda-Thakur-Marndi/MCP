@@ -134,3 +134,16 @@ def require_roles(*allowed_roles: UserRoleEnum) -> Callable[[AuthUser], AuthUser
         return current_user
 
     return role_checker
+
+
+async def get_current_user_optional(
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    x_test_role: Optional[str] = Header(None, alias="X-Test-User-Role"),
+    x_test_email: Optional[str] = Header(None, alias="X-Test-User-Email"),
+) -> Optional[AuthUser]:
+    """Extracts authenticated user if credentials present; returns None without raising 401."""
+    try:
+        return await get_current_user(request, credentials, x_test_role, x_test_email)
+    except HTTPException:
+        return None

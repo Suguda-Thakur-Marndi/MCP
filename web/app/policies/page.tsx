@@ -1,258 +1,260 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Sliders,
   Shield,
-  Plus,
   Search,
   CheckCircle2,
   Copy,
-  Edit,
-  Power,
-  ChevronRight,
-  ArrowRight,
+  Terminal,
   Lock,
+  ArrowRight,
+  Filter,
+  Check,
+  AlertTriangle,
 } from "lucide-react";
-import { POLICIES, PolicyDefinition } from "@/lib/sentinel-data";
+import { api, PolicyResponse, PolicyRule } from "@/lib/api";
 
 export default function PoliciesPage() {
-  const [policies, setPolicies] = useState<PolicyDefinition[]>(POLICIES);
+  const [policyData, setPolicyData] = useState<PolicyResponse | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const filtered = policies.filter((p) => {
-    if (statusFilter !== "ALL" && p.status !== statusFilter) return false;
+  useEffect(() => {
+    api.policies.list().then(setPolicyData).catch(() => {});
+  }, []);
+
+  const defaultRules: PolicyRule[] = [
+    {
+      rule_id: "RULE-REPO-GUARD",
+      name: "Production Repository Destruction Defense",
+      description: "Require human dual-custody approval and Admin role for repository deletion",
+      action: "REQUIRE_APPROVAL",
+      target_decision: "REQUIRE_APPROVAL",
+      priority: 100,
+      reason: "High-impact destructive resource change",
+      conditions: { tool: "github.delete_repository", min_role: "ADMIN" },
+    },
+    {
+      rule_id: "RULE-PR-MERGE",
+      name: "GitHub Pull Request Dual Custody",
+      description: "Gate pull request merging with cryptographic parameter verification",
+      action: "REQUIRE_APPROVAL",
+      target_decision: "REQUIRE_APPROVAL",
+      priority: 85,
+      reason: "Production branch mutation requires review",
+      conditions: { tool: "github.merge_pull_request", require_hash: true },
+    },
+    {
+      rule_id: "RULE-DATA-EXFIL",
+      name: "PII & Cross-Boundary Exfiltration Quarantine",
+      description: "Intercept document exports and sensitive downloads from autonomous agents",
+      action: "REQUIRE_APPROVAL",
+      target_decision: "REQUIRE_APPROVAL",
+      priority: 90,
+      reason: "Cross-boundary data transmission detected",
+      conditions: { data_boundary: "STRICT_RESTRICTED", dest_ip_check: true },
+    },
+    {
+      rule_id: "RULE-VIEWER-MUTATION",
+      name: "Viewer Role Mutation Quarantine",
+      description: "Immediately reject any mutating or destructive tool calls issued by Viewer role",
+      action: "DENY",
+      target_decision: "DENY",
+      priority: 95,
+      reason: "Unauthorized privilege escalation attempt",
+      conditions: { user_role: "VIEWER", mutation_types: ["CREATE", "UPDATE", "DELETE"] },
+    },
+    {
+      rule_id: "RULE-PROMPT-INJ",
+      name: "Adversarial Prompt Override Drop",
+      description: "Detect system prompt injection attempts and abort agent execution immediately",
+      action: "DENY",
+      target_decision: "DENY",
+      priority: 99,
+      reason: "System prompt boundary evasion detected",
+      conditions: { intent: "OVERRIDE_RULES", pattern: "system_override" },
+    },
+  ];
+
+  const rulesToDisplay = policyData?.rules && policyData.rules.length > 0 ? policyData.rules : defaultRules;
+
+  const filtered = rulesToDisplay.filter((r) => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return (
-        p.name.toLowerCase().includes(q) ||
-        p.scope.toLowerCase().includes(q) ||
-        p.description.toLowerCase().includes(q)
+        r.rule_id.toLowerCase().includes(q) ||
+        (r.name && r.name.toLowerCase().includes(q)) ||
+        (r.description && r.description.toLowerCase().includes(q))
       );
     }
     return true;
   });
 
-  const handleClone = (policy: PolicyDefinition) => {
-    const cloned: PolicyDefinition = {
-      ...policy,
-      id: `${policy.id}_clone_${Date.now().toString().slice(-4)}`,
-      name: `${policy.name} (Copy)`,
-      status: "DRAFT",
-      version: "0.1.0",
-      lastUpdated: "Just now",
-    };
-    setPolicies([cloned, ...policies]);
-  };
-
-  const handleToggleStatus = (id: string) => {
-    setPolicies((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
-        const nextStatus = p.status === "DISABLED" ? "ENFORCING" : "DISABLED";
-        return { ...p, status: nextStatus };
-      })
-    );
+  const handleCopy = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-150">
+    <div className="p-3 sm:p-5 max-w-7xl mx-auto space-y-4 font-sans select-none animate-in fade-in duration-150">
       {/* Header */}
-      <div className="pb-5 border-b border-[var(--border)] flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-mono-tnum uppercase tracking-wider text-[var(--text-muted)] mb-1">
-            <span className="font-bold text-[var(--text-primary)]">MCP SENTINEL</span>
-            <span>/</span>
-            <span className="text-[var(--accent)] font-semibold">SECURITY</span>
-            <span>/</span>
-            <span className="text-[var(--text-secondary)]">POLICY ENGINE</span>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-widest">
+              MISSION CONTROL // INVARIANT POLICY RULES
+            </span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-container)] animate-pulse" />
+            <span className="font-code-sm text-[10px] text-[var(--primary-container)] font-bold">DETERMINISTIC EVALUATION</span>
           </div>
-
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-            Security Policy Governance
+          <h1 className="font-headline-md text-lg sm:text-xl font-bold tracking-tight text-[var(--primary)]">
+            SECURITY POLICY GOVERNANCE ENGINE
           </h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-2xl leading-relaxed">
-            Deterministic rules and precedence matrices evaluated against every AI agent tool execution candidate.
+          <p className="font-body-sm text-xs text-[var(--text-secondary)] mt-0.5">
+            Strict invariant rules evaluated at Stage 4 of the 9-stage Gateway Security Pipeline. Precedence order: DENY &gt; MFA &gt; REQUIRE_APPROVAL &gt; ALLOW.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Link
-            href="/policies/pol_prod_data"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xs text-xs font-semibold bg-[var(--accent)] text-white hover:opacity-95 shadow-2xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Create Policy</span>
-          </Link>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] font-code-sm text-xs">
+            <Sliders className="w-3.5 h-3.5 text-[var(--primary-container)]" />
+            <span className="text-[var(--text-primary)] font-semibold">{policyData?.rule_count || rulesToDisplay.length} Active Rules</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] font-code-sm text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-container)]" />
+            <span className="text-[var(--primary-container)] font-semibold">MODE: ENFORCING</span>
+          </div>
         </div>
       </div>
 
       {/* Precedence Banner */}
-      <div className="p-4 rounded-xs border border-[var(--border)] bg-[var(--bg-card)] shadow-2xs space-y-2">
-        <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
-          <span className="text-[10px] font-mono-tnum uppercase font-bold text-[var(--text-muted)] tracking-wider">
-            Deterministic Invariant Precedence Order
-          </span>
-          <span className="text-[10px] font-mono-tnum text-[var(--accent)] font-bold">
-            DENY &gt; MFA &gt; APPROVAL &gt; ALLOW
-          </span>
-        </div>
-        <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-          Rule conflicts are resolved deterministically: an explicit DENY always overrules an ALLOW. Approvals are strictly enforced before any destructive tool dispatch.
-        </p>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="p-4 rounded-xs border border-[var(--border)] bg-[var(--bg-card)] shadow-2xs space-y-3">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex-1 relative">
-            <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search policies by name, scope, or rule keywords..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1.5 rounded-xs border border-[var(--border)] bg-[var(--bg-secondary)]/50 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent)] font-mono-tnum"
-            />
+      <div className="p-3 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)]">
+        <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-wider block mb-2">
+          EVALUATION PRECEDENCE MATRIX // ZERO-TRUST ARBITRATION
+        </span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-code-sm">
+          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--error)]/40 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-[var(--error)]">1. DENY</span>
+            </div>
+            <span className="font-label-caps text-[8px] text-[var(--error)]">ABSOLUTE DROP</span>
           </div>
-
-          <div className="flex items-center gap-2 text-xs font-mono-tnum">
-            {["ALL", "ENFORCING", "ACTIVE", "DISABLED"].map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-2.5 py-1 rounded-xs transition-colors ${
-                  statusFilter === status
-                    ? "bg-[var(--accent)] text-white font-bold"
-                    : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                {status}
-              </button>
-            ))}
+          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--tertiary-fixed-dim)]/40 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-[var(--tertiary-fixed-dim)]">2. ESCROW</span>
+            </div>
+            <span className="font-label-caps text-[8px] text-[var(--tertiary-fixed-dim)]">DUAL CUSTODY</span>
+          </div>
+          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--secondary-container)]/40 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-[var(--secondary-container)]">3. MFA</span>
+            </div>
+            <span className="font-label-caps text-[8px] text-[var(--secondary)]">STEP-UP AUTH</span>
+          </div>
+          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--primary-container)]/40 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-[var(--primary-container)]">4. ALLOW</span>
+            </div>
+            <span className="font-label-caps text-[8px] text-[var(--primary-container)]">SANDBOX DISPATCH</span>
           </div>
         </div>
       </div>
 
-      {/* Policies Table matching Section 15 specifications */}
-      <div className="rounded-xs border border-[var(--border)] bg-[var(--bg-card)] shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-[var(--border)] text-[10px] font-mono-tnum uppercase tracking-wider text-[var(--text-muted)] bg-[var(--bg-secondary)]/30">
-                <th className="py-3 px-4">Policy Name</th>
-                <th className="py-3 px-4">Version</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4">Scope</th>
-                <th className="py-3 px-4">Rules</th>
-                <th className="py-3 px-4">Risk Threshold</th>
-                <th className="py-3 px-4">Last Updated</th>
-                <th className="py-3 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border-subtle)] font-mono-tnum">
-              {filtered.map((policy) => (
-                <tr
-                  key={policy.id}
-                  className="hover:bg-[var(--bg-secondary)]/40 transition-colors group"
-                >
-                  {/* POLICY NAME */}
-                  <td className="py-3 px-4">
-                    <Link
-                      href={`/policies/${policy.id}`}
-                      className="font-bold text-xs text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors block font-sans"
-                    >
-                      {policy.name}
-                    </Link>
-                    <span className="text-[10px] text-[var(--text-muted)] block truncate max-w-xs">
-                      {policy.description}
-                    </span>
-                  </td>
-
-                  {/* VERSION */}
-                  <td className="py-3 px-4 text-[11px] text-[var(--text-secondary)]">
-                    v{policy.version}
-                  </td>
-
-                  {/* STATUS */}
-                  <td className="py-3 px-4">
-                    <span
-                      className={`px-2 py-0.5 rounded-xs text-[10px] font-bold ${
-                        policy.status === "ENFORCING"
-                          ? "bg-[var(--risk-low-bg)] text-[var(--risk-low)] border border-[var(--risk-low-border)]"
-                          : policy.status === "ACTIVE"
-                          ? "bg-[var(--risk-low-bg)] text-[var(--risk-low)] border border-[var(--risk-low-border)]"
-                          : "bg-[var(--bg-secondary)] text-[var(--text-muted)] border border-[var(--border)]"
-                      }`}
-                    >
-                      {policy.status}
-                    </span>
-                  </td>
-
-                  {/* SCOPE */}
-                  <td className="py-3 px-4 text-[11px] text-[var(--text-primary)] font-sans">
-                    {policy.scope}
-                  </td>
-
-                  {/* RULES */}
-                  <td className="py-3 px-4 font-bold text-xs text-[var(--text-primary)]">
-                    {policy.ruleCount} rules
-                  </td>
-
-                  {/* RISK THRESHOLD */}
-                  <td className="py-3 px-4 font-bold text-[var(--risk-critical)]">
-                    &ge; {policy.riskThreshold}
-                  </td>
-
-                  {/* LAST UPDATED */}
-                  <td className="py-3 px-4 text-[11px] text-[var(--text-muted)] whitespace-nowrap">
-                    {policy.lastUpdated}
-                  </td>
-
-                  {/* ACTIONS */}
-                  <td className="py-3 px-4 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Link
-                        href={`/policies/${policy.id}`}
-                        className="p-1 rounded-xs border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
-                        title="Edit policy visual logic and rules"
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                      </Link>
-
-                      <button
-                        onClick={() => handleClone(policy)}
-                        className="p-1 rounded-xs border border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-colors"
-                        title="Clone policy"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        onClick={() => handleToggleStatus(policy.id)}
-                        className={`p-1 rounded-xs border transition-colors ${
-                          policy.status === "DISABLED"
-                            ? "border-[var(--risk-low-border)] bg-[var(--risk-low-bg)] text-[var(--risk-low)]"
-                            : "border-[var(--border)] bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--danger)]"
-                        }`}
-                        title={policy.status === "DISABLED" ? "Enable policy" : "Disable policy"}
-                      >
-                        <Power className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Search Toolbar */}
+      <div className="p-2.5 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] flex items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search policies by name, ID, or condition..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-8 pr-3 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] font-code-sm text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:border-[var(--secondary-container)]"
+          />
         </div>
+        <span className="font-code-sm text-[10px] text-[var(--text-muted)]">
+          {filtered.length} Rules Enforced
+        </span>
+      </div>
 
-        <div className="p-3 border-t border-[var(--border)] bg-[var(--bg-secondary)]/30 flex items-center justify-between text-xs text-[var(--text-muted)] font-mono-tnum">
-          <span>{filtered.length} Authoritative Policies Enforcing</span>
-          <span>Dual-Custody Gating Enabled</span>
-        </div>
+      {/* Visual Rule Grid: IF-THEN Invariant Blocks */}
+      <div className="space-y-3">
+        {filtered.map((rule) => {
+          const isDeny = rule.action === "DENY" || rule.action === "BLOCK";
+          const isEscrow = rule.action === "REQUIRE_APPROVAL" || rule.action === "GATED";
+          return (
+            <div
+              key={rule.rule_id}
+              className="p-3 sm:p-4 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] hover:border-[var(--border-interactive)] transition-all shadow-sm space-y-2.5"
+            >
+              <div className="flex items-start justify-between flex-wrap gap-2 border-b border-[var(--border)] pb-2">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      isDeny ? "bg-[var(--error)]" : isEscrow ? "bg-[var(--tertiary-fixed-dim)]" : "bg-[var(--primary-container)]"
+                    }`}
+                  />
+                  <h3 className="font-bold text-xs sm:text-sm text-[var(--primary)] font-mono">
+                    {rule.name || rule.rule_id}
+                  </h3>
+                  <button
+                    onClick={() => handleCopy(rule.rule_id)}
+                    className="font-code-sm text-[10px] text-[var(--secondary-container)] hover:underline flex items-center gap-1 font-mono"
+                  >
+                    <span>{rule.rule_id}</span>
+                    {copiedId === rule.rule_id ? <Check className="w-3 h-3 text-[var(--primary-container)]" /> : <Copy className="w-3 h-3" />}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`px-2 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
+                      isDeny
+                        ? "bg-[var(--error-container)] text-[var(--on-error-container)]"
+                        : isEscrow
+                        ? "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)]"
+                        : "bg-[var(--primary-container)]/20 text-[var(--primary-container)]"
+                    }`}
+                  >
+                    ACTION: {rule.action}
+                  </span>
+                  <span className="font-code-sm text-[10px] text-[var(--text-muted)] font-mono">
+                    Priority: {rule.priority ?? 50}
+                  </span>
+                </div>
+              </div>
+
+              <p className="font-body-sm text-xs text-[var(--text-secondary)] leading-relaxed">
+                {rule.description}
+              </p>
+
+              {/* IF-THEN Tactical Box */}
+              <div className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] font-code-sm text-xs space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-[var(--secondary-container)] font-mono">IF:</span>
+                  <span className="text-[var(--text-primary)] font-mono">
+                    {JSON.stringify(rule.conditions || { tool: "governed", risk: ">= HIGH" })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-[var(--primary-container)] font-mono">THEN:</span>
+                  <span
+                    className={`font-mono font-bold ${
+                      isDeny ? "text-[var(--error)]" : isEscrow ? "text-[var(--tertiary-fixed-dim)]" : "text-[var(--primary-container)]"
+                    }`}
+                  >
+                    {isDeny ? "ABORT EXECUTION & QUARANTINE AGENT" : isEscrow ? "HALT FOR HUMAN DUAL-CUSTODY ESCROW" : "ALLOW DISPATCH TO MCP SERVER"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

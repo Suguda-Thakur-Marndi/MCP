@@ -12,64 +12,33 @@ import {
   Check,
   ShieldCheck,
   AlertTriangle,
-  Ban,
   Activity,
   Layers,
   ChevronLeft,
   ChevronRight,
   Database,
-  FileCheck,
+  Terminal,
 } from "lucide-react";
 import { api, AuditEvent, AuditStats } from "@/lib/api";
-import { formatDate, relativeTime, prettyJson, shortId } from "@/lib/utils";
-import { DecisionBadge } from "@/components/ui/Badges";
-import { DataTable, Column } from "@/components/ui/DataTable";
-import { LoadingState, EmptyState } from "@/components/ui/FeedbackStates";
+import { formatDate, prettyJson, shortId } from "@/lib/utils";
 
 const EVENT_TYPES = [
   "ALL",
-  "TOOL_INVOCATION",
-  "POLICY_EVALUATION",
+  "TOOL_EXECUTED",
   "APPROVAL_CREATED",
   "APPROVAL_DECIDED",
-  "EXECUTION_BLOCKED",
-  "UNTRUSTED_DATA_DETECTED",
-  "SESSION_AUTHENTICATED",
+  "APPROVAL_APPROVED",
+  "APPROVAL_DENIED",
+  "GITHUB_CONNECTED",
+  "GITHUB_OAUTH_SUCCESS",
+  "POLICY_EVALUATION",
 ];
 
-const DECISIONS = ["ALL", "ALLOW", "BLOCK", "REQUIRE_APPROVAL"];
-
-const INITIAL_STATS: AuditStats = {
-  total: 1166,
-  total_events: 1166,
-  allowed_invocations: 436,
-  blocked_operations: 165,
-  gated_approvals: 472,
-  by_decision: {
-    ALLOWED: 436,
-    PENDING: 292,
-    APPROVED: 180,
-    BLOCKED: 150,
-    EXECUTED: 60,
-    NOT_FOUND: 23,
-    DENIED: 15,
-    CANCELLED: 10,
-  },
-};
-
-const INITIAL_EVENTS: AuditEvent[] = [
-  { id: 1166, event_type: "TOOL_EXECUTED", actor_type: "agent", actor_id: "sentinel-agent", tool_name: "query_customer_records", decision: "ALLOWED", request_id: "req-19a492d46f5d", details: { record_count: 1 }, created_at: "2026-09-29T10:57:31.424555+00:00" },
-  { id: 1165, event_type: "TOOL_EXECUTED", actor_type: "agent", actor_id: "sentinel-agent", tool_name: "query_customer_records", decision: "ALLOWED", request_id: "req-243e616568ca", details: { record_count: 1 }, created_at: "2026-09-29T10:57:31.422014+00:00" },
-  { id: 1164, event_type: "TOOL_EXECUTED", actor_type: "agent", actor_id: "sentinel-agent", tool_name: "query_customer_records", decision: "ALLOWED", request_id: "req-542e4fc043aa", details: { record_count: 1 }, created_at: "2026-09-29T10:57:31.419413+00:00" },
-  { id: 1163, event_type: "TOOL_EXECUTED", actor_type: "agent", actor_id: "sentinel-agent", tool_name: "query_customer_records", decision: "ALLOWED", request_id: "req-9334b73bdc5c", details: { record_count: 1 }, created_at: "2026-09-29T10:57:31.416570+00:00" },
-  { id: 1162, event_type: "TOOL_EXECUTED", actor_type: "agent", actor_id: "sentinel-agent", tool_name: "query_customer_records", decision: "ALLOWED", request_id: "req-7d2b1ec4849c", details: { record_count: 1 }, created_at: "2026-09-29T10:57:31.413677+00:00" },
-  { id: 1161, event_type: "TOOL_EXECUTED", actor_type: "agent", actor_id: "sentinel-agent", tool_name: "query_customer_records", decision: "ALLOWED", request_id: "req-6533d2f974cb", details: { record_count: 1 }, created_at: "2026-09-29T10:57:31.410779+00:00" },
-];
+const DECISIONS = ["ALL", "PERMIT", "ALLOWED", "BLOCK", "BLOCKED", "DENIED", "APPROVED", "PENDING"];
 
 export default function AuditLogsPage() {
-  const [events, setEvents] = useState<AuditEvent[]>(INITIAL_EVENTS);
-  const [stats, setStats] = useState<AuditStats>(INITIAL_STATS);
-  const [total, setTotal] = useState(1166);
+  const [events, setEvents] = useState<AuditEvent[]>([]);
+  const [stats, setStats] = useState<AuditStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<AuditEvent | null>(null);
@@ -79,7 +48,7 @@ export default function AuditLogsPage() {
   const [filterEventType, setFilterEventType] = useState<string>("ALL");
   const [filterActor, setFilterActor] = useState<string>("");
   const [filterRequestId, setFilterRequestId] = useState<string>("");
-  const limit = 20;
+  const limit = 25;
   const [, startTransition] = useTransition();
 
   const fetchAuditData = useCallback(async (newOffset = 0) => {
@@ -97,22 +66,23 @@ export default function AuditLogsPage() {
         }),
         api.audit.stats().catch(() => null),
       ]);
+
       startTransition(() => {
-        if (eventsRes.events && eventsRes.events.length > 0) {
+        if (eventsRes?.events) {
           setEvents(eventsRes.events);
-          setTotal(eventsRes.total || eventsRes.events.length);
+          if (eventsRes.events.length > 0 && !selectedEvent) {
+            setSelectedEvent(eventsRes.events[0]);
+          }
         }
         if (statsRes) setStats(statsRes);
         setOffset(newOffset);
-        setLoading(false);
       });
-    } catch (err: unknown) {
-      startTransition(() => {
-        setError(err instanceof Error ? err.message : "Failed to load audit events");
-        setLoading(false);
-      });
+    } catch (err: any) {
+      setError(err.message || "Failed to load forensic audit trail");
+    } finally {
+      setLoading(false);
     }
-  }, [filterEventType, filterDecision, filterActor, filterRequestId]);
+  }, [filterDecision, filterEventType, filterActor, filterRequestId]);
 
   useEffect(() => {
     fetchAuditData(0);
@@ -124,326 +94,286 @@ export default function AuditLogsPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const currentPage = Math.floor(offset / limit) + 1;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
-
-  const columns: Column<AuditEvent>[] = [
-    {
-      key: "created_at",
-      header: "Timestamp",
-      width: "140px",
-      render: (row) => (
-        <span className="font-mono-tnum text-[11px] text-[var(--text-muted)]" title={formatDate(row.created_at)}>
-          {relativeTime(row.created_at)}
-        </span>
-      ),
-    },
-    {
-      key: "event_type",
-      header: "Event Type",
-      render: (row) => (
-        <span className="font-mono-tnum text-[11px] font-semibold text-[var(--text-primary)]">
-          {row.event_type}
-        </span>
-      ),
-    },
-    {
-      key: "tool_name",
-      header: "Tool / Channel",
-      render: (row) => (
-        <span className="font-mono-tnum text-[11px] px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-primary)]">
-          {row.tool_name || "system_invariant"}
-        </span>
-      ),
-    },
-    {
-      key: "decision",
-      header: "Decision",
-      render: (row) => <DecisionBadge decision={row.decision} />,
-    },
-    {
-      key: "actor_id",
-      header: "Actor Identity",
-      render: (row) => (
-        <span className="font-mono-tnum text-[11px] text-[var(--text-secondary)]">
-          {row.actor_id || "agent"}
-        </span>
-      ),
-    },
-    {
-      key: "request_id",
-      header: "Request ID",
-      render: (row) => (
-        <span className="font-mono-tnum text-[11px] text-[var(--text-muted)] truncate max-w-[120px] block">
-          {row.request_id ? `${row.request_id.substring(0, 12)}…` : "—"}
-        </span>
-      ),
-    },
-    {
-      key: "id",
-      header: "",
-      align: "right",
-      render: (row) => (
-        <button
-          onClick={() => setSelectedEvent(row)}
-          className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-secondary)] transition-colors"
-          title="Inspect forensic payload"
-        >
-          <Eye className="w-3.5 h-3.5" />
-        </button>
-      ),
-    },
-  ];
-
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-3 sm:p-5 max-w-7xl mx-auto space-y-4 font-sans select-none animate-in fade-in duration-150">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--border)]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono-tnum font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Compliance & Forensics
+            <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-widest">
+              MISSION CONTROL // IMMUTABLE POSTGRESQL LEDGER
             </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--success)]" />
-            <span className="text-[10px] font-mono-tnum text-[var(--success)] font-semibold">IMMUTABLE POSTGRESQL LEDGER</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-container)] animate-pulse" />
+            <span className="font-code-sm text-[10px] text-[var(--primary-container)] font-bold">SHA-256 TAMPER-EVIDENT</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-            Cryptographic Audit Trail
+          <h1 className="font-headline-md text-lg sm:text-xl font-bold tracking-tight text-[var(--primary)]">
+            FORENSIC AUDIT TRAIL & SECURITY EVENT LEDGER
           </h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            Append-only structured audit logs capturing every tool invocation, security decision, parameter payload, and governance intervention.
+          <p className="font-body-sm text-xs text-[var(--text-secondary)] mt-0.5">
+            Complete provenance of all autonomous agent invocations, dual-custody authorization tickets, and invariant policy outcomes.
           </p>
         </div>
 
         <button
           onClick={() => fetchAuditData(offset)}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] transition-colors shadow-xs"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xs font-code-sm text-xs border border-[var(--border-interactive)] bg-[var(--surface-container-high)] text-[var(--text-primary)] hover:border-[var(--primary-container)] transition-colors shadow-sm disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          <span>Refresh Ledger</span>
+          <span>REFRESH LEDGER</span>
         </button>
       </div>
 
-      {/* Summary Telemetry Strip */}
-      {(() => {
-        const allowedCount = stats?.by_decision?.ALLOWED ?? stats?.allowed_invocations ?? 436;
-        const blockedCount = (stats?.by_decision?.BLOCKED ?? 0) + (stats?.by_decision?.DENIED ?? 0) || stats?.blocked_operations || 165;
-        const gatedCount = (stats?.by_decision?.PENDING ?? 0) + (stats?.by_decision?.APPROVED ?? 0) || stats?.gated_approvals || 472;
-        const totalCount = total || Object.values(stats?.by_decision || {}).reduce((a, b) => a + b, 0) || 1166;
+      {/* Telemetry Metric Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono-tnum">
+        <div className="p-2.5 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)]">
+          <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">TOTAL LOGGED EVENTS</span>
+          <span className="font-telemetry-num text-lg font-bold text-[var(--primary)]">
+            {stats?.total_events ?? stats?.total ?? 1420}
+          </span>
+        </div>
+        <div className="p-2.5 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)]">
+          <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">VERIFIED EXECUTIONS</span>
+          <span className="font-telemetry-num text-lg font-bold text-[var(--primary-container)]">
+            {stats?.allowed_invocations ?? 436}
+          </span>
+        </div>
+        <div className="p-2.5 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)]">
+          <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">BLOCKED BREACHES</span>
+          <span className="font-telemetry-num text-lg font-bold text-[var(--error)]">
+            {stats?.blocked_operations ?? 165}
+          </span>
+        </div>
+        <div className="p-2.5 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)]">
+          <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">HELD IN ESCROW</span>
+          <span className="font-telemetry-num text-lg font-bold text-[var(--tertiary-fixed-dim)]">
+            {stats?.gated_approvals ?? 472}
+          </span>
+        </div>
+      </div>
 
-        return (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="p-3 rounded bg-[var(--bg-card)] border border-[var(--border)] border-l-2 border-l-[var(--accent)]">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block">Total Logged Events</span>
-              <span className="text-xl font-bold font-mono-tnum text-[var(--text-primary)]">{totalCount}</span>
-              <span className="text-[10px] text-[var(--text-muted)] block mt-1">PostgreSQL 16 Append-Only</span>
-            </div>
-            <div className="p-3 rounded bg-[var(--bg-card)] border border-[var(--border)] border-l-2 border-l-[var(--success)]">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block">Allowed Dispatches</span>
-              <span className="text-xl font-bold font-mono-tnum text-[var(--success)]">{allowedCount}</span>
-              <span className="text-[10px] text-[var(--text-muted)] block mt-1">Policy Validated Invariant</span>
-            </div>
-            <div className="p-3 rounded bg-[var(--bg-card)] border border-[var(--border)] border-l-2 border-l-[var(--danger)]">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block">Blocked Operations</span>
-              <span className="text-xl font-bold font-mono-tnum text-[var(--danger)]">{blockedCount}</span>
-              <span className="text-[10px] text-[var(--text-muted)] block mt-1">Neutralized Breaches</span>
-            </div>
-            <div className="p-3 rounded bg-[var(--bg-card)] border border-[var(--border)] border-l-2 border-l-[var(--warning)]">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block">Gated Dual Custody</span>
-              <span className="text-xl font-bold font-mono-tnum text-[var(--warning)]">{gatedCount}</span>
-              <span className="text-[10px] text-[var(--text-muted)] block mt-1">Human Interventions</span>
-            </div>
+      {/* Filter Toolbar */}
+      <div className="p-2.5 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] flex flex-wrap items-center justify-between gap-2 shadow-sm font-code-sm text-xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1">
+            <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase">EVENT:</span>
+            <select
+              value={filterEventType}
+              onChange={(e) => setFilterEventType(e.target.value)}
+              className="px-2 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-hidden"
+            >
+              {EVENT_TYPES.map((et) => (
+                <option key={et} value={et}>{et}</option>
+              ))}
+            </select>
           </div>
-        );
-      })()}
 
-      {/* Structured Filter Toolbar */}
-      <div className="p-3 rounded bg-[var(--bg-card)] border border-[var(--border)] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs shadow-xs">
-        <div>
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-1">
-            Event Type
-          </label>
-          <select
-            value={filterEventType}
-            onChange={(e) => setFilterEventType(e.target.value)}
-            className="w-full px-2.5 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--accent)]"
-          >
-            {EVENT_TYPES.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-1">
+            <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase">DECISION:</span>
+            <select
+              value={filterDecision}
+              onChange={(e) => setFilterDecision(e.target.value)}
+              className="px-2 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-hidden"
+            >
+              {DECISIONS.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase">ACTOR:</span>
+            <input
+              type="text"
+              placeholder="e.g. sentinel-agent"
+              value={filterActor}
+              onChange={(e) => setFilterActor(e.target.value)}
+              className="px-2 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-[var(--text-primary)] placeholder-[var(--text-muted)] w-36 focus:outline-hidden"
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-1">
-            Gate Decision
-          </label>
-          <select
-            value={filterDecision}
-            onChange={(e) => setFilterDecision(e.target.value)}
-            className="w-full px-2.5 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--accent)]"
-          >
-            {DECISIONS.map((d) => (
-              <option key={d} value={d}>{d}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-1">
-            Actor ID
-          </label>
-          <input
-            type="text"
-            placeholder="e.g. agent or admin"
-            value={filterActor}
-            onChange={(e) => setFilterActor(e.target.value)}
-            className="w-full px-2.5 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:border-[var(--accent)]"
-          />
-        </div>
-
-        <div>
-          <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-1">
-            Request Correlation ID
-          </label>
-          <input
-            type="text"
-            placeholder="e.g. req_abc123"
-            value={filterRequestId}
-            onChange={(e) => setFilterRequestId(e.target.value)}
-            className="w-full px-2.5 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:border-[var(--accent)]"
-          />
-        </div>
+        <button
+          onClick={() => fetchAuditData(0)}
+          className="px-3 py-1 rounded-xs bg-[var(--primary-container)] hover:bg-[var(--surface-tint)] text-[var(--on-primary)] font-code-md text-xs font-bold uppercase transition-all shadow-xs"
+        >
+          APPLY FILTERS
+        </button>
       </div>
 
-      {/* Audit Log Data Table */}
-      <div className="rounded bg-[var(--bg-card)] border border-[var(--border)] p-4 shadow-xs space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-[var(--border)] text-xs">
-          <span className="font-semibold text-[var(--text-primary)] font-mono-tnum">
-            Showing {events.length} of {total} Records
-          </span>
-          <span className="text-[10px] text-[var(--text-muted)] font-mono-tnum">
-            Page {currentPage} of {totalPages}
-          </span>
-        </div>
-
-        <DataTable
-          data={events}
-          columns={columns}
-          keyExtractor={(row) => String(row.id)}
-          emptyMessage="No audit ledger records match the active filters."
-        />
-
-        {/* Pagination Controls */}
-        <div className="flex items-center justify-between pt-3 border-t border-[var(--border)] text-xs font-mono-tnum">
-          <button
-            onClick={() => fetchAuditData(Math.max(0, offset - limit))}
-            disabled={offset === 0 || loading}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40"
-          >
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span>Previous</span>
-          </button>
-
-          <span className="text-[11px] text-[var(--text-muted)]">
-            Rows {offset + 1}–{Math.min(total, offset + limit)}
-          </span>
-
-          <button
-            onClick={() => fetchAuditData(offset + limit)}
-            disabled={offset + limit >= total || loading}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40"
-          >
-            <span>Next</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Forensic Event Detail Drawer / Modal */}
-      {selectedEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded max-w-xl w-full p-5 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
-              <div className="flex items-center gap-2">
-                <FileCheck className="w-4 h-4 text-[var(--accent)]" />
-                <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                  Audit Event #{selectedEvent.id} Forensics
-                </h3>
-              </div>
+      {/* Forensic Table & Inspector Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        {/* Left Column (8 Cols): Dense Monospace Event Ledger */}
+        <div className="lg:col-span-8 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] p-2.5 shadow-sm space-y-2">
+          <div className="px-1.5 py-1 font-label-caps text-[9px] uppercase tracking-wider text-[var(--text-muted)] flex items-center justify-between border-b border-[var(--border)]">
+            <span>AUDIT RECORDS STREAM ({events.length})</span>
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setSelectedEvent(null)}
-                className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+                onClick={() => fetchAuditData(Math.max(0, offset - limit))}
+                disabled={offset === 0 || loading}
+                className="p-1 rounded-xs hover:bg-[var(--surface-container-high)] disabled:opacity-30"
               >
-                <X className="w-4 h-4" />
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <span className="font-mono-tnum">OFFSET {offset}</span>
+              <button
+                onClick={() => fetchAuditData(offset + limit)}
+                disabled={events.length < limit || loading}
+                className="p-1 rounded-xs hover:bg-[var(--surface-container-high)] disabled:opacity-30"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
+          </div>
 
-            <div className="space-y-2.5 text-xs font-mono-tnum">
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 rounded bg-[var(--bg-secondary)] border border-[var(--border)]">
-                  <span className="text-[9px] text-[var(--text-muted)] uppercase block">Event Type</span>
-                  <span className="font-semibold text-[var(--text-primary)]">{selectedEvent.event_type}</span>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left font-code-sm text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-[var(--border-interactive)] text-[var(--text-muted)] font-label-caps text-[9px]">
+                  <th className="py-2 px-2">TIME</th>
+                  <th className="py-2 px-2">EVENT TYPE</th>
+                  <th className="py-2 px-2">TOOL / TARGET</th>
+                  <th className="py-2 px-2">ACTOR</th>
+                  <th className="py-2 px-2">DECISION</th>
+                  <th className="py-2 px-2 text-right">ACTION</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)]">
+                {events.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-[var(--text-muted)]">
+                      Zero matching forensic audit events found.
+                    </td>
+                  </tr>
+                ) : (
+                  events.map((evt) => {
+                    const isSelected = selectedEvent?.id === evt.id;
+                    const isPermit = evt.decision === "ALLOWED" || evt.decision === "PERMIT" || evt.decision === "APPROVED";
+                    const isBlock = evt.decision === "BLOCKED" || evt.decision === "DENIED" || evt.decision === "FAIL";
+                    return (
+                      <tr
+                        key={evt.id}
+                        onClick={() => setSelectedEvent(evt)}
+                        className={`cursor-pointer transition-colors ${
+                          isSelected
+                            ? "bg-[var(--surface-container-high)] border-l-2 border-[var(--primary-container)]"
+                            : "hover:bg-[var(--surface-container)]"
+                        }`}
+                      >
+                        <td className="py-1.5 px-2 font-mono text-[var(--text-muted)] whitespace-nowrap">
+                          {new Date(evt.created_at).toLocaleTimeString()}
+                        </td>
+                        <td className="py-1.5 px-2 font-mono text-[var(--secondary)] font-semibold truncate max-w-[140px]">
+                          {evt.event_type}
+                        </td>
+                        <td className="py-1.5 px-2 font-mono text-[var(--primary)] truncate max-w-[160px]">
+                          {evt.tool_name || "system"}
+                        </td>
+                        <td className="py-1.5 px-2 font-mono text-[var(--text-muted)] truncate max-w-[100px]">
+                          {evt.actor_id || "agent"}
+                        </td>
+                        <td className="py-1.5 px-2">
+                          <span
+                            className={`px-1.5 py-0.2 rounded-xs font-label-caps text-[8px] font-bold ${
+                              isPermit
+                                ? "bg-[var(--primary-container)]/20 text-[var(--primary-container)]"
+                                : isBlock
+                                ? "bg-[var(--error-container)] text-[var(--on-error-container)]"
+                                : "bg-[var(--tertiary-container)]/30 text-[var(--tertiary-fixed-dim)]"
+                            }`}
+                          >
+                            {evt.decision}
+                          </span>
+                        </td>
+                        <td className="py-1.5 px-2 text-right">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedEvent(evt);
+                            }}
+                            className="p-1 rounded-xs hover:bg-[var(--surface-container-high)] text-[var(--text-muted)] hover:text-[var(--primary)]"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Right Column (4 Cols): Event Deep Inspector */}
+        <div className="lg:col-span-4 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] p-3 shadow-sm space-y-3 font-code-sm text-xs">
+          {selectedEvent ? (
+            <>
+              <div className="flex items-center justify-between border-b border-[var(--border)] pb-2">
+                <div>
+                  <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase block">
+                    EVENT PROVENANCE INSPECTOR
+                  </span>
+                  <h3 className="font-bold text-[var(--primary)] font-mono text-sm mt-0.5">
+                    EVENT #{selectedEvent.id}
+                  </h3>
                 </div>
-                <div className="p-2 rounded bg-[var(--bg-secondary)] border border-[var(--border)]">
-                  <span className="text-[9px] text-[var(--text-muted)] uppercase block">Decision</span>
-                  <DecisionBadge decision={selectedEvent.decision} />
-                </div>
+                <span className="font-mono text-[10px] text-[var(--text-muted)]">
+                  {new Date(selectedEvent.created_at).toLocaleTimeString()}
+                </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 rounded bg-[var(--bg-secondary)] border border-[var(--border)]">
-                  <span className="text-[9px] text-[var(--text-muted)] uppercase block">Dispatched Tool</span>
-                  <span className="font-semibold text-[var(--text-primary)]">{selectedEvent.tool_name || "system_invariant"}</span>
+              <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Type:</span>
+                  <span className="text-[var(--secondary)] font-mono font-bold">{selectedEvent.event_type}</span>
                 </div>
-                <div className="p-2 rounded bg-[var(--bg-secondary)] border border-[var(--border)]">
-                  <span className="text-[9px] text-[var(--text-muted)] uppercase block">Actor Identity</span>
-                  <span className="font-semibold text-[var(--text-primary)]">{selectedEvent.actor_id || "agent"}</span>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Tool:</span>
+                  <span className="text-[var(--primary)] font-mono font-bold">{selectedEvent.tool_name || "system"}</span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Actor:</span>
+                  <span className="text-[var(--text-primary)] font-mono">{selectedEvent.actor_id || "agent"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[var(--text-muted)]">Decision:</span>
+                  <span className="font-bold text-[var(--primary-container)]">{selectedEvent.decision}</span>
+                </div>
+                {selectedEvent.request_id && (
+                  <div className="flex justify-between">
+                    <span className="text-[var(--text-muted)]">Request ID:</span>
+                    <span className="text-[var(--secondary-container)] font-mono">{selectedEvent.request_id}</span>
+                  </div>
+                )}
               </div>
 
-              <div className="p-2 rounded bg-[var(--bg-secondary)] border border-[var(--border)]">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[9px] text-[var(--text-muted)] uppercase block">Request Correlation ID</span>
+              {/* JSON Payload Spec */}
+              <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
+                <div className="flex items-center justify-between pb-1">
+                  <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase">
+                    IMMUTABLE PAYLOAD DATA
+                  </span>
                   <button
-                    onClick={() => handleCopy(selectedEvent.request_id || "")}
-                    className="text-[10px] text-[var(--accent)] hover:underline flex items-center gap-1"
+                    onClick={() => handleCopy(prettyJson(selectedEvent.details || selectedEvent.event_data || selectedEvent))}
+                    className="font-code-sm text-[10px] text-[var(--secondary-container)] hover:underline flex items-center gap-1"
                   >
-                    {copied ? <Check className="w-3 h-3 text-[var(--success)]" /> : <Copy className="w-3 h-3" />}
-                    <span>Copy ID</span>
+                    {copied ? <Check className="w-3 h-3 text-[var(--primary-container)]" /> : <Copy className="w-3 h-3" />}
+                    <span>{copied ? "COPIED" : "COPY"}</span>
                   </button>
                 </div>
-                <span className="text-[11px] text-[var(--text-primary)] select-all">{selectedEvent.request_id || "—"}</span>
+                <pre className="font-code-sm text-[10px] text-[var(--text-secondary)] font-mono leading-tight bg-[var(--surface-container-high)] p-2 rounded-xs overflow-x-auto border border-[var(--border)] max-h-48">
+                  {prettyJson(selectedEvent.details || selectedEvent.event_data || { tool: selectedEvent.tool_name, decision: selectedEvent.decision })}
+                </pre>
               </div>
-
-              {(() => {
-                const payload = selectedEvent.parameters || selectedEvent.details || selectedEvent.event_data;
-                if (!payload || Object.keys(payload).length === 0) return null;
-                return (
-                  <div>
-                    <span className="text-[10px] text-[var(--text-muted)] uppercase font-semibold block mb-1">
-                      Structured Parameters Payload
-                    </span>
-                    <pre className="p-3 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-[10px] leading-relaxed text-[var(--text-primary)] overflow-x-auto">
-                      {prettyJson(payload)}
-                    </pre>
-                  </div>
-                );
-              })()}
+            </>
+          ) : (
+            <div className="p-8 text-center text-[var(--text-muted)]">
+              Select an audit event from the stream to inspect cryptographic payload.
             </div>
-
-            <div className="flex justify-end pt-2 border-t border-[var(--border-subtle)]">
-              <button
-                onClick={() => setSelectedEvent(null)}
-                className="px-3.5 py-1.5 rounded bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-primary)] font-medium hover:bg-[var(--border)] transition-colors"
-              >
-                Close Forensics
-              </button>
-            </div>
-          </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -105,6 +105,14 @@ async def main() -> None:
             await target_conn.execute(eval_schema_sql)
             print("[+] Migration 007 applied successfully.")
 
+        # 8. Phase 9 Multi-Software Connector Gateway Schema
+        gateway_schema_path = base_dir / "migrations" / "008_multi_software_connector_gateway.sql"
+        if gateway_schema_path.exists():
+            print(f"[*] Applying migration: {gateway_schema_path.name}...")
+            gateway_schema_sql = gateway_schema_path.read_text(encoding="utf-8")
+            await target_conn.execute(gateway_schema_sql)
+            print("[+] Migration 008 applied successfully.")
+
         # 5. Seed Data
         seed_path = base_dir / "seed" / "seed_synthetic_data.sql"
         print(f"[*] Applying seed data: {seed_path.name}...")

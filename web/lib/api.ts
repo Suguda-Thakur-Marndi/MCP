@@ -306,6 +306,26 @@ export interface HealthStatus {
   db?: string;
 }
 
+export interface IntegrationListItem {
+  id: string;
+  name?: string;
+  status?: string;
+  live_status?: string;
+  tools_count?: number;
+  scopes?: string[];
+  [key: string]: unknown;
+}
+
+export interface ToolExecutionResponse {
+  status?: string;
+  approval_ticket_id?: string;
+  data?: unknown;
+  stages_completed?: string[];
+  latency_ms?: number;
+  error?: string;
+  [key: string]: unknown;
+}
+
 // --------------------------------------------------------------------------
 // Tool Description Fallbacks for Authoritative MCP Registry
 // --------------------------------------------------------------------------
@@ -631,5 +651,34 @@ export const api = {
       const q = redirectUrl ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : "";
       return `${API_BASE}/api/auth/google/authorize${q}`;
     },
+  },
+
+  // Multi-Software Integrations Gateway
+  integrations: {
+    list: (): Promise<IntegrationListItem[]> => apiFetch("/api/integrations"),
+    get: (id: string): Promise<IntegrationListItem> => apiFetch(`/api/integrations/${id}`),
+    status: (id: string): Promise<IntegrationListItem> => apiFetch(`/api/integrations/${id}/status`),
+    test: (id: string): Promise<Record<string, unknown>> =>
+      apiFetch(`/api/integrations/${id}/test`, { method: "POST" }),
+    disconnect: (id: string): Promise<Record<string, unknown>> =>
+      apiFetch(`/api/integrations/${id}/disconnect`, { method: "POST" }),
+    connect: (id: string, body: { access_token?: string; code?: string; token_type?: string }): Promise<Record<string, unknown>> =>
+      apiFetch(`/api/integrations/${id}/connect`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    getGithubOAuthUrl: (redirectUri?: string): Promise<{ authorization_url: string; state: string; client_id: string; redirect_uri: string }> =>
+      apiFetch(`/api/integrations/github/connect${redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : ""}`),
+    tools: (id: string): Promise<IntegrationListItem[]> => apiFetch(`/api/integrations/${id}/tools`),
+    executeTool: (toolId: string, parameters: Record<string, unknown>, approvalTicketId?: string, reason?: string): Promise<ToolExecutionResponse> =>
+      apiFetch(`/api/tools/${toolId}/execute`, {
+        method: "POST",
+        body: JSON.stringify({
+          tool_id: toolId,
+          parameters,
+          approval_ticket_id: approvalTicketId,
+          reason,
+        }),
+      }),
   },
 };

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-type ThemeMode = "architectural" | "midnight";
+export type ThemeMode = "control-room" | "dark" | "architectural" | "midnight";
 
 interface ThemeContextType {
   theme: ThemeMode;
@@ -11,43 +11,28 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  theme: "architectural",
+  theme: "control-room",
   toggleTheme: () => {},
   setTheme: () => {},
 });
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>("architectural");
+  const [theme, setThemeState] = useState<ThemeMode>("control-room");
 
   useEffect(() => {
-    const saved = localStorage.getItem("sentinel_theme") as ThemeMode | null;
-    if (saved === "midnight" || saved === "architectural") {
-      setThemeState(saved);
-      document.documentElement.setAttribute("data-theme", saved);
-      if (saved === "midnight") {
-        document.documentElement.classList.add("dark");
-      } else {
-        document.documentElement.classList.remove("dark");
-      }
-    } else {
-      document.documentElement.setAttribute("data-theme", "architectural");
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.setAttribute("data-theme", "control-room");
+    document.documentElement.classList.add("dark");
   }, []);
 
   const setTheme = (t: ThemeMode) => {
     setThemeState(t);
-    localStorage.setItem("sentinel_theme", t);
     document.documentElement.setAttribute("data-theme", t);
-    if (t === "midnight") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.classList.add("dark");
   };
 
   const toggleTheme = () => {
-    setTheme(theme === "architectural" ? "midnight" : "architectural");
+    // Keep high-contrast tactical dark mode active
+    setTheme("control-room");
   };
 
   return (

@@ -166,6 +166,11 @@ async def approve_ticket(
     response_model=ApprovalResponse,
     summary="Deny a pending approval ticket",
 )
+@router.post(
+    "/{ticket_id}/reject",
+    response_model=ApprovalResponse,
+    summary="Reject a pending approval ticket",
+)
 async def deny_ticket(
     ticket_id: str,
     body: Optional[ApprovalDecisionInput] = None,

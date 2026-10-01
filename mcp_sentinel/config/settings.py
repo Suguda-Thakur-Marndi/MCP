@@ -174,6 +174,18 @@ class Settings(BaseSettings):
         default="http://localhost:8000/api/auth/google/callback",
         description="Google OAuth Redirect URI callback endpoint.",
     )
+    GITHUB_OAUTH_CLIENT_ID: Optional[str] = Field(
+        default=None,
+        description="GitHub OAuth App Client ID.",
+    )
+    GITHUB_OAUTH_CLIENT_SECRET: Optional[str] = Field(
+        default=None,
+        description="GitHub OAuth App Client Secret. Never logged, printed, or exposed.",
+    )
+    GITHUB_OAUTH_REDIRECT_URI: str = Field(
+        default="http://localhost:8000/api/integrations/github/callback",
+        description="GitHub OAuth Redirect URI callback endpoint.",
+    )
     ALLOWED_GOOGLE_DOMAINS: list[str] = Field(
         default_factory=list,
         description="Allowlist of email domains permitted to log in (empty allows all in dev/test).",
@@ -384,6 +396,18 @@ class Settings(BaseSettings):
         if len(self.GOOGLE_CLIENT_SECRET) <= 8:
             return "***"
         return f"{self.GOOGLE_CLIENT_SECRET[:4]}...***"
+
+    @property
+    def masked_github_client_secret(self) -> str:
+        """
+        Returns masked representation of GitHub Client Secret.
+        Never returns full secret value.
+        """
+        if not self.GITHUB_OAUTH_CLIENT_SECRET:
+            return "not_configured"
+        if len(self.GITHUB_OAUTH_CLIENT_SECRET) <= 8:
+            return "***"
+        return f"{self.GITHUB_OAUTH_CLIENT_SECRET[:4]}...***"
 
     def validate_production_startup(self) -> None:
         """

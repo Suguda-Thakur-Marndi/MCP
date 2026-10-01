@@ -14,186 +14,198 @@ import {
   Lock,
   ArrowRight,
   CheckCircle2,
+  Sliders,
 } from "lucide-react";
 import { RISK_FACTORS, INTEGRATIONS } from "@/lib/sentinel-data";
-import { RiskBadge } from "@/components/ui/Badges";
 
 export default function RiskCenterPage() {
   const [selectedTimeframe, setSelectedTimeframe] = useState<"24h" | "7d" | "30d">("24h");
 
   const highRiskTools = [
-    { name: "github.delete_repository", app: "GitHub", score: 98, level: "CRITICAL", policy: "Repository Protection Policy", blocksCount: 14 },
-    { name: "drive.delete_file", app: "Google Drive", score: 94, level: "CRITICAL", policy: "Production Data Protection", blocksCount: 19 },
-    { name: "mcp.delete_customer", app: "Custom MCP", score: 88, level: "HIGH", policy: "Production Data Protection", blocksCount: 8 },
-    { name: "jira.delete_project", app: "Jira", score: 99, level: "CRITICAL", policy: "Production Data Protection", blocksCount: 2 },
-    { name: "drive.share_file", app: "Google Drive", score: 82, level: "HIGH", policy: "Personal Data Policy", blocksCount: 31 },
+    { name: "github.delete_repository", app: "GitHub", score: 98, level: "CRITICAL", policy: "Production Repository Destruction Defense", blocksCount: 14 },
+    { name: "drive.delete_file", app: "Google Drive", score: 94, level: "CRITICAL", policy: "Production Data Exfiltration Quarantine", blocksCount: 19 },
+    { name: "mcp.delete_customer", app: "Custom MCP", score: 88, level: "HIGH", policy: "Sensitive Record Mutation Gate", blocksCount: 8 },
+    { name: "jira.delete_project", app: "Jira", score: 99, level: "CRITICAL", policy: "Infrastructure Destructive Intercept", blocksCount: 2 },
+    { name: "drive.share_file", app: "Google Drive", score: 82, level: "HIGH", policy: "Cross-Boundary Transmission Guard", blocksCount: 31 },
   ];
 
   const highRiskIntegrations = [
-    { name: "GitHub", logo: "🐙", risk: "CRITICAL", baseScore: 92, blockedRate: "28%", activeTools: 5 },
-    { name: "Google Drive", logo: "📁", risk: "HIGH", baseScore: 78, blockedRate: "19%", activeTools: 5 },
-    { name: "Jira", logo: "📐", risk: "HIGH", baseScore: 74, blockedRate: "12%", activeTools: 4 },
-    { name: "Custom MCP", logo: "⚡", risk: "HIGH", baseScore: 70, blockedRate: "15%", activeTools: 8 },
+    { name: "GitHub", id: "github", icon: "🐙", risk: "CRITICAL", baseScore: 92, blockedRate: "28%", activeTools: 5 },
+    { name: "Google Drive", id: "google-drive", icon: "📁", risk: "HIGH", baseScore: 78, blockedRate: "19%", activeTools: 5 },
+    { name: "Jira", id: "jira", icon: "📐", risk: "HIGH", baseScore: 74, blockedRate: "12%", activeTools: 4 },
+    { name: "Custom MCP Gateway", id: "custom-mcp", icon: "⚡", risk: "HIGH", baseScore: 70, blockedRate: "15%", activeTools: 8 },
   ];
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-150">
+    <div className="p-3 sm:p-5 max-w-7xl mx-auto space-y-4 font-sans select-none animate-in fade-in duration-150">
       {/* Header */}
-      <div className="pb-5 border-b border-[var(--border)] flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-mono-tnum uppercase tracking-wider text-[var(--text-muted)] mb-1">
-            <span className="font-bold text-[var(--text-primary)]">MCP SENTINEL</span>
-            <span>/</span>
-            <span className="text-[var(--accent)] font-semibold">SECURITY</span>
-            <span>/</span>
-            <span className="text-[var(--text-secondary)]">RISK ENGINE</span>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-widest">
+              MISSION CONTROL // MULTI-FACTOR RISK ENGINE
+            </span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-container)] animate-pulse" />
+            <span className="font-code-sm text-[10px] text-[var(--primary-container)] font-bold">
+              DYNAMIC BLAST-RADIUS SCORING
+            </span>
           </div>
-
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-            Risk Analysis Center
+          <h1 className="font-headline-md text-lg sm:text-xl font-bold tracking-tight text-[var(--primary)]">
+            RISK ANALYSIS & THREAT SURFACE CENTER
           </h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-2xl leading-relaxed">
-            Multi-factor scoring matrix, threat surface boundaries, and risk distribution across all active AI agent dispatches.
+          <p className="font-body-sm text-xs text-[var(--text-secondary)] mt-0.5">
+            Algorithmic 6-factor invariant scoring evaluating tool destructiveness, target sensitivity, argument risk, agent blast radius, and historical anomaly deviation.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 font-mono-tnum text-xs">
-          {["24h", "7d", "30d"].map((t) => (
+        <div className="flex items-center gap-1 font-mono text-xs self-start sm:self-auto">
+          {(["24h", "7d", "30d"] as const).map((t) => (
             <button
               key={t}
-              onClick={() => setSelectedTimeframe(t as "24h" | "7d" | "30d")}
-              className={`px-3 py-1.5 rounded-xs border transition-colors ${
+              onClick={() => setSelectedTimeframe(t)}
+              className={`px-2.5 py-1 rounded-xs border font-code-sm text-[11px] transition-all cursor-pointer ${
                 selectedTimeframe === t
-                  ? "bg-[var(--accent)] text-white border-[var(--accent)] font-bold"
-                  : "border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  ? "bg-[var(--secondary-container)]/20 text-[var(--secondary-container)] border-[var(--secondary-container)] font-bold"
+                  : "bg-[var(--surface-container-low)] text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text-primary)]"
               }`}
             >
-              {t}
+              {t.toUpperCase()}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Top Editorial Ratios: Risk Score Distribution */}
-      <div className="p-4 sm:p-5 rounded-xs border border-[var(--border)] bg-[var(--bg-card)] shadow-2xs space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-[var(--border-subtle)]">
-          <span className="text-[10px] font-mono-tnum uppercase tracking-wider text-[var(--text-muted)] font-bold">
-            Live Risk Distribution ({selectedTimeframe} window)
+      {/* Live Risk Distribution Section */}
+      <div className="p-3 sm:p-4 rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)] space-y-3">
+        <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+          <span className="font-label-caps text-[9px] uppercase tracking-wider text-[var(--text-muted)] font-bold">
+            LIVE RISK DISTRIBUTION ({selectedTimeframe.toUpperCase()} WINDOW)
           </span>
-          <span className="text-[10px] font-mono-tnum text-[var(--risk-low)] font-semibold">
-            Composite Mean: 24.2 / 100 (Nominal)
+          <span className="font-code-sm text-[10px] text-[var(--primary-container)] font-bold font-mono">
+            COMPOSITE MEAN: 24.2 / 100 [NOMINAL PASS]
           </span>
         </div>
 
         {/* Visual Segmented Distribution Bar */}
-        <div className="space-y-2 font-mono-tnum text-xs">
-          <div className="w-full h-3 rounded-xs bg-[var(--bg-secondary)] overflow-hidden flex">
-            <div className="h-full bg-[var(--risk-low)]" style={{ width: "64%" }} title="Low Risk: 64%" />
-            <div className="h-full bg-[var(--risk-medium)]" style={{ width: "21%" }} title="Medium Risk: 21%" />
-            <div className="h-full bg-[var(--risk-high)]" style={{ width: "11%" }} title="High Risk: 11%" />
-            <div className="h-full bg-[var(--risk-critical)]" style={{ width: "4%" }} title="Critical Risk: 4%" />
+        <div className="space-y-2 font-mono text-xs">
+          <div className="w-full h-2 rounded-xs bg-[var(--surface-container-lowest)] overflow-hidden flex border border-[var(--border)]">
+            <div className="h-full bg-[var(--primary-container)]" style={{ width: "64%" }} title="Low Risk: 64%" />
+            <div className="h-full bg-[var(--secondary-container)]" style={{ width: "21%" }} title="Medium Risk: 21%" />
+            <div className="h-full bg-[var(--tertiary-fixed-dim)]" style={{ width: "11%" }} title="High Risk: 11%" />
+            <div className="h-full bg-[var(--error)]" style={{ width: "4%" }} title="Critical Risk: 4%" />
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-            <div className="p-2.5 rounded-xs bg-[var(--risk-low-bg)] border border-[var(--risk-low-border)]">
-              <span className="text-[10px] uppercase font-bold text-[var(--risk-low)] block">LOW (0 - 29)</span>
-              <span className="text-base font-bold text-[var(--risk-low)] block">64%</span>
-              <span className="text-[10px] text-[var(--text-muted)]">Safe Read Queries</span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono">
+            <div className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--primary-container)]/30">
+              <span className="font-label-caps text-[8px] uppercase font-bold text-[var(--primary-container)] block">LOW (0 - 29)</span>
+              <span className="font-telemetry-num text-lg font-bold text-[var(--primary-container)] block">64%</span>
+              <span className="font-code-sm text-[9px] text-[var(--text-muted)]">Safe Read Queries</span>
             </div>
-            <div className="p-2.5 rounded-xs bg-[var(--risk-medium-bg)] border border-[var(--risk-medium-border)]">
-              <span className="text-[10px] uppercase font-bold text-[var(--risk-medium)] block">MEDIUM (30 - 59)</span>
-              <span className="text-base font-bold text-[var(--risk-medium)] block">21%</span>
-              <span className="text-[10px] text-[var(--text-muted)]">Audited Updates</span>
+
+            <div className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--secondary-container)]/30">
+              <span className="font-label-caps text-[8px] uppercase font-bold text-[var(--secondary-container)] block">MEDIUM (30 - 59)</span>
+              <span className="font-telemetry-num text-lg font-bold text-[var(--secondary-container)] block">21%</span>
+              <span className="font-code-sm text-[9px] text-[var(--text-muted)]">Audited Updates</span>
             </div>
-            <div className="p-2.5 rounded-xs bg-[var(--risk-high-bg)] border border-[var(--risk-high-border)]">
-              <span className="text-[10px] uppercase font-bold text-[var(--risk-high)] block">HIGH (60 - 79)</span>
-              <span className="text-base font-bold text-[var(--risk-high)] block">11%</span>
-              <span className="text-[10px] text-[var(--text-muted)]">Dual-Custody Gated</span>
+
+            <div className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--tertiary-fixed-dim)]/30">
+              <span className="font-label-caps text-[8px] uppercase font-bold text-[var(--tertiary-fixed-dim)] block">HIGH (60 - 79)</span>
+              <span className="font-telemetry-num text-lg font-bold text-[var(--tertiary-fixed-dim)] block">11%</span>
+              <span className="font-code-sm text-[9px] text-[var(--text-muted)]">Dual-Custody Gated</span>
             </div>
-            <div className="p-2.5 rounded-xs bg-[var(--risk-critical-bg)] border border-[var(--risk-critical-border)]">
-              <span className="text-[10px] uppercase font-bold text-[var(--risk-critical)] block">CRITICAL (80 - 100)</span>
-              <span className="text-base font-bold text-[var(--risk-critical)] block">4%</span>
-              <span className="text-[10px] text-[var(--text-muted)]">Purge / Destruction</span>
+
+            <div className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--error)]/40">
+              <span className="font-label-caps text-[8px] uppercase font-bold text-[var(--error)] block">CRITICAL (80 - 100)</span>
+              <span className="font-telemetry-num text-lg font-bold text-[var(--error)] block">4%</span>
+              <span className="font-code-sm text-[9px] text-[var(--text-muted)]">Destructive / Quarantine</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 6-Factor Risk Breakdown Architecture */}
-      <div className="rounded-xs border border-[var(--border)] bg-[var(--bg-card)] p-4 sm:p-5 shadow-2xs space-y-4">
-        <div className="pb-3 border-b border-[var(--border)] flex items-center justify-between">
+      {/* 6-Factor Risk Formula Matrix */}
+      <div className="rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)] p-3 sm:p-4 space-y-3">
+        <div className="pb-2 border-b border-[var(--border)] flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-mono-tnum uppercase tracking-wider text-[var(--text-muted)] block">
-              Algorithmic Evaluation
+            <span className="font-label-caps text-[8px] uppercase tracking-wider text-[var(--text-muted)] block">
+              ALGORITHMIC FORMULA
             </span>
-            <h2 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-[var(--accent)]" />
-              6-Factor Invariant Risk Assessment Matrix
+            <h2 className="font-headline-sm text-xs sm:text-sm font-bold text-[var(--primary)] uppercase tracking-wider flex items-center gap-1.5 font-mono">
+              <Shield className="w-3.5 h-3.5 text-[var(--primary-container)]" />
+              6-FACTOR INVARIANT RISK ASSESSMENT MATRIX
             </h2>
           </div>
-          <span className="text-[10px] font-mono-tnum text-[var(--text-muted)]">
-            Score = &sum;(Weight &times; FactorScore)
+          <span className="font-code-sm text-[10px] text-[var(--text-muted)] font-mono">
+            SCORE = &sum;(WEIGHT &times; FACTOR_SCORE)
           </span>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 font-mono-tnum text-xs">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 font-mono text-xs">
           {RISK_FACTORS.map((factor) => (
             <div
               key={factor.name}
-              className="p-3.5 rounded-xs bg-[var(--bg-secondary)]/50 border border-[var(--border)] space-y-2 hover:border-[var(--text-muted)] transition-colors"
+              className="p-3 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] space-y-1.5 hover:border-[var(--border-interactive)] transition-colors"
             >
               <div className="flex items-center justify-between">
-                <span className="font-bold text-[var(--text-primary)] text-xs">{factor.name}</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-xs bg-[var(--bg-card)] border border-[var(--border)] font-bold text-[var(--accent)]">
-                  Weight: {factor.weight * 100}%
+                <span className="font-bold text-[var(--text-primary)] text-xs font-mono">{factor.name}</span>
+                <span className="font-label-caps text-[8px] px-1.5 py-0.5 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] font-bold text-[var(--secondary-container)]">
+                  WEIGHT: {factor.weight * 100}%
                 </span>
               </div>
-              <p className="text-[11px] font-sans text-[var(--text-secondary)] leading-relaxed">
+              <p className="font-body-sm text-[11px] text-[var(--text-secondary)] leading-relaxed">
                 {factor.description}
               </p>
-              <div className="flex items-center justify-between pt-1 border-t border-[var(--border-subtle)] text-[10px]">
+              <div className="flex items-center justify-between pt-1 border-t border-[var(--border)] font-code-sm text-[10px]">
                 <span className="text-[var(--text-muted)]">Calculated Score:</span>
-                <span className="font-bold text-[var(--text-primary)]">{factor.score} / 100</span>
+                <span className="font-bold text-[var(--primary-container)]">{factor.score} / 100</span>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Two Column Grid: High-Risk Tools & High-Risk Integrations */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Two Column Grid: High-Risk Tools & Boundaries */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* High-Risk Tools */}
-        <div className="p-4 sm:p-5 rounded-xs border border-[var(--border)] bg-[var(--bg-card)] shadow-2xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
-            <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
-              <Wrench className="w-3.5 h-3.5 text-[var(--accent)]" />
-              High-Risk Tools Inventory
+        <div className="p-3 sm:p-4 rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)] space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+            <h3 className="font-headline-sm text-xs sm:text-sm font-bold text-[var(--primary)] uppercase tracking-wider flex items-center gap-1.5 font-mono">
+              <Wrench className="w-3.5 h-3.5 text-[var(--tertiary-fixed-dim)]" />
+              HIGH-RISK TOOLS INVENTORY
             </h3>
-            <span className="text-[10px] font-mono-tnum text-[var(--text-muted)]">Ranked by Blast Radius</span>
+            <span className="font-code-sm text-[9px] text-[var(--text-muted)] font-mono">Ranked by Blast Radius</span>
           </div>
 
-          <div className="space-y-2 font-mono-tnum text-xs">
+          <div className="space-y-1.5 font-mono text-xs">
             {highRiskTools.map((tool) => (
               <div
                 key={tool.name}
-                className="p-3 rounded-xs bg-[var(--bg-secondary)]/40 border border-[var(--border-subtle)] flex items-center justify-between gap-2"
+                className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] flex items-center justify-between gap-2 hover:border-[var(--border-interactive)] transition-colors"
               >
                 <div>
-                  <div className="flex items-center gap-2">
-                    <code className="text-xs font-bold text-[var(--accent)]">{tool.name}</code>
-                    <span className="px-1.5 py-0.2 rounded-xs bg-[var(--bg-card)] border border-[var(--border)] text-[9px] text-[var(--text-muted)]">
+                  <div className="flex items-center gap-1.5">
+                    <code className="text-xs font-bold text-[var(--secondary-container)] font-mono">{tool.name}</code>
+                    <span className="px-1 py-0.2 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] font-label-caps text-[8px] text-[var(--text-muted)]">
                       {tool.app}
                     </span>
                   </div>
-                  <span className="text-[10px] text-[var(--text-muted)] block mt-0.5 font-sans">
+                  <span className="font-body-sm text-[10px] text-[var(--text-muted)] block mt-0.5">
                     {tool.policy}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2 text-right">
-                  <RiskBadge level={tool.level as "HIGH" | "CRITICAL"} score={tool.score} />
-                  <span className="text-[10px] text-[var(--risk-critical)] font-bold hidden sm:inline">
-                    {tool.blocksCount} blocked
+                  <span
+                    className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
+                      tool.level === "CRITICAL"
+                        ? "bg-[var(--error-container)] text-[var(--on-error-container)] border border-[var(--error)]/40"
+                        : "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40"
+                    }`}
+                  >
+                    {tool.level} ({tool.score})
+                  </span>
+                  <span className="font-code-sm text-[9px] text-[var(--error)] font-bold hidden sm:inline">
+                    {tool.blocksCount} BLOCKED
                   </span>
                 </div>
               </div>
@@ -201,39 +213,47 @@ export default function RiskCenterPage() {
           </div>
         </div>
 
-        {/* High-Risk Integrations */}
-        <div className="p-4 sm:p-5 rounded-xs border border-[var(--border)] bg-[var(--bg-card)] shadow-2xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
-            <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-[var(--accent)]" />
-              High-Risk Software Boundaries
+        {/* High-Risk Software Boundaries */}
+        <div className="p-3 sm:p-4 rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)] space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
+            <h3 className="font-headline-sm text-xs sm:text-sm font-bold text-[var(--primary)] uppercase tracking-wider flex items-center gap-1.5 font-mono">
+              <Layers className="w-3.5 h-3.5 text-[var(--secondary-container)]" />
+              HIGH-RISK SOFTWARE BOUNDARIES
             </h3>
-            <span className="text-[10px] font-mono-tnum text-[var(--text-muted)]">Application Threat Surface</span>
+            <span className="font-code-sm text-[9px] text-[var(--text-muted)] font-mono">Application Threat Surface</span>
           </div>
 
-          <div className="space-y-2 font-mono-tnum text-xs">
+          <div className="space-y-1.5 font-mono text-xs">
             {highRiskIntegrations.map((app) => (
               <div
                 key={app.name}
-                className="p-3 rounded-xs bg-[var(--bg-secondary)]/40 border border-[var(--border-subtle)] flex items-center justify-between gap-2"
+                className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] flex items-center justify-between gap-2 hover:border-[var(--border-interactive)] transition-colors"
               >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-lg">{app.logo}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-base">{app.icon}</span>
                   <div>
-                    <span className="font-bold text-xs text-[var(--text-primary)] block font-sans">
+                    <span className="font-bold text-xs text-[var(--primary)] block font-mono">
                       {app.name}
                     </span>
-                    <span className="text-[10px] text-[var(--text-muted)]">
+                    <span className="font-code-sm text-[10px] text-[var(--text-muted)]">
                       {app.activeTools} callable tools · Block rate: {app.blockedRate}
                     </span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <RiskBadge level={app.risk as "HIGH" | "CRITICAL"} score={app.baseScore} />
+                  <span
+                    className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
+                      app.risk === "CRITICAL"
+                        ? "bg-[var(--error-container)] text-[var(--on-error-container)] border border-[var(--error)]/40"
+                        : "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40"
+                    }`}
+                  >
+                    {app.risk} ({app.baseScore})
+                  </span>
                   <Link
-                    href={`/integrations/${app.name.toLowerCase().replace(" ", "-")}`}
-                    className="p-1 rounded-xs border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--accent)]"
+                    href={`/integrations/${app.id}`}
+                    className="p-1 rounded-xs border border-[var(--border)] bg-[var(--surface-container-high)] text-[var(--text-secondary)] hover:text-[var(--secondary-container)] hover:border-[var(--secondary-container)] transition-colors"
                   >
                     <ArrowRight className="w-3 h-3" />
                   </Link>

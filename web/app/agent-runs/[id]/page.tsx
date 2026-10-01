@@ -21,7 +21,6 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { AGENT_RUNS, AgentRun } from "@/lib/sentinel-data";
-import { RiskBadge, DecisionBadge } from "@/components/ui/Badges";
 import { prettyJson } from "@/lib/utils";
 
 interface PageProps {
@@ -43,10 +42,6 @@ export default function AgentRunDetailPage({ params }: PageProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  };
-
-  const toggleSection = (section: string) => {
-    setExpandedSection(expandedSection === section ? null : section);
   };
 
   const steps = [
@@ -109,7 +104,7 @@ export default function AgentRunDetailPage({ params }: PageProps) {
     },
     {
       num: 7,
-      title: "APPROVAL",
+      title: "APPROVAL GATING",
       status: run.approvalState === "PENDING" ? "PENDING" : run.approvalState === "REJECTED" ? "BLOCKED" : "COMPLETED",
       summary: `Dual-custody status: ${run.approvalState}`,
       detail: {
@@ -121,7 +116,7 @@ export default function AgentRunDetailPage({ params }: PageProps) {
     },
     {
       num: 8,
-      title: "EXECUTION",
+      title: "DISPATCH EXECUTION",
       status: run.executionState === "COMPLETED" ? "COMPLETED" : run.executionState === "BLOCKED" ? "BLOCKED" : "WAITING",
       summary: run.executionState === "COMPLETED" ? "Dispatched through MCP Gateway" : run.executionState === "BLOCKED" ? "Execution halted by SecurityGate" : "Suspended awaiting human sign-off",
       detail: run.executionResult || { status: run.executionState },
@@ -129,7 +124,7 @@ export default function AgentRunDetailPage({ params }: PageProps) {
     },
     {
       num: 9,
-      title: "RESULT",
+      title: "RESULT VALIDATION",
       status: run.executionState === "COMPLETED" ? "COMPLETED" : "RECORDED",
       summary: run.executionResult ? "Payload returned from external software" : "State change prevented",
       detail: run.executionResult || { message: "No destructive state changes applied" },
@@ -137,7 +132,7 @@ export default function AgentRunDetailPage({ params }: PageProps) {
     },
     {
       num: 10,
-      title: "AUDIT",
+      title: "FORENSIC AUDIT SEAL",
       status: "COMPLETED",
       summary: `Sealed to immutable PostgreSQL ledger (ID: ${run.auditEventId})`,
       detail: {
@@ -150,49 +145,49 @@ export default function AgentRunDetailPage({ params }: PageProps) {
   ];
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6 animate-in fade-in duration-150">
+    <div className="p-3 sm:p-5 max-w-5xl mx-auto space-y-4 font-sans select-none animate-in fade-in duration-150">
       {/* Header */}
-      <div className="pb-5 border-b border-[var(--border)] flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
         <div>
-          <div className="flex items-center gap-2 text-[10px] font-mono-tnum uppercase tracking-wider text-[var(--text-muted)] mb-1">
+          <div className="flex items-center gap-2 text-[10px] font-code-sm uppercase tracking-wider text-[var(--text-muted)] mb-1">
             <Link href="/agent-runs" className="hover:text-[var(--text-primary)] flex items-center gap-1">
               <ChevronLeft className="w-3 h-3" />
               <span>AGENT RUNS</span>
             </Link>
             <span>/</span>
-            <span className="font-bold text-[var(--text-primary)]">{run.id}</span>
+            <span className="font-bold text-[var(--primary)] font-mono">{run.id}</span>
           </div>
 
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)] flex items-center gap-2">
-            <span>Execution Timeline</span>
-            <span className="font-mono-tnum text-sm px-2 py-0.5 rounded-xs bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--accent)]">
+          <h1 className="font-headline-md text-lg sm:text-xl font-bold tracking-tight text-[var(--primary)] flex items-center gap-2">
+            <span>EXECUTION TIMELINE</span>
+            <span className="font-mono text-xs px-2 py-0.5 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] text-[var(--secondary-container)]">
               {run.id}
             </span>
           </h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-1">
+          <p className="font-body-sm text-xs text-[var(--text-secondary)] mt-0.5">
             Step-by-step invariant trace through the Sentinel 10-stage security pipeline.
           </p>
         </div>
 
         {/* Quick Nav Links */}
-        <div className="flex flex-wrap items-center gap-2 text-xs font-mono-tnum">
+        <div className="flex flex-wrap items-center gap-2 text-xs font-code-sm self-start sm:self-auto">
           <Link
             href="/policies"
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xs border border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--text-muted)]"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xs border border-[var(--border)] bg-[var(--surface-container-high)] hover:border-[var(--secondary-container)] text-[var(--text-primary)]"
           >
             <span>View Policy</span>
             <ExternalLink className="w-3 h-3 text-[var(--text-muted)]" />
           </Link>
           <Link
             href="/approvals"
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xs border border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--text-muted)]"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xs border border-[var(--border)] bg-[var(--surface-container-high)] hover:border-[var(--secondary-container)] text-[var(--text-primary)]"
           >
             <span>View Approval</span>
             <ExternalLink className="w-3 h-3 text-[var(--text-muted)]" />
           </Link>
           <Link
             href="/audit"
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xs border border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--text-muted)]"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xs border border-[var(--border)] bg-[var(--surface-container-high)] hover:border-[var(--secondary-container)] text-[var(--text-primary)]"
           >
             <span>View Audit Event</span>
             <ExternalLink className="w-3 h-3 text-[var(--text-muted)]" />
@@ -201,47 +196,57 @@ export default function AgentRunDetailPage({ params }: PageProps) {
       </div>
 
       {/* Identity Summary Deck */}
-      <div className="p-4 sm:p-5 rounded-xs border border-[var(--border)] bg-[var(--bg-card)] shadow-2xs">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs font-mono-tnum">
-          <div>
-            <span className="text-[10px] text-[var(--text-muted)] uppercase block">Agent Identity</span>
-            <span className="font-bold text-[var(--text-primary)] block truncate">{run.agentName}</span>
+      <div className="p-3.5 rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)]">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 text-xs font-mono">
+          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
+            <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">AGENT IDENTITY</span>
+            <span className="font-bold text-[var(--primary)] block truncate">{run.agentName}</span>
           </div>
-          <div>
-            <span className="text-[10px] text-[var(--text-muted)] uppercase block">Reasoning Model</span>
+          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
+            <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">REASONING MODEL</span>
             <span className="font-semibold text-[var(--text-primary)] block truncate">{run.model}</span>
           </div>
-          <div>
-            <span className="text-[10px] text-[var(--text-muted)] uppercase block">Environment</span>
+          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
+            <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">ENVIRONMENT</span>
             <span className="font-semibold text-[var(--text-primary)] block">{run.environment}</span>
           </div>
-          <div>
-            <span className="text-[10px] text-[var(--text-muted)] uppercase block">Target Software</span>
-            <span className="font-semibold text-[var(--accent)] block">{run.application}</span>
+          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
+            <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">TARGET SOFTWARE</span>
+            <span className="font-semibold text-[var(--secondary-container)] block">{run.application}</span>
           </div>
-          <div>
-            <span className="text-[10px] text-[var(--text-muted)] uppercase block">Total Duration</span>
+          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
+            <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">TOTAL DURATION</span>
             <span className="font-semibold text-[var(--text-primary)] block">{run.durationMs}ms</span>
           </div>
-          <div>
-            <span className="text-[10px] text-[var(--text-muted)] uppercase block">Risk Score</span>
-            <RiskBadge level={run.riskLevel} score={run.riskScore} />
+          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
+            <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">RISK SCORE</span>
+            <span
+              className={`font-bold block ${
+                run.riskLevel === "CRITICAL"
+                  ? "text-[var(--error)]"
+                  : run.riskLevel === "HIGH"
+                  ? "text-[var(--tertiary-fixed-dim)]"
+                  : "text-[var(--primary-container)]"
+              }`}
+            >
+              {run.riskLevel} ({run.riskScore})
+            </span>
           </div>
         </div>
       </div>
 
       {/* 10-Step Execution Timeline */}
-      <div className="rounded-xs border border-[var(--border)] bg-[var(--bg-card)] p-4 sm:p-6 shadow-2xs space-y-6">
-        <div className="pb-3 border-b border-[var(--border)] flex items-center justify-between">
-          <h2 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
-            Deterministic Pipeline Execution Trace
+      <div className="rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)] p-3.5 sm:p-5 space-y-4">
+        <div className="pb-2 border-b border-[var(--border)] flex items-center justify-between">
+          <h2 className="font-label-caps text-[9px] font-bold text-[var(--primary)] uppercase tracking-wider">
+            DETERMINISTIC PIPELINE EXECUTION TRACE
           </h2>
-          <span className="text-[10px] font-mono-tnum text-[var(--text-muted)]">
-            Verified HMAC Single-Use Token
+          <span className="font-code-sm text-[10px] text-[var(--primary-container)] font-mono font-bold">
+            VERIFIED HMAC SHA-256 TOKEN
           </span>
         </div>
 
-        <div className="relative pl-6 space-y-6 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-[var(--border)]">
+        <div className="relative pl-6 space-y-4 before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-[var(--border)]">
           {steps.map((step) => {
             const isBlocked = step.status === "BLOCKED";
             const isPending = step.status === "PENDING";
@@ -251,46 +256,46 @@ export default function AgentRunDetailPage({ params }: PageProps) {
               <div key={step.num} className="relative group">
                 {/* Node icon */}
                 <div
-                  className={`absolute -left-6 top-0 w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-mono-tnum font-bold transition-all ${
+                  className={`absolute -left-6 top-0 w-6 h-6 rounded-xs border flex items-center justify-center text-[10px] font-mono font-bold transition-all ${
                     isBlocked
-                      ? "bg-[var(--risk-critical-bg)] border-[var(--risk-critical)] text-[var(--risk-critical)]"
+                      ? "bg-[var(--error-container)] border-[var(--error)] text-[var(--on-error-container)]"
                       : isPending
-                      ? "bg-[var(--risk-high-bg)] border-[var(--risk-high)] text-[var(--risk-high)]"
+                      ? "bg-[var(--tertiary-container)] border-[var(--tertiary-fixed-dim)] text-[var(--on-tertiary-container)]"
                       : isWaiting
-                      ? "bg-[var(--bg-secondary)] border-[var(--border)] text-[var(--text-muted)]"
-                      : "bg-[var(--risk-low-bg)] border-[var(--risk-low)] text-[var(--risk-low)]"
+                      ? "bg-[var(--surface-container-high)] border-[var(--border)] text-[var(--text-muted)]"
+                      : "bg-[var(--primary-container)]/20 border-[var(--primary-container)] text-[var(--primary-container)]"
                   }`}
                 >
                   {isBlocked ? "✕" : isPending ? "⏳" : step.num}
                 </div>
 
                 {/* Step content */}
-                <div className="ml-2 p-3 sm:p-4 rounded-xs bg-[var(--bg-secondary)]/50 border border-[var(--border)] space-y-2">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                <div className="ml-2 p-3 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] space-y-1.5 hover:border-[var(--border-interactive)] transition-colors">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 font-mono">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono-tnum font-bold uppercase tracking-wider text-[var(--accent)]">
-                        STEP 0{step.num}
+                      <span className="font-label-caps text-[9px] font-bold uppercase tracking-wider text-[var(--secondary-container)]">
+                        STAGE 0{step.num}
                       </span>
-                      <h3 className="text-xs font-bold text-[var(--text-primary)] font-mono-tnum">
+                      <h3 className="text-xs font-bold text-[var(--primary)]">
                         {step.title}
                       </h3>
                     </div>
-                    <span className="text-[10px] font-mono-tnum text-[var(--text-muted)]">
+                    <span className="text-[10px] text-[var(--text-muted)]">
                       {step.time}
                     </span>
                   </div>
 
-                  <p className="text-xs text-[var(--text-secondary)]">
+                  <p className="font-body-sm text-xs text-[var(--text-secondary)]">
                     {step.summary}
                   </p>
 
                   {/* Expandable Technical Detail */}
-                  <div className="pt-2 border-t border-[var(--border-subtle)]">
-                    <details className="group/detail text-xs font-mono-tnum">
+                  <div className="pt-1.5 border-t border-[var(--border)]">
+                    <details className="group/detail text-xs font-code-sm">
                       <summary className="cursor-pointer text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] select-none">
                         Inspect Technical Structure
                       </summary>
-                      <pre className="mt-2 p-2.5 rounded-xs bg-[var(--bg-card)] border border-[var(--border)] text-[11px] overflow-x-auto text-[var(--text-primary)]">
+                      <pre className="mt-1.5 p-2 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] text-[10px] font-mono overflow-x-auto text-[var(--text-primary)]">
                         {prettyJson(step.detail)}
                       </pre>
                     </details>
@@ -303,24 +308,24 @@ export default function AgentRunDetailPage({ params }: PageProps) {
       </div>
 
       {/* Inspect Payload Drawer / Box */}
-      <div className="p-4 sm:p-5 rounded-xs border border-[var(--border)] bg-[var(--bg-card)] shadow-2xs space-y-3">
-        <div className="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+      <div className="p-3.5 rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)] space-y-2">
+        <div className="flex items-center justify-between pb-1.5 border-b border-[var(--border)]">
           <div className="flex items-center gap-2">
-            <FileCode className="w-4 h-4 text-[var(--accent)]" />
-            <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
-              Tool Invocation Payload Schema
+            <FileCode className="w-4 h-4 text-[var(--secondary-container)]" />
+            <h3 className="font-label-caps text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider">
+              TOOL INVOCATION PAYLOAD SCHEMA
             </h3>
           </div>
           <button
             onClick={() => handleCopy(JSON.stringify(run.payload, null, 2))}
-            className="inline-flex items-center gap-1 text-[11px] font-mono-tnum text-[var(--accent)] hover:underline"
+            className="flex items-center gap-1 font-code-sm text-[10px] text-[var(--secondary-container)] hover:underline font-mono cursor-pointer"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-[var(--risk-low)]" /> : <Copy className="w-3.5 h-3.5" />}
+            {copied ? <Check className="w-3.5 h-3.5 text-[var(--primary-container)]" /> : <Copy className="w-3.5 h-3.5" />}
             <span>{copied ? "Copied" : "Copy Payload"}</span>
           </button>
         </div>
 
-        <pre className="p-3 rounded-xs bg-[var(--bg-secondary)] border border-[var(--border)] font-mono-tnum text-xs text-[var(--text-primary)] overflow-x-auto">
+        <pre className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] font-mono text-[10px] text-[var(--text-primary)] overflow-x-auto">
           {prettyJson(run.payload)}
         </pre>
       </div>

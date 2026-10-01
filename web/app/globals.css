@@ -3,132 +3,159 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-surface: var(--bg-card);
-  --color-surface-hover: var(--bg-card-hover);
-  --color-border-hairline: var(--border);
-  --color-accent-burnt: #D95E00;
-  --color-accent-teal: #0A7A75;
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+  --color-surface-tint: var(--surface-tint);
+
+  --color-secondary: var(--secondary);
+  --color-on-secondary: var(--on-secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+
+  --color-tertiary: var(--tertiary);
+  --color-on-tertiary: var(--on-tertiary);
+  --color-tertiary-container: var(--tertiary-container);
+  --color-tertiary-fixed-dim: var(--tertiary-fixed-dim);
+
+  --color-error: var(--error);
+  --color-on-error: var(--on-error);
+  --color-error-container: var(--error-container);
+  --color-on-error-container: var(--on-error-container);
+
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-interactive: var(--border-interactive);
+
   --font-sans: var(--font-sans), Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-mono: var(--font-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-:root {
-  /* Architectural Intelligence Design Tokens */
-  --color-bg-primary: #F7F6F2;
-  --color-bg-secondary: #ECEAE4;
-  --color-text-primary: #18191B;
-  --color-text-secondary: #4A4D53;
-  --color-accent: #D95E00;
-  --color-accent-2: #0A7A75;
-  --color-warning: #D97706;
-  --color-danger: #DC2626;
-  --color-border: #D8D5CD;
+:root,
+.dark,
+[data-theme="control-room"] {
+  /* ========================================================
+     THE CONTROL ROOM — TACTICAL INSTRUMENTALISM DESIGN TOKENS
+     ======================================================== */
+  --surface: #111317;
+  --surface-dim: #111317;
+  --surface-bright: #37393e;
+  --surface-container-lowest: #0c0e12; /* Void backdrop / Canvas / Nav rail */
+  --surface-container-low: #1a1c20;    /* Card base / Inactive rows */
+  --surface-container: #1e2024;        /* Primary deck / Panel surface */
+  --surface-container-high: #282a2e;   /* Active bays / Docked trays */
+  --surface-container-highest: #333539;/* Contextual popovers / Headers */
 
-  /* Theme mappings (Architectural Intelligence - Light) */
-  --background: #F7F6F2;
-  --foreground: #18191B;
-  --bg-primary: #F7F6F2;
-  --bg-secondary: #ECEAE4;
-  --bg-card: #FFFFFF;
-  --bg-card-hover: #F2EFE9;
-  --border: #D8D5CD;
-  --border-subtle: #E5E2DA;
-  --border-accent: #D95E00;
-  --accent: #D95E00;
-  --accent-2: #0A7A75;
-  --text-primary: #18191B;
-  --text-secondary: #4A4D53;
-  --text-muted: #6B7280;
-  --success: #0A7A75;
-  --warning: #D97706;
-  --danger: #DC2626;
-  --info: #0284C7;
+  --background: #0B0D11;
+  --foreground: #e2e2e8;
 
-  /* Risk Tokens */
-  --risk-low: #0A7A75;
-  --risk-low-bg: #E6F3F2;
-  --risk-low-border: #A3D4D1;
-  --risk-medium: #D97706;
-  --risk-medium-bg: #FEF3C7;
-  --risk-medium-border: #FCD34D;
-  --risk-high: #D95E00;
-  --risk-high-bg: #FFEDD5;
-  --risk-high-border: #FDBA74;
-  --risk-critical: #DC2626;
-  --risk-critical-bg: #FEE2E2;
-  --risk-critical-border: #FCA5A5;
+  --bg-primary: #0B0D11;
+  --bg-secondary: #0c0e12;
+  --bg-card: #141922;
+  --bg-card-hover: #1e2430;
 
-  /* Spacing Scale */
-  --space-2xs: 2px;
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-
-  /* Radii (Restrained & Architectural) */
-  --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-
-  /* Shadows (Minimal & Purposeful) */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.06);
-  --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.08);
-
-  /* Motion */
-  --motion-fast: 120ms ease;
-  --motion-medium: 200ms ease;
-}
-
-/* Midnight Dark Theme Option */
-[data-theme="midnight"],
-.dark {
-  --background: #0D1117;
-  --foreground: #F0F6FC;
-  --bg-primary: #0D1117;
-  --bg-secondary: #161B22;
-  --bg-card: #161B22;
-  --bg-card-hover: #1F242C;
-  --border: #30363D;
-  --border-subtle: #21262D;
-  --border-accent: #38BDF8;
-  --accent: #38BDF8;
-  --accent-2: #10B981;
-  --text-primary: #F0F6FC;
+  --on-surface: #e2e2e8;
+  --on-surface-variant: #8B949E;
+  --text-primary: #e2e2e8;
   --text-secondary: #8B949E;
-  --text-muted: #6E7681;
-  --success: #10B981;
-  --warning: #F59E0B;
-  --danger: #EF4444;
-  --info: #38BDF8;
+  --text-muted: #57606A;
 
-  /* Risk Tokens (Dark Mode) */
-  --risk-low: #10B981;
-  --risk-low-bg: rgba(16, 185, 129, 0.12);
-  --risk-low-border: rgba(16, 185, 129, 0.3);
-  --risk-medium: #F59E0B;
-  --risk-medium-bg: rgba(245, 158, 11, 0.12);
-  --risk-medium-border: rgba(245, 158, 11, 0.3);
-  --risk-high: #FB923C;
-  --risk-high-bg: rgba(251, 146, 60, 0.12);
-  --risk-high-border: rgba(251, 146, 60, 0.3);
+  /* Structural Hairlines & Borders */
+  --outline: #849585;
+  --outline-variant: #1E2736;
+  --border: #1E2736;
+  --border-subtle: #1E2736;
+  --border-interactive: #252F40;
+
+  /* Signal & Alert Spectrum */
+  --primary: #f1ffef;
+  --on-primary: #003919;
+  --primary-container: #00ff87;        /* Electric Lime (Active / Verified / Nominal) */
+  --on-primary-container: #007138;
+  --surface-tint: #00e478;
+
+  --secondary: #bdf4ff;
+  --on-secondary: #00363d;
+  --secondary-container: #00e3fd;      /* Cool Cyan (Socket / Routed Bus / Transit) */
+  --on-secondary-container: #00616d;
+
+  --tertiary: #fffaf8;
+  --on-tertiary: #472a00;
+  --tertiary-container: #ffd8ad;
+  --tertiary-fixed-dim: #ffb95f;       /* Telemetry Amber (Escrow Held / Intercepted) */
+
+  --error: #ffb4ab;
+  --on-error: #690005;
+  --error-container: #93000a;
+  --on-error-container: #ffdad6;
+  --danger: #EF4444;                   /* Critical Red (Quarantine / Breach / Abort) */
+
+  --accent: #00ff87;
+  --accent-2: #00e3fd;
+  --success: #00ff87;
+  --warning: #ffb95f;
+  --info: #00e3fd;
+
+  /* Strict Risk Mapping */
+  --risk-low: #00ff87;
+  --risk-low-bg: rgba(0, 255, 135, 0.08);
+  --risk-low-border: rgba(0, 255, 135, 0.35);
+
+  --risk-medium: #00e3fd;
+  --risk-medium-bg: rgba(0, 227, 253, 0.08);
+  --risk-medium-border: rgba(0, 227, 253, 0.35);
+
+  --risk-high: #ffb95f;
+  --risk-high-bg: rgba(255, 185, 95, 0.08);
+  --risk-high-border: rgba(255, 185, 95, 0.4);
+
   --risk-critical: #EF4444;
   --risk-critical-bg: rgba(239, 68, 68, 0.12);
-  --risk-critical-border: rgba(239, 68, 68, 0.3);
+  --risk-critical-border: rgba(239, 68, 68, 0.5);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+  /* Spacing Scale */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 0.75rem;
+  --space-lg: 1rem;
+  --space-xl: 1.5rem;
+
+  /* Strict Radii (No Pills) */
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 4px;
+
+  /* Elevation (Micro-border stacking) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.85);
+
+  /* Motion */
+  --motion-fast: 120ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-medium: 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
   box-sizing: border-box;
 }
 
-body {
+html, body {
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
@@ -136,59 +163,131 @@ body {
   padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
 }
 
-/* Tabular figures for monospace technical values, timestamps, and hashes */
+/* Scrollbar elimination / restrained scroll styling */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-container-lowest);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-interactive);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--outline);
+}
+
+/* Cockpit Annunciator Caps Typography */
+.font-label-caps {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Tabular Telemetry Numbers */
+.font-telemetry-num {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1, "zero" 1;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Code Monospace Small / Medium */
+.font-code-md {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: -0.01em;
+}
+
+.font-code-sm {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0em;
+}
+
 .font-mono-tnum {
   font-family: var(--font-mono);
   font-feature-settings: "tnum" 1, "zero" 1;
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
-/* Operational Surface Panels */
+/* Operational Deck Panels */
 .ops-panel {
-  background-color: var(--bg-card);
+  background-color: var(--surface-container);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
 }
 
 .ops-panel-elevated {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border);
+  background-color: var(--surface-container-high);
+  border: 1px solid var(--border-interactive);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
 }
 
-/* Restrained scrollbar */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-::-webkit-scrollbar-track {
-  background: var(--bg-primary);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border);
+/* Tactical Button Styling */
+.btn-tactical-primary {
+  background-color: var(--primary-container);
+  color: var(--on-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   border-radius: 2px;
+  transition: all var(--motion-fast);
 }
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
-
-/* Subtle Shimmer Skeleton */
-@keyframes shimmer {
-  0% { opacity: 0.5; }
-  50% { opacity: 0.9; }
-  100% { opacity: 0.5; }
+.btn-tactical-primary:hover {
+  background-color: var(--surface-tint);
 }
 
-.skeleton-shimmer {
-  animation: shimmer 1.6s ease-in-out infinite;
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius-xs);
+.btn-tactical-secondary {
+  background-color: var(--surface-container-high);
+  border: 1px solid var(--border-interactive);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 2px;
+  transition: all var(--motion-fast);
+}
+.btn-tactical-secondary:hover {
+  border-color: var(--secondary-container);
+  color: var(--secondary);
 }
 
-/* Reduced motion preference */
+.btn-tactical-danger {
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid var(--danger);
+  color: var(--error);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 2px;
+  transition: all var(--motion-fast);
+}
+.btn-tactical-danger:hover {
+  background-color: var(--danger);
+  color: #FFFFFF;
+}
+
+/* Micro Chamfer Utility */
+.chamfer-tr {
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+}
+
+/* Reduced Motion Override */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

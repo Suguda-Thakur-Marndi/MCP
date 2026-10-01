@@ -17,85 +17,26 @@ import {
   Lock,
   UserCheck,
   X,
-  ArrowRight,
-  Database,
-  FileCheck,
+  Terminal,
 } from "lucide-react";
-import { api, ApprovalRecord, CurrentUser, ApiError } from "@/lib/api";
-import {
-  formatDate,
-  relativeTime,
-  prettyJson,
-  shortId,
-} from "@/lib/utils";
-import { RiskBadge, StatusBadge, VerificationBadge, RoleBadge } from "@/components/ui/Badges";
-import { LoadingState, EmptyState, ErrorState } from "@/components/ui/FeedbackStates";
+import { api, ApprovalRecord, CurrentUser } from "@/lib/api";
+import { formatDate, prettyJson, shortId } from "@/lib/utils";
 
 const STATUS_FILTERS = [
   { label: "Pending Review", value: "PENDING" },
   { label: "Approved / Executed", value: "APPROVED" },
-  { label: "Denied / Failed", value: "DENIED" },
-  { label: "Expired", value: "EXPIRED" },
+  { label: "Denied / Blocked", value: "DENIED" },
   { label: "All Tickets", value: "ALL" },
-];
-
-const INITIAL_APPROVALS: ApprovalRecord[] = [
-  {
-    ticket_id: "TICKET-DELETE-529abcbeef95bd31",
-    request_id: "REQ-DC6B3E4B01FE",
-    agent_id: "gemini-agent-v1",
-    requester_id: "user-p7-operator",
-    approver_id: null,
-    tool_name: "delete_customer_records",
-    target_id: "CUST-VIEWER-01",
-    action: "DELETE",
-    parameters: { customer_id: "CUST-VIEWER-01" },
-    parameter_hash: "120dce331ac455aaab36bb8f8633799d37cb69553687ef1a752895aed505d742",
-    environment: "development",
-    policy_id: "RULE-GATED-DELETION",
-    risk_level: "HIGH",
-    risk_score: 80,
-    status: "PENDING",
-    reason: "Test viewer access boundary — Gated deletion of customer record",
-    decision_notes: null,
-    created_at: new Date(Date.now() - 5 * 60000).toISOString(),
-    expires_at: new Date(Date.now() + 55 * 60000).toISOString(),
-    decided_at: null,
-    executed_at: null,
-  },
-  {
-    ticket_id: "TICKET-PURGE-983dfa1029ba44",
-    request_id: "REQ-AA8712DF0931",
-    agent_id: "gemini-agent-v1",
-    requester_id: "system-auto-cleanup",
-    approver_id: null,
-    tool_name: "batch_purge_inactive_accounts",
-    target_id: "ALL_INACTIVE",
-    action: "BATCH_PURGE",
-    parameters: { days_inactive: 180, dry_run: false },
-    parameter_hash: "88fa2981bc203810293cbaf88710293847aaef09182390847120398471203948",
-    environment: "development",
-    policy_id: "RULE-BATCH-PURGE-GATING",
-    risk_level: "CRITICAL",
-    risk_score: 95,
-    status: "PENDING",
-    reason: "Batch destructive purge requires dual-custody verification",
-    decision_notes: null,
-    created_at: new Date(Date.now() - 15 * 60000).toISOString(),
-    expires_at: new Date(Date.now() + 45 * 60000).toISOString(),
-    decided_at: null,
-    executed_at: null,
-  },
 ];
 
 export default function ApprovalsPage() {
   const [, startTransition] = useTransition();
-  const [approvals, setApprovals] = useState<ApprovalRecord[]>(INITIAL_APPROVALS);
+  const [approvals, setApprovals] = useState<ApprovalRecord[]>([]);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("PENDING");
-  const [selectedTicket, setSelectedTicket] = useState<ApprovalRecord | null>(INITIAL_APPROVALS[0]);
+  const [selectedTicket, setSelectedTicket] = useState<ApprovalRecord | null>(null);
   const [actionNotes, setActionNotes] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -103,124 +44,73 @@ export default function ApprovalsPage() {
   const [copiedHash, setCopiedHash] = useState(false);
   const [copiedJson, setCopiedJson] = useState(false);
 
-  // Confirmation Modal state
-  const [confirmModal, setConfirmModal] = useState<{
-    type: "approve" | "deny";
-    ticket: ApprovalRecord;
-  } | null>(null);
-
-  const fetchApprovals = useCallback(async (status?: string) => {
+  const fetchApprovals = useCallback(async (status: string) => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const res = await api.approvals.list({
-        status: status && status !== "ALL" ? status : undefined,
-      });
+      let records: ApprovalRecord[] = [];
+      if (status === "PENDING") {
+        records = await api.approvals.pending();
+      } else {
+        const hist: ApprovalRecord[] = await api.approvals.list({ limit: 100 });
+        if (status === "ALL") {
+          records = hist;
+        } else {
+          records = hist.filter((r: ApprovalRecord) => r.status.toUpperCase() === status);
+        }
+      }
+
       startTransition(() => {
-        setApprovals(res);
-        if (res.length > 0) {
-          setSelectedTicket((curr) => {
-            if (!curr) return res[0];
-            const found = res.find((r) => r.ticket_id === curr.ticket_id);
-            return found || res[0];
+        setApprovals(records);
+        if (records.length > 0) {
+          setSelectedTicket((prev) => {
+            const found = prev ? records.find((r) => r.ticket_id === prev.ticket_id) : null;
+            return found || records[0];
           });
         } else {
           setSelectedTicket(null);
         }
       });
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load approval tickets");
+    } catch (err: any) {
+      setError(err.message || "Failed to load approval queue");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    let active = true;
-    api.approvals
-      .list({
-        status: filterStatus && filterStatus !== "ALL" ? filterStatus : undefined,
-      })
-      .then((res) => {
-        if (active) {
-          startTransition(() => {
-            setApprovals(res);
-            setLoading(false);
-            if (res.length > 0) {
-              setSelectedTicket((curr) => {
-                if (!curr) return res[0];
-                const found = res.find((r) => r.ticket_id === curr.ticket_id);
-                return found || res[0];
-              });
-            } else {
-              setSelectedTicket(null);
-            }
-          });
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) {
-          setError(err instanceof Error ? err.message : "Failed to fetch approvals");
-          setLoading(false);
-        }
-      });
+    api.auth.me().then(setCurrentUser).catch(() => {});
+    fetchApprovals(filterStatus);
+  }, [fetchApprovals, filterStatus]);
 
-    api.auth
-      .me()
-      .then((u) => {
-        if (active) setCurrentUser(u);
-      })
-      .catch(() => {});
-
-    return () => {
-      active = false;
-    };
-  }, [filterStatus]);
-
-  const handleExecuteApproval = async (ticketId: string) => {
+  const handleApprove = async (ticketId: string) => {
     setActionLoading(true);
-    setActionSuccess(null);
     setError(null);
     try {
-      const res = await api.approvals.approve(ticketId, actionNotes);
-      setActionSuccess(`Ticket #${shortId(ticketId)} approved and dispatched to FastMCP.`);
-      setConfirmModal(null);
+      await api.approvals.approve(ticketId, actionNotes || "Approved via Tactical Operations Console");
+      setActionSuccess(`Ticket #${shortId(ticketId)} authorized & dispatched.`);
       setActionNotes("");
       fetchApprovals(filterStatus);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Approval dispatch failed");
+    } catch (err: any) {
+      setError(err.message || "Approval execution failed");
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleExecuteDenial = async (ticketId: string) => {
+  const handleDeny = async (ticketId: string) => {
     setActionLoading(true);
-    setActionSuccess(null);
     setError(null);
     try {
-      await api.approvals.deny(ticketId, actionNotes || "Rejected by Authorizing Officer.");
-      setActionSuccess(`Ticket #${shortId(ticketId)} denied. Execution halted.`);
-      setConfirmModal(null);
+      await api.approvals.deny(ticketId, actionNotes || "Aborted by Security Operator");
+      setActionSuccess(`Ticket #${shortId(ticketId)} denied & quarantined.`);
       setActionNotes("");
       fetchApprovals(filterStatus);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Denial action failed");
+    } catch (err: any) {
+      setError(err.message || "Denial action failed");
     } finally {
       setActionLoading(false);
     }
-  };
-
-  const handleCopyHash = (hash: string) => {
-    navigator.clipboard.writeText(hash);
-    setCopiedHash(true);
-    setTimeout(() => setCopiedHash(false), 2000);
-  };
-
-  const handleCopyJson = (obj: unknown) => {
-    navigator.clipboard.writeText(prettyJson(obj));
-    setCopiedJson(true);
-    setTimeout(() => setCopiedJson(false), 2000);
   };
 
   const filteredApprovals = approvals.filter((a) => {
@@ -233,41 +123,41 @@ export default function ApprovalsPage() {
   });
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+    <div className="p-3 sm:p-5 max-w-7xl mx-auto space-y-4 font-sans select-none animate-in fade-in duration-150">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[var(--border)]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono-tnum font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Governance & Dual Custody
+            <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-widest">
+              MISSION CONTROL // HUMAN ESCROW GATEWAY
             </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--risk-high)]" />
-            <span className="text-[10px] font-mono-tnum text-[var(--risk-high)] font-semibold">HUMAN-IN-THE-LOOP</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[var(--tertiary-fixed-dim)] animate-pulse" />
+            <span className="font-code-sm text-[10px] text-[var(--tertiary-fixed-dim)] font-bold">DUAL-CUSTODY GATING</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-            Approval Queue & Dual-Custody Gating
+          <h1 className="font-headline-md text-lg sm:text-xl font-bold tracking-tight text-[var(--primary)]">
+            APPROVAL QUEUE & ESCROW INTERCEPTION
           </h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-            Cryptographic parameter binding and two-person authorization. Destructive operations require explicit human sign-off before FastMCP server dispatch.
+          <p className="font-body-sm text-xs text-[var(--text-secondary)] mt-0.5">
+            Strict human-in-the-loop authorization. Elevated-risk MCP tool calls are paused at Gate 6 with cryptographic parameter hash binding.
           </p>
         </div>
 
         <button
           onClick={() => fetchApprovals(filterStatus)}
           disabled={loading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] transition-colors shadow-xs"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xs font-code-sm text-xs border border-[var(--border-interactive)] bg-[var(--surface-container-high)] text-[var(--text-primary)] hover:border-[var(--primary-container)] transition-colors shadow-sm disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-          <span>Refresh Queue</span>
+          <span>REFRESH ESCROW</span>
         </button>
       </div>
 
       {/* Success Notification Banner */}
       {actionSuccess && (
-        <div className="p-3 rounded bg-[var(--risk-low-bg)] border border-[var(--risk-low-border)] text-[var(--risk-low)] text-xs flex items-center justify-between">
+        <div className="p-2.5 rounded-xs bg-[var(--primary-container)]/10 border border-[var(--primary-container)]/30 text-[var(--primary-container)] font-code-sm text-xs flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-            <span className="font-semibold">{actionSuccess}</span>
+            <span className="font-bold">{actionSuccess}</span>
           </div>
           <button onClick={() => setActionSuccess(null)} className="p-1 hover:opacity-75">
             <X className="w-3.5 h-3.5" />
@@ -275,17 +165,30 @@ export default function ApprovalsPage() {
         </div>
       )}
 
+      {/* Error Banner */}
+      {error && (
+        <div className="p-2.5 rounded-xs bg-[var(--error-container)]/20 border border-[var(--error)]/40 text-[var(--error)] font-code-sm text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+            <span>{error}</span>
+          </div>
+          <button onClick={() => setError(null)} className="p-1 hover:opacity-75">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Status Filter Tabs & Search Bar */}
-      <div className="p-3 rounded bg-[var(--bg-card)] border border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-        <div className="flex items-center gap-1.5 font-mono-tnum text-xs overflow-x-auto pb-1 sm:pb-0">
+      <div className="p-2.5 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+        <div className="flex items-center gap-1 font-mono-tnum text-xs overflow-x-auto pb-1 sm:pb-0">
           {STATUS_FILTERS.map((f) => (
             <button
               key={f.value}
               onClick={() => setFilterStatus(f.value)}
-              className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded-xs font-label-caps text-[10px] transition-colors ${
                 filterStatus === f.value
-                  ? "bg-[var(--accent)] text-white font-semibold"
-                  : "bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)]"
+                  ? "bg-[var(--primary-container)] text-[var(--on-primary)] font-bold shadow-xs"
+                  : "bg-[var(--surface-container-high)] text-[var(--text-muted)] hover:text-[var(--text-primary)] border border-[var(--border)]"
               }`}
             >
               {f.label}
@@ -294,95 +197,90 @@ export default function ApprovalsPage() {
         </div>
 
         <div className="relative w-full sm:w-64">
-          <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search tickets..."
+            placeholder="Search tickets by ID or tool..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:border-[var(--accent)]"
+            className="w-full pl-8 pr-3 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] font-code-sm text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:border-[var(--secondary-container)]"
           />
         </div>
       </div>
 
       {/* Master-Detail Split Workspace */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         {/* Left Column (5 Cols): Scannable Ticket List */}
-        <div className="lg:col-span-5 rounded bg-[var(--bg-card)] border border-[var(--border)] p-3 shadow-xs space-y-2">
-          <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] flex items-center justify-between">
-            <span>Gating Tickets ({filteredApprovals.length})</span>
-            <span className="font-mono-tnum">Filter: {filterStatus}</span>
+        <div className="lg:col-span-5 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] p-2.5 shadow-sm space-y-2">
+          <div className="px-1.5 py-1 font-label-caps text-[9px] uppercase tracking-wider text-[var(--text-muted)] flex items-center justify-between border-b border-[var(--border)]">
+            <span>ESCROW TICKETS ({filteredApprovals.length})</span>
+            <span className="font-mono-tnum">FILTER: {filterStatus}</span>
           </div>
 
-          <div className="space-y-1.5 max-h-[640px] overflow-y-auto">
+          <div className="space-y-1.5 max-h-[600px] overflow-y-auto">
             {loading ? (
-              <LoadingState message="Querying dual-custody tickets..." />
+              <div className="p-8 text-center text-[var(--text-muted)] font-code-sm text-xs">
+                Scanning cryptographic escrow database...
+              </div>
             ) : filteredApprovals.length === 0 ? (
-              <div className="p-6 text-center space-y-3 rounded bg-[var(--bg-primary)] border border-[var(--border-subtle)]">
-                <div className="w-8 h-8 rounded-full bg-[var(--risk-low-bg)] text-[var(--risk-low)] border border-[var(--risk-low-border)] mx-auto flex items-center justify-center">
-                  <CheckCircle2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
-                    {filterStatus === "PENDING" ? "Queue Clear — Zero Pending Gated Actions" : `No ${filterStatus} Tickets Found`}
-                  </h4>
-                  <p className="text-[11px] text-[var(--text-secondary)] mt-1 max-w-xs mx-auto leading-relaxed">
-                    {filterStatus === "PENDING"
-                      ? "All elevated-risk operations have been cryptographically resolved. No human authorization is currently blocking agent tool execution."
-                      : `No historical tickets match the filter "${filterStatus}". Change filter status to view other records.`}
-                  </p>
-                </div>
-                {filterStatus === "PENDING" && (
-                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2">
-                    <button
-                      onClick={() => setFilterStatus("APPROVED")}
-                      className="px-2.5 py-1 rounded text-xs font-semibold bg-[var(--accent)] text-white hover:opacity-95 transition-opacity"
-                    >
-                      View 45 Executed Tickets
-                    </button>
-                    <Link
-                      href="/agent"
-                      className="px-2.5 py-1 rounded text-xs font-medium border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-                    >
-                      Dispatch Test Action
-                    </Link>
-                  </div>
-                )}
+              <div className="p-8 text-center space-y-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
+                <CheckCircle2 className="w-6 h-6 text-[var(--primary-container)] mx-auto" />
+                <h4 className="font-label-caps text-xs text-[var(--primary)] font-bold">
+                  {filterStatus === "PENDING" ? "QUEUE NOMINAL — ZERO HELD ACTIONS" : "NO TICKETS FOUND"}
+                </h4>
+                <p className="font-body-sm text-[11px] text-[var(--text-muted)]">
+                  All high-risk agent operations have been evaluated and dispatched.
+                </p>
               </div>
             ) : (
               filteredApprovals.map((ticket) => {
                 const isSelected = selectedTicket?.ticket_id === ticket.ticket_id;
-                const isPending = ticket.status === "PENDING";
-
+                const isPending = ticket.status.toUpperCase() === "PENDING";
                 return (
                   <div
                     key={ticket.ticket_id}
                     onClick={() => setSelectedTicket(ticket)}
-                    className={`p-3 rounded border cursor-pointer transition-all ${
+                    className={`p-2.5 rounded-xs cursor-pointer transition-all border ${
                       isSelected
-                        ? "bg-[var(--bg-primary)] border-[var(--accent)] shadow-xs ring-1 ring-[var(--accent)]/30"
-                        : "bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--text-muted)] hover:bg-[var(--bg-primary)]/50"
+                        ? "bg-[var(--surface-container-high)] border-2 border-[var(--tertiary-fixed-dim)] shadow-md"
+                        : "bg-[var(--surface-container-lowest)] hover:bg-[var(--surface-container)] border-[var(--border)]"
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <div className="flex items-center gap-1.5 font-mono-tnum text-[11px] font-bold text-[var(--text-primary)] truncate">
-                        <span>{ticket.tool_name}</span>
-                        <span className="text-[var(--text-muted)] font-normal text-[10px]">
-                          #{shortId(ticket.ticket_id)}
+                    <div className="flex items-center justify-between pb-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                            ticket.risk_level === "CRITICAL"
+                              ? "bg-[var(--error)]"
+                              : ticket.risk_level === "HIGH"
+                              ? "bg-[var(--tertiary-fixed-dim)]"
+                              : "bg-[var(--primary-container)]"
+                          }`}
+                        />
+                        <span className="font-code-sm text-xs font-bold text-[var(--primary)] truncate">
+                          {ticket.tool_name || ticket.action}
                         </span>
                       </div>
-                      <StatusBadge status={ticket.status} />
+                      <span
+                        className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
+                          isPending
+                            ? "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)]"
+                            : ticket.status.toUpperCase() === "APPROVED"
+                            ? "bg-[var(--primary-container)]/20 text-[var(--primary-container)]"
+                            : "bg-[var(--error-container)] text-[var(--on-error-container)]"
+                        }`}
+                      >
+                        {ticket.status.toUpperCase()}
+                      </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <p className="text-[11px] text-[var(--text-secondary)] truncate">
-                        {ticket.reason || "High-risk tool execution gated by policy"}
-                      </p>
+                    <div className="flex items-center justify-between text-[10px] text-[var(--text-muted)] font-code-sm pt-1">
+                      <span>Agent: {ticket.agent_id}</span>
+                      <span className="font-bold text-[var(--error)]">Risk: {ticket.risk_score}/100</span>
                     </div>
 
-                    <div className="mt-2 pt-1.5 border-t border-[var(--border-subtle)] flex items-center justify-between text-[10px] font-mono-tnum text-[var(--text-muted)]">
-                      <RiskBadge severity={ticket.risk_level || "HIGH"} score={ticket.risk_score} />
-                      <span>{relativeTime(ticket.created_at)}</span>
+                    <div className="font-code-sm text-[10px] text-[var(--text-muted)] truncate pt-0.5">
+                      Hash: {ticket.parameter_hash.slice(0, 16)}...
                     </div>
                   </div>
                 );
@@ -391,269 +289,151 @@ export default function ApprovalsPage() {
           </div>
         </div>
 
-        {/* Right Column (7 Cols): Authoritative Decision Inspector */}
-        <div className="lg:col-span-7">
+        {/* Right Column (7 Cols): Forensic Escrow Inspector */}
+        <div className="lg:col-span-7 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] p-3 sm:p-4 shadow-sm space-y-3">
           {selectedTicket ? (
-            <div className="rounded bg-[var(--bg-card)] border border-[var(--border)] p-5 shadow-xs space-y-5">
-              {/* Ticket Action Header */}
-              <div className="pb-4 border-b border-[var(--border)] flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+            <>
+              {/* Ticket Header & Risk Gauge */}
+              <div className="flex items-start justify-between border-b border-[var(--border)] pb-2.5">
                 <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-mono-tnum font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                      Authorization Ticket
-                    </span>
-                    <span className="font-mono-tnum text-xs font-bold text-[var(--text-primary)]">
+                  <div className="flex items-center gap-2">
+                    <span className="font-label-caps text-[10px] text-[var(--text-muted)] uppercase">ESCROW INSPECTOR</span>
+                    <span className="font-code-sm text-[10px] text-[var(--secondary-container)] font-mono">
                       #{selectedTicket.ticket_id}
                     </span>
-                    <StatusBadge status={selectedTicket.status} />
                   </div>
-                  <h3 className="text-base font-bold text-[var(--text-primary)]">
-                    Proposed Operation: <code className="font-mono-tnum text-[var(--accent)] font-semibold">{selectedTicket.tool_name}</code>
+                  <h3 className="font-headline-md text-base font-bold text-[var(--primary)] mt-0.5 font-mono">
+                    {selectedTicket.tool_name || selectedTicket.action}
                   </h3>
-                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                    Requested by agent <code className="font-mono-tnum font-semibold">{selectedTicket.requester_id || "gemini-agent-v1"}</code>
-                  </p>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <RiskBadge severity={selectedTicket.risk_level || "HIGH"} score={selectedTicket.risk_score} />
-                  <VerificationBadge label="SHA-256 SEALED" verified={true} />
+                <div className="flex flex-col items-end">
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-telemetry-num text-xl text-[var(--error)] font-bold">
+                      {selectedTicket.risk_score}
+                    </span>
+                    <span className="font-code-sm text-xs text-[var(--text-muted)]">/ 100</span>
+                  </div>
+                  <span className="font-label-caps text-[9px] text-[var(--error)] font-bold">
+                    {selectedTicket.risk_level} RISK
+                  </span>
                 </div>
               </div>
 
-              {/* Policy Invariant Reason */}
-              <div>
-                <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-1">
-                  Enforced Policy Invariant & Gating Rationale
-                </label>
-                <div className="p-3 rounded bg-[var(--bg-primary)]/60 border border-[var(--border)] text-xs text-[var(--text-primary)] leading-relaxed">
-                  <span className="font-semibold text-[var(--risk-high)] mr-1.5">[GATED REQUIREMENT]</span>
-                  <span>{selectedTicket.reason || "Destructive or elevated-risk tool execution requires dual-custody authorization."}</span>
+              {/* Core Telemetry Specs */}
+              <div className="grid grid-cols-2 gap-2 text-xs font-code-sm">
+                <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
+                  <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase block">REQUESTING AGENT</span>
+                  <span className="text-[var(--primary)] font-semibold font-mono mt-0.5 block">{selectedTicket.agent_id}</span>
+                </div>
+                <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
+                  <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase block">POLICY RULE APPLIED</span>
+                  <span className="text-[var(--secondary-container)] font-semibold font-mono mt-0.5 block">{selectedTicket.policy_id}</span>
                 </div>
               </div>
 
-              {/* Cryptographic Parameter Fingerprint (SHA-256) */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1.5">
-                    <Fingerprint className="w-3.5 h-3.5 text-[var(--accent)]" />
-                    <span>Cryptographic Parameter Fingerprint (SHA-256)</span>
-                  </label>
-                  <button
-                    onClick={() => handleCopyHash(selectedTicket.parameter_hash || "sha256_mock_hash")}
-                    className="text-[10px] font-mono-tnum text-[var(--accent)] hover:underline flex items-center gap-1"
-                  >
-                    {copiedHash ? <Check className="w-3 h-3 text-[var(--success)]" /> : <Copy className="w-3 h-3" />}
-                    <span>{copiedHash ? "Copied" : "Copy Hash"}</span>
-                  </button>
-                </div>
-                <div className="p-2 rounded bg-[var(--bg-secondary)] border border-[var(--border)] font-mono-tnum text-[11px] text-[var(--text-primary)] break-all select-all">
-                  {selectedTicket.parameter_hash || "120dce331ac455aaab36bb8f8633799d37cb69553687ef1a752895aed505d742"}
-                </div>
-                <p className="text-[10px] text-[var(--text-muted)] mt-1">
-                  Runtime verification ensures any in-flight alteration to arguments immediately invalidates this fingerprint and blocks dispatch.
+              {/* Reason Box */}
+              <div className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
+                <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase block mb-1">
+                  SECURITY POLICY JUSTIFICATION
+                </span>
+                <p className="font-body-sm text-xs text-[var(--text-primary)] leading-relaxed bg-[var(--surface-container-high)] p-2 rounded-xs border border-[var(--border)]">
+                  {selectedTicket.reason}
                 </p>
               </div>
 
-              {/* Parameter Payload */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                    Exact Parameter Payload
-                  </label>
+              {/* Cryptographic Hash Binding */}
+              <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
+                <div className="flex items-center justify-between pb-1">
+                  <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase">
+                    CRYPTOGRAPHIC PARAMETER BINDING (SHA-256)
+                  </span>
                   <button
-                    onClick={() => handleCopyJson(selectedTicket.parameters)}
-                    className="text-[10px] font-mono-tnum text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1"
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedTicket.parameter_hash);
+                      setCopiedHash(true);
+                      setTimeout(() => setCopiedHash(false), 2000);
+                    }}
+                    className="font-code-sm text-[10px] text-[var(--secondary-container)] hover:underline flex items-center gap-1"
                   >
-                    {copiedJson ? <Check className="w-3 h-3 text-[var(--success)]" /> : <Copy className="w-3 h-3" />}
-                    <span>{copiedJson ? "Copied" : "Copy Payload"}</span>
+                    {copiedHash ? <Check className="w-3 h-3 text-[var(--primary-container)]" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedHash ? "COPIED" : "COPY HASH"}</span>
                   </button>
                 </div>
-                <pre className="p-3 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-[11px] font-mono-tnum text-[var(--text-primary)] overflow-x-auto leading-relaxed">
-                  {prettyJson(selectedTicket.parameters || {})}
+                <div className="font-code-sm text-[11px] text-[var(--primary-container)] font-mono break-all bg-[var(--surface-container-high)] p-2 rounded-xs border border-[var(--border)]">
+                  {selectedTicket.parameter_hash}
+                </div>
+              </div>
+
+              {/* Raw JSON Parameters Dump */}
+              <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
+                <div className="flex items-center justify-between pb-1">
+                  <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase">
+                    BOUND PARAMETERS PAYLOAD
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(prettyJson(selectedTicket.parameters));
+                      setCopiedJson(true);
+                      setTimeout(() => setCopiedJson(false), 2000);
+                    }}
+                    className="font-code-sm text-[10px] text-[var(--secondary-container)] hover:underline flex items-center gap-1"
+                  >
+                    {copiedJson ? <Check className="w-3 h-3 text-[var(--primary-container)]" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedJson ? "COPIED" : "COPY JSON"}</span>
+                  </button>
+                </div>
+                <pre className="font-code-sm text-[10px] text-[var(--text-secondary)] font-mono leading-tight bg-[var(--surface-container-high)] p-2 rounded-xs overflow-x-auto border border-[var(--border)] max-h-36">
+                  {prettyJson(selectedTicket.parameters)}
                 </pre>
               </div>
 
-              {/* Metadata Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 font-mono-tnum text-xs pt-1">
-                <div className="p-2.5 rounded bg-[var(--bg-secondary)] border border-[var(--border)]">
-                  <span className="text-[9px] uppercase font-semibold text-[var(--text-muted)] block">Requested</span>
-                  <span className="font-semibold text-[var(--text-primary)]">{formatDate(selectedTicket.created_at)}</span>
-                </div>
-                <div className="p-2.5 rounded bg-[var(--bg-secondary)] border border-[var(--border)]">
-                  <span className="text-[9px] uppercase font-semibold text-[var(--text-muted)] block">Expires</span>
-                  <span className="font-semibold text-[var(--text-primary)]">
-                    {selectedTicket.expires_at ? formatDate(selectedTicket.expires_at) : "1 Hour TTL"}
+              {/* Action Controls for Pending Tickets */}
+              {selectedTicket.status.toUpperCase() === "PENDING" ? (
+                <div className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] space-y-2">
+                  <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase block">
+                    OPERATOR DECISION NOTES
                   </span>
-                </div>
-                <div className="p-2.5 rounded bg-[var(--bg-secondary)] border border-[var(--border)]">
-                  <span className="text-[9px] uppercase font-semibold text-[var(--text-muted)] block">Reviewer</span>
-                  <span className="font-semibold text-[var(--text-primary)]">{currentUser?.email || "Authorizing Officer"}</span>
-                </div>
-              </div>
-
-              {/* ACTION AREA: Reviewer Notes & Decision Buttons */}
-              {selectedTicket.status === "PENDING" ? (
-                <div className="pt-3 border-t border-[var(--border)] space-y-3">
-                  <div>
-                    <label className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-1">
-                      Authorizing Reviewer Notes (Audit Trail)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Identity verified via secondary channel; parameters checked against operational ticket."
-                      value={actionNotes}
-                      onChange={(e) => setActionNotes(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded bg-[var(--bg-primary)] border border-[var(--border)] text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:border-[var(--accent)]"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-end gap-3 pt-1">
+                  <input
+                    type="text"
+                    placeholder="Enter dual-custody justification or reason..."
+                    value={actionNotes}
+                    onChange={(e) => setActionNotes(e.target.value)}
+                    className="w-full px-2.5 py-1.5 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border-interactive)] font-code-sm text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:border-[var(--primary-container)]"
+                  />
+                  <div className="grid grid-cols-2 gap-2 pt-1">
                     <button
-                      onClick={() => setConfirmModal({ type: "deny", ticket: selectedTicket })}
+                      onClick={() => handleApprove(selectedTicket.ticket_id)}
                       disabled={actionLoading}
-                      className="px-4 py-2 rounded border border-[var(--danger)] text-[var(--danger)] text-xs font-semibold hover:bg-[var(--danger)]/10 transition-colors disabled:opacity-50"
+                      className="py-2 px-3 rounded-xs bg-[var(--primary-container)] hover:bg-[var(--surface-tint)] text-[var(--on-primary)] font-code-md text-xs font-bold uppercase transition-all flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
                     >
-                      Reject Operation
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{actionLoading ? "AUTHORIZING..." : "AUTHORIZE & DISPATCH"}</span>
                     </button>
                     <button
-                      onClick={() => setConfirmModal({ type: "approve", ticket: selectedTicket })}
+                      onClick={() => handleDeny(selectedTicket.ticket_id)}
                       disabled={actionLoading}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded bg-[var(--accent)] text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 shadow-xs"
+                      className="py-2 px-3 rounded-xs bg-[var(--error-container)] hover:bg-[var(--error)] text-[var(--on-error-container)] font-code-md text-xs font-bold uppercase transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>Approve & Authorize Dispatch</span>
+                      <XCircle className="w-4 h-4" />
+                      <span>{actionLoading ? "QUARANTINING..." : "ABORT & QUARANTINE"}</span>
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="p-3 rounded bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-muted)] font-mono-tnum flex items-center justify-between">
-                  <span>Ticket Status: {selectedTicket.status}</span>
-                  <span>Decision Completed</span>
+                <div className="p-3 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-center font-code-sm text-xs text-[var(--text-muted)]">
+                  Ticket status is <span className="font-bold text-[var(--primary)]">{selectedTicket.status.toUpperCase()}</span>. Decided at:{" "}
+                  {selectedTicket.decided_at ? formatDate(selectedTicket.decided_at) : "N/A"}.
                 </div>
               )}
-            </div>
+            </>
           ) : (
-            <div className="rounded bg-[var(--bg-card)] border border-[var(--border)] p-6 shadow-xs space-y-4">
-              <div className="pb-3 border-b border-[var(--border)] flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] font-mono-tnum uppercase tracking-wider text-[var(--text-muted)] block">
-                    Security Governance
-                  </span>
-                  <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">
-                    Dual-Custody Gating Architecture
-                  </h3>
-                </div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono-tnum font-semibold bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border)]">
-                  PROTOCOL SPEC
-                </span>
-              </div>
-
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                When an AI agent requests a tool classified as HIGH or CRITICAL risk (such as database deletions or batch mutations), execution is immediately suspended. A single-use cryptographic ticket is generated and queued for human dual-custody verification.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                <div className="p-3 rounded bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-primary)]">
-                    <Fingerprint className="w-3.5 h-3.5 text-[var(--accent)]" />
-                    <span>SHA-256 Binding</span>
-                  </div>
-                  <p className="text-[11px] text-[var(--text-muted)] leading-normal">
-                    Tool parameters are hashed upon ticket creation. Any in-flight mutation invalidates authorization.
-                  </p>
-                </div>
-
-                <div className="p-3 rounded bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-primary)]">
-                    <Lock className="w-3.5 h-3.5 text-[var(--risk-low)]" />
-                    <span>Anti-Replay Token</span>
-                  </div>
-                  <p className="text-[11px] text-[var(--text-muted)] leading-normal">
-                    Each approval token is single-use and bound to a 1-hour time-to-live (TTL) expiration window.
-                  </p>
-                </div>
-
-                <div className="p-3 rounded bg-[var(--bg-primary)] border border-[var(--border-subtle)] space-y-1">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-primary)]">
-                    <UserCheck className="w-3.5 h-3.5 text-[var(--risk-high)]" />
-                    <span>Two-Person Rule</span>
-                  </div>
-                  <p className="text-[11px] text-[var(--text-muted)] leading-normal">
-                    The authorizing officer must have APPROVER or ADMIN RBAC permissions and must not be the automated requester.
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-3 rounded bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-muted)] flex items-center justify-between">
-                <span>Select any ticket from the queue to inspect arguments and render an operational decision.</span>
-                <span className="font-mono-tnum text-[11px]">Enforcement: FAST_MCP 4.0</span>
-              </div>
+            <div className="p-12 text-center text-[var(--text-muted)] font-code-sm text-xs">
+              Select an escrow ticket to view forensic parameters and sign decision.
             </div>
           )}
         </div>
       </div>
-
-      {/* CONFIRMATION DIALOG MODAL */}
-      {confirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-[var(--bg-card)] border border-[var(--border)] rounded max-w-md w-full p-5 shadow-xl space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-[var(--border)]">
-              {confirmModal.type === "approve" ? (
-                <ShieldCheck className="w-5 h-5 text-[var(--accent)]" />
-              ) : (
-                <XCircle className="w-5 h-5 text-[var(--danger)]" />
-              )}
-              <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                {confirmModal.type === "approve" ? "Confirm Dual-Custody Approval" : "Confirm Operation Rejection"}
-              </h3>
-            </div>
-
-            <div className="text-xs text-[var(--text-secondary)] space-y-2">
-              <p>
-                You are about to {confirmModal.type === "approve" ? "authorize database execution for" : "reject and cancel"} ticket:
-              </p>
-              <div className="p-2.5 rounded bg-[var(--bg-secondary)] border border-[var(--border)] font-mono-tnum text-[11px] text-[var(--text-primary)] space-y-1">
-                <div>Tool: <span className="font-bold">{confirmModal.ticket.tool_name}</span></div>
-                <div>Ticket: #{confirmModal.ticket.ticket_id}</div>
-                <div>Risk: {confirmModal.ticket.risk_level || "HIGH"}</div>
-              </div>
-              {confirmModal.type === "approve" && (
-                <p className="text-[11px] text-[var(--text-muted)]">
-                  The FastMCP server will verify the SHA-256 parameter hash against this ticket before committing mutations to PostgreSQL.
-                </p>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[var(--border-subtle)]">
-              <button
-                onClick={() => setConfirmModal(null)}
-                disabled={actionLoading}
-                className="px-3 py-1.5 rounded bg-[var(--bg-secondary)] border border-[var(--border)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (confirmModal.type === "approve") {
-                    handleExecuteApproval(confirmModal.ticket.ticket_id);
-                  } else {
-                    handleExecuteDenial(confirmModal.ticket.ticket_id);
-                  }
-                }}
-                disabled={actionLoading}
-                className={`px-4 py-1.5 rounded text-xs font-semibold text-white transition-opacity ${
-                  confirmModal.type === "approve"
-                    ? "bg-[var(--accent)] hover:opacity-90"
-                    : "bg-[var(--danger)] hover:opacity-90"
-                }`}
-              >
-                {actionLoading ? "Processing..." : confirmModal.type === "approve" ? "Confirm & Execute" : "Confirm Rejection"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
