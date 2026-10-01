@@ -20,14 +20,16 @@ import {
 // =========================================================================
 export function RiskBadge({
   severity,
+  level,
   score,
   className = "",
 }: {
   severity?: string;
+  level?: string;
   score?: number | null;
   className?: string;
 }) {
-  const norm = (severity || "LOW").toUpperCase();
+  const norm = (level || severity || "LOW").toUpperCase();
 
   let colors = "bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border)]";
   let Icon = Info;

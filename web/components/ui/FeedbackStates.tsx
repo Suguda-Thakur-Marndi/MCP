@@ -1,7 +1,20 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, Inbox, Loader2, Lock, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import {
+  AlertTriangle,
+  Inbox,
+  Loader2,
+  Lock,
+  RefreshCw,
+  Layers,
+  CheckCircle2,
+  Server,
+  ArrowRight,
+  ShieldAlert,
+  HelpCircle,
+} from "lucide-react";
 
 export function LoadingState({
   message = "Loading security telemetry...",
@@ -16,9 +29,11 @@ export function LoadingState({
       role="status"
       aria-live="polite"
     >
-      <Loader2 className="w-8 h-8 text-sky-500 animate-spin mb-3" />
-      <p className="text-sm font-medium text-slate-200">{message}</p>
-      <span className="text-xs text-slate-500 mt-1">Connecting to authoritative FastMCP backend...</span>
+      <Loader2 className="w-7 h-7 text-[var(--accent)] animate-spin mb-3" />
+      <p className="text-xs font-semibold text-[var(--text-primary)]">{message}</p>
+      <span className="text-[11px] text-[var(--text-muted)] mt-1 font-mono-tnum">
+        Connecting to authoritative FastMCP backend...
+      </span>
     </div>
   );
 }
@@ -38,47 +53,125 @@ export function EmptyState({
 }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center py-14 px-4 text-center rounded-lg border border-dashed border-[#243044] bg-[#111827]/40 ${className}`}
+      className={`flex flex-col items-center justify-center py-14 px-4 text-center rounded-xs border border-dashed border-[var(--border)] bg-[var(--bg-secondary)]/30 ${className}`}
     >
-      <div className="w-11 h-11 rounded-full bg-slate-800/80 border border-slate-700/60 flex items-center justify-center text-slate-400 mb-3">
-        <Icon className="w-5 h-5 text-slate-400" />
+      <div className="w-10 h-10 rounded-xs bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center text-[var(--text-muted)] mb-3 shadow-2xs">
+        <Icon className="w-5 h-5 text-[var(--text-muted)]" />
       </div>
-      <h3 className="text-sm font-semibold text-slate-200">{title}</h3>
-      <p className="text-xs text-slate-400 max-w-sm mt-1 mb-4">{message}</p>
+      <h3 className="text-xs font-bold text-[var(--text-primary)]">{title}</h3>
+      <p className="text-xs text-[var(--text-secondary)] max-w-sm mt-1 mb-4 leading-relaxed">
+        {message}
+      </p>
       {action}
     </div>
+  );
+}
+
+export function NoIntegrationsEmptyState() {
+  return (
+    <EmptyState
+      title="No software is connected to your security gateway yet."
+      message="Connect external enterprise applications or custom MCP servers to begin evaluating and governing autonomous AI agent actions."
+      icon={Layers}
+      action={
+        <Link
+          href="/integrations"
+          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xs text-xs font-semibold bg-[var(--accent)] text-white hover:opacity-95 shadow-2xs"
+        >
+          <span>Connect software</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      }
+    />
+  );
+}
+
+export function NoApprovalsEmptyState() {
+  return (
+    <EmptyState
+      title="All security decisions are currently resolved."
+      message="There are no pending high-risk or destructive actions awaiting dual-custody human sign-off in the decision queue."
+      icon={CheckCircle2}
+      action={
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xs text-xs font-semibold border border-[var(--border)] bg-[var(--bg-card)] text-[var(--text-primary)] hover:border-[var(--text-muted)]"
+        >
+          <span>Return to Command Center</span>
+        </Link>
+      }
+    />
+  );
+}
+
+export function NoAuditEventsEmptyState() {
+  return (
+    <EmptyState
+      title="No governed actions have been recorded yet."
+      message="Audit logs are cryptographically sealed whenever an AI agent requests a tool execution through the MCP Sentinel gateway."
+      icon={ShieldAlert}
+    />
   );
 }
 
 export function ErrorState({
   title = "Security Telemetry Error",
   message = "Unable to load data from backend services. Please retry.",
+  whatHappened = "The security gateway encountered an unexpected response from the invariant engine.",
+  why = "Backend service may be temporarily unavailable or credentials expired.",
+  whatYouCanDo = "Verify that the backend gateway daemon and database are active on ports 8000 and 5000.",
   onRetry,
   className = "",
 }: {
   title?: string;
   message?: string;
+  whatHappened?: string;
+  why?: string;
+  whatYouCanDo?: string;
   onRetry?: () => void;
   className?: string;
 }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center py-12 px-4 text-center rounded-lg border border-rose-900/50 bg-rose-950/20 ${className}`}
+      className={`p-6 rounded-xs border border-[var(--risk-critical-border)] bg-[var(--risk-critical-bg)]/30 text-left space-y-3 font-mono-tnum text-xs ${className}`}
       role="alert"
     >
-      <div className="w-11 h-11 rounded-full bg-rose-900/40 border border-rose-800/60 flex items-center justify-center text-rose-400 mb-3">
-        <AlertTriangle className="w-5 h-5 text-rose-400" />
+      <div className="flex items-center gap-2">
+        <AlertTriangle className="w-4 h-4 text-[var(--risk-critical)] flex-shrink-0" />
+        <h3 className="text-xs font-bold text-[var(--risk-critical)] uppercase tracking-wider">
+          {title}
+        </h3>
       </div>
-      <h3 className="text-sm font-semibold text-rose-200">{title}</h3>
-      <p className="text-xs text-slate-300 max-w-md mt-1 mb-4">{message}</p>
+
+      <p className="text-xs font-sans text-[var(--text-primary)] leading-relaxed">
+        {message}
+      </p>
+
+      <div className="p-3 rounded-xs bg-[var(--bg-card)] border border-[var(--border)] space-y-1.5 text-[11px]">
+        <div>
+          <span className="text-[var(--text-muted)] font-bold">What happened: </span>
+          <span className="text-[var(--text-primary)]">{whatHappened}</span>
+        </div>
+        <div>
+          <span className="text-[var(--text-muted)] font-bold">Why: </span>
+          <span className="text-[var(--text-primary)]">{why}</span>
+        </div>
+        <div>
+          <span className="text-[var(--text-muted)] font-bold">What you can do: </span>
+          <span className="text-[var(--text-primary)]">{whatYouCanDo}</span>
+        </div>
+      </div>
+
       {onRetry && (
-        <button
-          onClick={onRetry}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          <span>Retry Request</span>
-        </button>
+        <div className="pt-1">
+          <button
+            onClick={onRetry}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xs text-xs font-semibold bg-[var(--accent)] text-white hover:opacity-95 transition-all shadow-2xs"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Retry Request</span>
+          </button>
+        </div>
       )}
     </div>
   );
@@ -95,15 +188,17 @@ export function ForbiddenState({
 }) {
   return (
     <div
-      className={`flex flex-col items-center justify-center py-14 px-4 text-center rounded-lg border border-amber-900/50 bg-amber-950/20 ${className}`}
+      className={`flex flex-col items-center justify-center py-14 px-4 text-center rounded-xs border border-[var(--risk-high-border)] bg-[var(--risk-high-bg)]/20 ${className}`}
       role="alert"
     >
-      <div className="w-11 h-11 rounded-full bg-amber-900/40 border border-amber-800/60 flex items-center justify-center text-amber-400 mb-3">
-        <Lock className="w-5 h-5 text-amber-400" />
+      <div className="w-10 h-10 rounded-xs bg-[var(--bg-card)] border border-[var(--border)] flex items-center justify-center text-[var(--risk-high)] mb-3">
+        <Lock className="w-4 h-4 text-[var(--risk-high)]" />
       </div>
-      <h3 className="text-sm font-semibold text-amber-200">Access Restricted</h3>
-      <p className="text-xs text-slate-300 max-w-sm mt-1">{message}</p>
-      <p className="text-xs font-mono text-amber-400 mt-2">Required Role: {requiredRole}</p>
+      <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider">Access Restricted (403)</h3>
+      <p className="text-xs text-[var(--text-secondary)] max-w-sm mt-1">{message}</p>
+      <span className="text-[11px] font-mono-tnum text-[var(--accent)] font-semibold mt-2">
+        Required Role: {requiredRole}
+      </span>
     </div>
   );
 }

@@ -1,12 +1,12 @@
 # MCP-Sentinel Automated Security Evaluation & Benchmark Report
 
-**Execution Timestamp**: 2026-09-29 10:49:15 UTC  
-**Run ID**: `eval-1790678950-a0f96cb2`  
+**Execution Timestamp**: 2026-10-01 05:25:43 UTC  
+**Run ID**: `eval-1790832341-07714de5`  
 **Dataset Version**: `security-eval-phase10`  
 **Agent Evaluation Mode**: `SECURED`  
 **Environment**: `development`  
-**Total Duration**: 4.28s  
-**Average Latency**: 38.87 ms  
+**Total Duration**: 1.46s  
+**Average Latency**: 8.49 ms  
 **Overall Verdict**: **PASS**  
 
 ---

@@ -10,14 +10,11 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       { source: "/overview", destination: "/" },
-      { source: "/agent-runs", destination: "/agent" },
       { source: "/mcp-tools", destination: "/tools" },
       { source: "/audit-logs", destination: "/audit" },
       { source: "/policy-inspector", destination: "/policies" },
-      { source: "/system-health", destination: "/settings" },
       { source: "/login", destination: "/auth" },
       { source: "/api/:path*", destination: "http://127.0.0.1:8000/api/:path*" },
-      { source: "/health", destination: "http://127.0.0.1:8000/health" },
     ];
   },
 };
