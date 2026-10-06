@@ -1,29 +1,38 @@
 {
-  "timestamp": "2026-09-28T13:27:10.375892+00:00",
+  "timestamp": "2026-10-06T17:05:29.062818+00:00",
   "stages": {
     "database": {
       "status": "PASS",
       "details": {
         "tables": [
+          "agent_runs",
           "approval_requests",
           "audit_events",
           "customer_audit_notes",
           "customers",
           "gating_approval_tickets",
+          "integration_credentials",
+          "integrations",
+          "mcp_servers",
           "orders",
+          "policies",
+          "risk_decisions",
           "security_eval_results",
           "security_eval_runs",
           "sessions",
+          "tool_executions",
+          "tool_permissions",
+          "tools",
           "users"
         ],
         "record_counts": {
-          "customers": 8,
+          "customers": 7,
           "orders": 4,
-          "customer_audit_notes": 3,
+          "customer_audit_notes": 4,
           "gating_approval_tickets": 6,
-          "approval_requests": 6,
-          "users": 7,
-          "audit_events": 16
+          "approval_requests": 769,
+          "users": 10,
+          "audit_events": 2964
         },
         "parameterized_query_test": true,
         "foreign_key_enforcement": true

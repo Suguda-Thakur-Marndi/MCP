@@ -244,7 +244,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <code className="text-xs text-[var(--secondary-container)] block font-mono">
-                    {showKeys.gemini ? "AIzaSyD-p8K491_sentinel_live_key_9941a" : "sk-gem-••••••••••••••••••••3a8f"}
+                    {showKeys.gemini ? "configured-via-environment-variable" : "sk-gem-••••••••••••••••••••••••"}
                   </code>
                 </div>
 

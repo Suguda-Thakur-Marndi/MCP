@@ -186,6 +186,8 @@ class TestGitHubExecution:
         """Tests live public GitHub ping without credentials (must succeed with status 200)."""
         gh = GitHubConnector()
         test_res = await gh.test_connection()
+        if not test_res.success and "403" in (test_res.message or ""):
+            pytest.skip("GitHub unauthenticated API rate limit reached for current IP")
         assert test_res.success is True
         assert test_res.latency_ms > 0
         assert "GitHub" in test_res.message

@@ -227,7 +227,8 @@ class SecurityJsonFormatter(logging.Formatter):
 _logger = logging.getLogger("mcp_sentinel.security")
 _logger.setLevel(logging.INFO)
 if not _logger.handlers:
-    _handler = logging.StreamHandler(sys.stdout)
+    # Use stderr so stdout remains purely reserved for JSON-RPC in MCP stdio transport
+    _handler = logging.StreamHandler(sys.stderr)
     _handler.setFormatter(SecurityJsonFormatter())
     _logger.addHandler(_handler)
 
