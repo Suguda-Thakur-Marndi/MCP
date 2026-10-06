@@ -4,7 +4,7 @@
       "command": "C:\\Users\\sugud\\OneDrive\\Documents\\MCP\\.venv\\Scripts\\python.exe",
       "args": [
         "-m",
-        "mcp_server.server"
+        "mcp_sentinel.server.app"
       ],
       "cwd": "C:\\Users\\sugud\\OneDrive\\Documents\\MCP",
       "env": {

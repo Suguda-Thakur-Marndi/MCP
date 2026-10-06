@@ -264,10 +264,6 @@ APPROVAL_TICKET_TTL_SECONDS=3600
 
 ### Method A: Direct Command (Default: stdio transport)
 ```bash
-# Using the module entry point:
-python -m mcp_server.server
-
-# Or using the package entry point:
 python -m mcp_sentinel.server.app
 ```
 
@@ -294,7 +290,7 @@ Add MCP-Sentinel to your Claude Desktop configuration file:
       "command": "C:\\Users\\sugud\\OneDrive\\Documents\\MCP\\.venv\\Scripts\\python.exe",
       "args": [
         "-m",
-        "mcp_server.server"
+        "mcp_sentinel.server.app"
       ],
       "cwd": "C:\\Users\\sugud\\OneDrive\\Documents\\MCP",
       "env": {
@@ -321,7 +317,7 @@ Create or edit `.cursor/mcp.json` in your workspace root:
       "command": "C:\\Users\\sugud\\OneDrive\\Documents\\MCP\\.venv\\Scripts\\python.exe",
       "args": [
         "-m",
-        "mcp_server.server"
+        "mcp_sentinel.server.app"
       ],
       "cwd": "C:\\Users\\sugud\\OneDrive\\Documents\\MCP",
       "env": {

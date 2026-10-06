@@ -45,7 +45,6 @@ RUN groupadd -r sentinel && useradd -r -g sentinel -d /app -s /sbin/nologin sent
 
 # Copy application source
 COPY mcp_sentinel ./mcp_sentinel
-COPY mcp_server ./mcp_server
 COPY scripts ./scripts
 
 # Set secure ownership

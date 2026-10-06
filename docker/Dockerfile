@@ -23,7 +23,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code and scripts
 COPY mcp_sentinel ./mcp_sentinel
-COPY mcp_server ./mcp_server
 COPY scripts ./scripts
 
 # Set ownership

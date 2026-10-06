@@ -24,6 +24,9 @@ __pycache__/
 .coverage
 htmlcov/
 test-results.json
+eval_results.json
+verification_evidence.json
+scratch/
 *.log
 
 # IDE and OS files

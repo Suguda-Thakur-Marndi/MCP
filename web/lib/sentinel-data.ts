@@ -749,7 +749,7 @@ export const MCP_SERVERS: McpServer[] = [
     name: "fastmcp-postgresql-core",
     transport: "stdio",
     status: "ONLINE",
-    endpoint: "subprocess: python -m mcp_sentinel.mcp_server.server",
+    endpoint: "subprocess: python -m mcp_sentinel.server.app",
     toolsCount: 8,
     authMethod: "None (Local stdio)",
     lastConnection: "2s ago",

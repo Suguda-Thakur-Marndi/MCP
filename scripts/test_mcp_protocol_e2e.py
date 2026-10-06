@@ -40,7 +40,7 @@ async def main():
 
     server_params = StdioServerParameters(
         command=sys.executable,
-        args=["-m", "mcp_server.server"],
+        args=["-m", "mcp_sentinel.server.app"],
         cwd=str(ROOT_DIR),
         env=dict(os.environ),
     )
