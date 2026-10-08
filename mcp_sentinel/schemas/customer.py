@@ -134,6 +134,10 @@ class UpdateCustomerInput(BaseModel):
         pattern=r"^[A-Za-z]{2}$",
         description="Updated 2-letter ISO country code.",
     )
+    approval_ticket: Optional[str] = Field(
+        default=None,
+        description="Human-in-the-Loop approval ticket required when performing high-impact updates.",
+    )
 
     @field_validator("customer_id")
     @classmethod

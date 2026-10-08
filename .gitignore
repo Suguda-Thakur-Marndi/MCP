@@ -46,3 +46,7 @@ web/*.tsbuildinfo
 # Tooling caches
 .ruff_cache/
 
+# Next.js auto-generated agent files
+web/AGENTS.md
+web/CLAUDE.md
+

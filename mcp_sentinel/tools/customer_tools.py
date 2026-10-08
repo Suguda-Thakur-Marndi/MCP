@@ -146,7 +146,14 @@ async def handle_update_customer(
             customer_id=validated.customer_id,
             status=validated.status.value if validated.status else None,
             country=validated.country,
+            approval_ticket=validated.approval_ticket,
         )
+    except AuthorizationDeniedError as ae:
+        return {
+            "status": "rejected",
+            "error_type": "AuthorizationDeniedError",
+            "message": ae.safe_message,
+        }
     except SentinelError as se:
         return se.to_dict()
     except Exception:

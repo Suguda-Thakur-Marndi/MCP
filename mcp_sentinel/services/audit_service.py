@@ -82,3 +82,18 @@ class AuditService:
         )
 
         return res
+
+    async def get_customer_audit_notes(
+        self,
+        customer_id: Union[int, str],
+    ) -> list[dict[str, Any]]:
+        """
+        Retrieves administrative audit notes for a customer.
+        All returned note contents are demarcated with untrusted data wrappers to prevent stored prompt injection.
+        """
+        try:
+            num_id = parse_customer_id(customer_id)
+        except ValueError as exc:
+            raise SecurityValidationError(str(exc))
+        return await self.audit_repo.get_customer_audit_notes(num_id)
+

@@ -1,12 +1,12 @@
 {
   "mcpServers": {
     "mcp-sentinel": {
-      "command": "C:\\Users\\sugud\\OneDrive\\Documents\\MCP\\.venv\\Scripts\\python.exe",
+      "command": "C:\\path\\to\\mcp-sentinel\\.venv\\Scripts\\python.exe",
       "args": [
         "-m",
         "mcp_sentinel.server.app"
       ],
-      "cwd": "C:\\Users\\sugud\\OneDrive\\Documents\\MCP",
+      "cwd": "C:\\path\\to\\mcp-sentinel",
       "env": {
         "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/mcp_sentinel_db",
         "APP_ENV": "development",

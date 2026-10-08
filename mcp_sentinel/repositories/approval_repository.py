@@ -25,6 +25,7 @@ from mcp_sentinel.schemas.approval import (
     ApprovalFilter,
     ApprovalRequestCreate,
     ApprovalStatusEnum,
+    compute_approval_hmac,
     compute_parameter_hash,
 )
 from mcp_sentinel.security.audit_logger import (
@@ -90,19 +91,25 @@ class ApprovalRepository:
         expires_at = now + datetime.timedelta(seconds=ttl)
         params_json = json.dumps(req.parameters or {}, sort_keys=True, separators=(",", ":"))
         corr_id = req.correlation_id or req.request_id or get_request_id() or uuid.uuid4().hex
+        initial_sig = compute_approval_hmac(
+            ticket_id=ticket_id,
+            action=req.action,
+            target_id=req.target_id,
+            parameter_hash=param_hash,
+        )
 
         insert_sql = """
             INSERT INTO approval_requests (
                 ticket_id, request_id, agent_id, requester_id, tool_name,
                 target_id, action, parameters, parameter_hash, environment,
                 policy_id, policy_version, risk_level, risk_score, status,
-                reason, created_at, expires_at, correlation_id
+                reason, created_at, expires_at, correlation_id, signature
             )
             VALUES (
                 $1, $2, $3, $4, $5,
                 $6, $7, $8::jsonb, $9, $10,
                 $11, $12, $13, $14, $15,
-                $16, $17, $18, $19
+                $16, $17, $18, $19, $20
             )
             RETURNING *
         """
@@ -129,6 +136,7 @@ class ApprovalRepository:
                     now,
                     expires_at,
                     corr_id,
+                    initial_sig,
                 )
                 if not row:
                     raise DatabaseOperationError(
@@ -412,12 +420,20 @@ class ApprovalRepository:
                     else ApprovalStatusEnum.DENIED.value
                 )
 
-                # 5. Cryptographic token generation on approval
+                # 5. Cryptographic token and HMAC signature generation on approval
                 raw_token: Optional[str] = None
                 token_hash: Optional[str] = None
                 if new_status == ApprovalStatusEnum.APPROVED.value:
                     raw_token = secrets.token_urlsafe(32)
                     token_hash = compute_parameter_hash({"token": raw_token})
+
+                decision_sig = compute_approval_hmac(
+                    ticket_id=actual_ticket_id,
+                    action=row["action"],
+                    target_id=row["target_id"],
+                    parameter_hash=row["parameter_hash"],
+                    approver_id=approver_id,
+                )
 
                 approved_at = now if new_status == ApprovalStatusEnum.APPROVED.value else None
                 denied_at = now if new_status == ApprovalStatusEnum.DENIED.value else None
@@ -425,8 +441,8 @@ class ApprovalRepository:
                 update_query = """
                     UPDATE approval_requests
                     SET status = $1, approver_id = $2, decision_notes = $3, decided_at = $4,
-                        approved_at = $5, denied_at = $6, approval_token_hash = $7
-                    WHERE ticket_id = $8
+                        approved_at = $5, denied_at = $6, approval_token_hash = $7, signature = $8
+                    WHERE ticket_id = $9
                     RETURNING *
                 """
                 updated = await conn.fetchrow(
@@ -438,6 +454,7 @@ class ApprovalRepository:
                     approved_at,
                     denied_at,
                     token_hash,
+                    decision_sig,
                     actual_ticket_id,
                 )
                 res = dict(updated)
@@ -657,6 +674,32 @@ class ApprovalRepository:
                         details={"status": row["status"], "ticket_id": actual_ticket_id},
                     )
                     return False
+
+                # 1b. Cryptographic HMAC Signature Verification (Tamper Protection)
+                stored_sig = row.get("signature")
+                if stored_sig:
+                    expected_sig = compute_approval_hmac(
+                        ticket_id=actual_ticket_id,
+                        action=row["action"],
+                        target_id=row["target_id"],
+                        parameter_hash=row["parameter_hash"],
+                        approver_id=row["approver_id"],
+                    )
+                    if not hmac.compare_digest(stored_sig, expected_sig):
+                        log_security_event(
+                            event_type=APPROVAL_BINDING_MISMATCH,
+                            tool_name=row["tool_name"],
+                            action=action,
+                            decision="BLOCK",
+                            risk_classification="CRITICAL",
+                            success=False,
+                            error_code="INVALID_HMAC_SIGNATURE",
+                            details={
+                                "ticket_id": actual_ticket_id,
+                                "reason": "HMAC signature mismatch: approval ticket or decision was tampered with.",
+                            },
+                        )
+                        return False
 
                 # 2. Expiration Check
                 if row["expires_at"] < now:

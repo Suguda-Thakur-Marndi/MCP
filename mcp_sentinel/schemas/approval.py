@@ -58,6 +58,29 @@ def compute_parameter_hash(parameters: Optional[dict[str, Any]]) -> str:
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
+def compute_approval_hmac(
+    ticket_id: str,
+    action: str,
+    target_id: str,
+    parameter_hash: str,
+    approver_id: Optional[str] = None,
+    secret: Optional[str] = None,
+) -> str:
+    """
+    Computes an HMAC-SHA256 signature for an approval ticket or decision.
+    Binds ticket_id, action, target_id, parameter_hash, and approver_id with the server secret.
+    """
+    import hmac
+    from mcp_sentinel.config.settings import get_settings
+
+    key = (secret or get_settings().APPROVAL_HMAC_SECRET).encode("utf-8")
+    approver_part = approver_id.strip() if approver_id else ""
+    payload = f"{ticket_id.strip()}:{action.strip()}:{str(target_id).strip()}:{parameter_hash.strip()}:{approver_part}".encode(
+        "utf-8"
+    )
+    return hmac.new(key, payload, hashlib.sha256).hexdigest()
+
+
 class ApprovalRequestCreate(BaseModel):
     """Payload to create a new human approval request ticket."""
 
@@ -121,6 +144,7 @@ class ApprovalResponse(BaseModel):
     approval_token: Optional[str] = None
     execution_id: Optional[str] = None
     correlation_id: Optional[str] = None
+    signature: Optional[str] = None
 
     @field_validator(
         "created_at",

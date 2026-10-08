@@ -38,10 +38,10 @@ jobs:
         run: pip install ruff
 
       - name: Run ruff lint
-        run: ruff check mcp_sentinel/ mcp_server/ scripts/ tests/ --output-format=github
+        run: ruff check mcp_sentinel/ scripts/ tests/ --output-format=github
 
       - name: Run ruff format check
-        run: ruff format --check mcp_sentinel/ mcp_server/ scripts/ tests/
+        run: ruff format --check mcp_sentinel/ scripts/ tests/
 
   # ============================================================
   # Job 2: Backend Tests (full suite + security evaluation)

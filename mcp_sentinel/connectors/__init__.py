@@ -1,8 +1,10 @@
 """
-Multi-Software MCP Connector Platform.
-Provides uniform abstraction, credential security, tool discovery,
-and governed execution across Canva, GitHub, Slack, Google Drive,
-and custom MCP servers.
+Experimental Multi-Software Connector Platform.
+
+NOTE: These connectors (Canva, GitHub, Slack, Google Drive, REST, and external MCP)
+are optional, experimental standalone integration modules. They are NOT registered
+as tools on the core FastMCP server tool surface. The core MCP server focuses
+strictly on PostgreSQL enterprise data access with HITL gating.
 """
 
 from mcp_sentinel.connectors.base import BaseConnector

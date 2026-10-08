@@ -113,6 +113,22 @@ async def main() -> None:
             await target_conn.execute(gateway_schema_sql)
             print("[+] Migration 008 applied successfully.")
 
+        # 9. Audit Events Append-Only Schema
+        append_only_path = base_dir / "migrations" / "009_audit_events_append_only.sql"
+        if append_only_path.exists():
+            print(f"[*] Applying migration: {append_only_path.name}...")
+            append_only_sql = append_only_path.read_text(encoding="utf-8")
+            await target_conn.execute(append_only_sql)
+            print("[+] Migration 009 applied successfully.")
+
+        # 10. Approval HMAC Signature Schema
+        signature_path = base_dir / "migrations" / "010_approval_hmac_signature.sql"
+        if signature_path.exists():
+            print(f"[*] Applying migration: {signature_path.name}...")
+            signature_sql = signature_path.read_text(encoding="utf-8")
+            await target_conn.execute(signature_sql)
+            print("[+] Migration 010 applied successfully.")
+
         # 5. Seed Data
         seed_path = base_dir / "seed" / "seed_synthetic_data.sql"
         print(f"[*] Applying seed data: {seed_path.name}...")

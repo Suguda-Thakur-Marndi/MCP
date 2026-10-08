@@ -102,6 +102,55 @@ class AuditRepository:
             )
             raise DatabaseOperationError(internal_details=f"Append note error: {exc!s}")
 
+    async def get_customer_audit_notes(self, customer_id: int) -> list[dict[str, Any]]:
+        """
+        Retrieves administrative audit notes for a customer.
+        Crucial Defense: Wraps note_text in untrusted demarcation tags
+        `[UNTRUSTED_TOOL_DATA: audit_note]` to prevent stored indirect prompt injection.
+        """
+        select_sql = """
+            SELECT note_id, customer_id, author_id, note_text, created_at
+            FROM customer_audit_notes
+            WHERE customer_id = $1
+            ORDER BY created_at ASC
+        """
+        pool = await self._get_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(select_sql, customer_id)
+                results = []
+                for row in rows:
+                    raw_text = row["note_text"]
+                    wrapped_text = (
+                        f"[UNTRUSTED_TOOL_DATA: audit_note]\n"
+                        f"{raw_text}\n"
+                        f"[/UNTRUSTED_TOOL_DATA]"
+                    )
+                    results.append({
+                        "note_id": row["note_id"],
+                        "customer_id": row["customer_id"],
+                        "author_id": row["author_id"],
+                        "note_text": wrapped_text,
+                        "raw_note_text": raw_text,
+                        "created_at": (
+                            row["created_at"].isoformat()
+                            if hasattr(row["created_at"], "isoformat")
+                            else str(row["created_at"])
+                        ),
+                    })
+                return results
+        except Exception as exc:
+            log_security_event(
+                event_type=DATABASE_ERROR,
+                action="get_customer_audit_notes",
+                decision="ERROR",
+                tool_name="audit_repository",
+                success=False,
+                error_code="FETCH_NOTES_FAILED",
+                details={"error": str(exc), "customer_id": customer_id},
+            )
+            raise DatabaseOperationError(internal_details=f"Fetch notes error: {exc!s}")
+
     async def record_audit_event(
         self,
         event_type: str,

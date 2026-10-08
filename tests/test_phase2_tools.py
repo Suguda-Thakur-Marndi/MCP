@@ -198,10 +198,11 @@ async def test_tool_append_customer_audit_note(services):
 # =============================================================================
 @pytest.mark.asyncio
 async def test_tool_update_customer_allowed_fields(services):
+    """Low-risk updates (country, active status) remain ungated without approval ticket."""
     res = await handle_update_customer(
         raw_args={
             "customer_id": "CUST-000002",
-            "status": "suspended",
+            "status": "active",
             "country": "US",
         },
         service=services["cust_svc"],
@@ -209,8 +210,47 @@ async def test_tool_update_customer_allowed_fields(services):
     assert res["status"] == "success"
     cust = res["customer"]
     assert cust["id"] == 2
-    assert cust["status"] == "suspended"
+    assert cust["status"] == "active"
     assert cust["country"] == "US"
+
+
+@pytest.mark.asyncio
+async def test_tool_update_customer_high_impact_status_blocked_without_ticket(services):
+    """High-impact updates (suspended, banned, closed) require approval ticket and are rejected without one."""
+    res = await handle_update_customer(
+        raw_args={
+            "customer_id": "CUST-000002",
+            "status": "suspended",
+        },
+        service=services["cust_svc"],
+    )
+    assert res["status"] == "rejected"
+    assert "strictly requires" in res.get("message", "").lower()
+
+
+@pytest.mark.asyncio
+async def test_tool_update_customer_high_impact_status_allowed_with_ticket(services, db_pool):
+    """High-impact status updates succeed when a valid approval ticket is provided."""
+    # Stage valid approval ticket for updating customer 2
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            """
+            INSERT INTO gating_approval_tickets (ticket_id, target_id, action, approved, consumed, expires_at)
+            VALUES ('TICKET-UPDATE-SUSPEND-002', '2', 'update_customer', TRUE, FALSE, NOW() + INTERVAL '1 hour')
+            ON CONFLICT (ticket_id) DO UPDATE SET approved = TRUE, consumed = FALSE
+            """
+        )
+
+    res = await handle_update_customer(
+        raw_args={
+            "customer_id": "CUST-000002",
+            "status": "suspended",
+            "approval_ticket": "TICKET-UPDATE-SUSPEND-002",
+        },
+        service=services["cust_svc"],
+    )
+    assert res["status"] == "success"
+    assert res["customer"]["status"] == "suspended"
 
 
 # =============================================================================

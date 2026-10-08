@@ -12,6 +12,11 @@ class CustomerStatusEnum(str, Enum):
     INACTIVE = "inactive"
     SUSPENDED = "suspended"
     PENDING = "pending"
+    CLOSED = "closed"
+    BANNED = "banned"
+
+
+HIGH_IMPACT_CUSTOMER_STATUSES = frozenset({"suspended", "closed", "banned"})
 
 
 class OrderStatusEnum(str, Enum):

@@ -8,6 +8,7 @@ Verifies that:
 - Correlation request_id is consistently present.
 """
 
+import asyncpg
 import pytest
 
 from mcp_sentinel.repositories.approval_repository import ApprovalRepository
@@ -92,3 +93,34 @@ async def test_audit_event_logged_on_blocked_destructive_action(db_pool):
         assert row["event_type"] == "DESTRUCTIVE_ACTION_BLOCKED"
         assert row["decision"] == "BLOCKED"
         assert row["tool_name"] == "delete_customer"
+
+
+@pytest.mark.asyncio
+async def test_audit_events_append_only_blocks_update_and_delete(db_pool):
+    """Proves that UPDATE and DELETE on audit_events table fail due to append-only protection."""
+    async with db_pool.acquire() as conn:
+        # 1. Insert a test audit event
+        row_id = await conn.fetchval(
+            """
+            INSERT INTO audit_events (event_type, actor_type, tool_name, decision, request_id, details)
+            VALUES ('TEST_AUDIT', 'agent', 'test_tool', 'ALLOWED', 'req-append-only-test', '{}')
+            RETURNING id
+            """
+        )
+        assert row_id is not None
+
+        # 2. Attempt UPDATE - must fail with IntegrityConstraintViolationError
+        with pytest.raises(asyncpg.IntegrityConstraintViolationError) as exc_info:
+            await conn.execute(
+                "UPDATE audit_events SET decision = 'TAMPERED' WHERE id = $1",
+                row_id,
+            )
+        assert "append-only" in str(exc_info.value).lower()
+
+        # 3. Attempt DELETE - must fail with IntegrityConstraintViolationError
+        with pytest.raises(asyncpg.IntegrityConstraintViolationError) as exc_info:
+            await conn.execute(
+                "DELETE FROM audit_events WHERE id = $1",
+                row_id,
+            )
+        assert "append-only" in str(exc_info.value).lower()

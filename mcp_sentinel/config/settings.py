@@ -152,6 +152,10 @@ class Settings(BaseSettings):
         default="sentinel-production-jwt-secret-key-change-me-32chars",
         description="Secret key for signing internal Sentinel JWT session tokens.",
     )
+    APPROVAL_HMAC_SECRET: str = Field(
+        default="sentinel-approval-hmac-secret-min-32chars",
+        description="Cryptographic HMAC secret used to sign and verify Human-in-the-Loop approval tickets.",
+    )
     JWT_ALGORITHM: str = Field(
         default="HS256",
         description="Algorithm for signing JWT session tokens.",

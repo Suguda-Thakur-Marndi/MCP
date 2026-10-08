@@ -303,6 +303,7 @@ def create_app(
         customer_id: Union[int, str],
         status: Optional[CustomerStatusEnum] = None,
         country: Optional[str] = None,
+        approval_ticket: Optional[str] = None,
     ) -> dict[str, Any]:
         set_request_id()
         try:
@@ -311,10 +312,14 @@ def create_app(
                 raw_args["status"] = status.value
             if country is not None:
                 raw_args["country"] = country
+            if approval_ticket is not None:
+                raw_args["approval_ticket"] = approval_ticket
 
+            approval_repo = cust_svc.approval_repo if hasattr(cust_svc, "approval_repo") else None
             allowed, decision, block_res = await SecurityGate.evaluate_and_gate(
                 tool_name="update_customer",
                 raw_args=raw_args,
+                approval_repo=approval_repo,
                 record_count=1,
             )
             if not allowed:

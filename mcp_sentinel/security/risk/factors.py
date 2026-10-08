@@ -83,6 +83,8 @@ TRUSTED_TOOL_REGISTRY: dict[str, ToolRiskProfile] = {
         resource_type="audit_note",
         max_allowed_scope=1,
     ),
+    # update_customer: base risk 25 for low-risk updates (country, pending, active).
+    # Dynamically elevated to destructive=True requiring HITL approval for high-impact statuses (suspended, closed, banned).
     "update_customer": ToolRiskProfile(
         tool_name="update_customer",
         base_risk=25,

@@ -4,11 +4,12 @@
 
 [![CI/CD](https://github.com/mcp-sentinel/mcp-sentinel/actions/workflows/ci.yml/badge.svg)](.github/workflows/ci.yml)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Model Context Protocol](https://img.shields.io/badge/MCP-Standard%20JSON--RPC-blue.svg)](https://modelcontextprotocol.io/)
 [![FastMCP](https://img.shields.io/badge/FastMCP-4.0%2B-green.svg)](https://github.com/jlowin/fastmcp)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%2F18-336791.svg)](https://www.postgresql.org/)
-[![Tests Passing](https://img.shields.io/badge/Pytest-446%20Passed%2C%200%20Failed-brightgreen.svg)](tests/)
+[![Tests Passing](https://img.shields.io/badge/Pytest-453%20Passed%2C%200%20Failed-brightgreen.svg)](tests/)
+
 
 ---
 
@@ -63,16 +64,23 @@ By implementing an authoritative MCP server:
                │                     │
                │               HUMAN-IN-THE-LOOP
                │               APPROVAL GATING
+               │               (HMAC-SHA256 Signed)
                │                     │
                └──────────┬──────────┘
                           ↓
                   REAL DATA SOURCES
-               ┌──────────┼──────────┐
-               ↓                     ↓
-          PostgreSQL 16/18       External Connectors
-          (Customers/Orders)     (GitHub/Slack/Drive)*
+               ┌─────────────────────┐
+               │  PostgreSQL 16/18   │
+               │  (Customers/Orders/ │
+               │   Append-Only Logs) │
+               └─────────────────────┘
+
+     [OPTIONAL EXPERIMENTAL CONNECTORS - OFF-MCP]
+       • GitHub (REST)      • Slack (Web API)
+       • Google Drive (v3)  • Canva (REST)
+       (Standalone modules; not exposed on FastMCP tool surface)
 ```
-*\*External SaaS connectors are implemented for OAuth/API integrations but require user-provided credentials.*
+*\*External connectors in `mcp_sentinel/connectors/` are standalone integration modules not exposed as tools on the MCP server surface.*
 
 ---
 
@@ -97,7 +105,7 @@ Every tool is exposed through the MCP protocol with strict Pydantic parameter sc
 | `get_customer_orders` | Customer order history pagination | LOW | PostgreSQL | Yes | No | **IMPLEMENTED (Real)** |
 | `get_order` | Single order transaction lookup | LOW | PostgreSQL | Yes | No | **IMPLEMENTED (Real)** |
 | `append_customer_audit_note` | Administrative note append (passive) | MEDIUM | PostgreSQL | Yes | No | **IMPLEMENTED (Real)** |
-| `update_customer` | Allowlisted field updates (`status`, `country`) | MEDIUM | PostgreSQL | Yes | No | **IMPLEMENTED (Real)** |
+| `update_customer` | Allowlisted field updates (`country`, `status`) | LOW / CRITICAL | PostgreSQL | Yes | **Conditional** (Mandatory for status: `suspended`, `closed`, `banned`) | **IMPLEMENTED (Real)** |
 | `delete_customer` | Permanent customer deletion | CRITICAL | PostgreSQL | Yes | **YES (Mandatory Ticket)** | **IMPLEMENTED (Real)** |
 | `purge_inactive_customer_data` | Dormant account retention purge | CRITICAL | PostgreSQL | Yes | **YES (Mandatory Ticket)** | **IMPLEMENTED (Real)** |
 
@@ -130,19 +138,22 @@ The MCP server provides operational templates pre-configured with prompt injecti
 
 | Data Source | Type | Real / Mock | Working | Connection Details | Current Status |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **PostgreSQL 16/18** | Relational Database | **REAL** | **YES** | Local instance via `asyncpg` connection pool with ACID guarantees | **IMPLEMENTED** |
-| **GitHub REST API** | Developer Platform | Real Connector Code | Unconfigured | `https://api.github.com` (Requires user OAuth token / PAT in `.env`) | **IMPLEMENTED BUT UNCONFIGURED** |
-| **Slack Web API** | Messaging Platform | Real Connector Code | Unconfigured | `https://slack.com/api` (Requires Bot Token `xoxb-...`) | **IMPLEMENTED BUT UNCONFIGURED** |
-| **Google Drive v3** | Cloud Storage | Real Connector Code | Unconfigured | `https://www.googleapis.com/drive/v3` (Requires OAuth 2.0 Token) | **IMPLEMENTED BUT UNCONFIGURED** |
-| **Canva Remote MCP** | Design Platform | Real Connector Code | Unconfigured | `https://mcp.canva.com/mcp` (Requires Canva Developer Token) | **IMPLEMENTED BUT UNCONFIGURED** |
-| **Notion** | Workspace Notes | None | No | Not present in codebase | **NOT IMPLEMENTED** |
-| **Supabase** | Cloud Postgres/BaaS | None | No | Not present in codebase | **NOT IMPLEMENTED** |
+| **PostgreSQL 16/18** | Relational Database | **REAL** | **YES** | Local instance via `asyncpg` connection pool with ACID guarantees | **IMPLEMENTED (Core MCP)** |
+| **GitHub REST API** | Developer Platform | Real Connector Code | Unconfigured | `https://api.github.com` (Requires user OAuth token / PAT in `.env`) | **STANDALONE (Off-MCP)** |
+| **Slack Web API** | Messaging Platform | Real Connector Code | Unconfigured | `https://slack.com/api` (Requires Bot Token `xoxb-...`) | **STANDALONE (Off-MCP)** |
+| **Google Drive v3** | Cloud Storage | Real Connector Code | Unconfigured | `https://www.googleapis.com/drive/v3` (Requires OAuth 2.0 Token) | **STANDALONE (Off-MCP)** |
+| **Canva Remote MCP** | Design Platform | Real Connector Code | Unconfigured | `https://mcp.canva.com/mcp` (Requires Canva Developer Token) | **STANDALONE (Off-MCP)** |
+| **Notion** | Workspace Notes | None | No | Not present in codebase (Roadmap) | **NOT IMPLEMENTED** |
+| **Supabase** | Cloud Postgres/BaaS | None | No | Not present in codebase (Roadmap) | **NOT IMPLEMENTED** |
+
+> **Note on Connectors**: Connectors in `mcp_sentinel/connectors/` are standalone, optional integration modules. They are **not** registered as tools on the FastMCP server tool catalog. The FastMCP server surface is dedicated solely to governed PostgreSQL enterprise data access.
+
 
 ---
 
 ## 9. Human-in-the-Loop (HITL) Gating Lifecycle
 
-Sensitive and destructive actions (`delete_customer`, `purge_inactive_customer_data`) CANNOT be executed autonomously by any AI client.
+Sensitive and destructive actions (`delete_customer`, `purge_inactive_customer_data`, and high-impact `update_customer` status changes to `suspended`, `closed`, or `banned`) CANNOT be executed autonomously by any AI client.
 
 ```
 AI CLIENT (Claude / Cursor)
@@ -155,16 +166,18 @@ MCP SERVER (SecurityGate)
     ├─► Create `approval_requests` entry in PostgreSQL:
     │     • ticket_id: Cryptographically random token (e.g. `TICKET-DELETE_CUSTOMER-...`)
     │     • parameter_hash: SHA-256(canonical JSON of parameters)
+    │     • signature: HMAC-SHA256(ticket_id + action + target_id + parameter_hash, secret)
     │     • status: PENDING
     │     • expires_at: NOW + 3600 seconds
     │
     └─► Return: `{"status": "rejected", "approval_required": true, "ticket_id": "TICKET-..."}`
         [Zero database changes occur]
 
-HUMAN OPERATOR
+HUMAN OPERATOR (Out-of-Band)
     │
     ├─► Reviews parameters, risk score, and justification
-    └─► Approves ticket: status -> APPROVED (via Security Console or ApprovalService)
+    └─► Approves ticket: status -> APPROVED with cryptographic signature update
+        (Strictly out-of-band: no approve/decide tools exist on the MCP surface)
 
 AI CLIENT (Claude / Cursor)
     │
@@ -173,11 +186,12 @@ AI CLIENT (Claude / Cursor)
 MCP SERVER (SecurityGate & Service)
     │
     ├─► Validates ticket is APPROVED
+    ├─► Verifies HMAC-SHA256 cryptographic signature (prevents ticket forgery/tampering)
     ├─► Re-computes SHA-256 of parameters (detects parameter tampering post-approval)
     ├─► Validates target_id, tool_name, and environment
     ├─► Atomically marks ticket: APPROVED -> EXECUTING -> COMPLETED
     ├─► Executes parameterized SQL DELETE in PostgreSQL
-    ├─► Records audit event in `audit_events`
+    ├─► Records audit event in append-only `audit_events`
     └─► Return: `{"status": "success", "deleted_count": 1}`
 
 REPLAY ATTEMPT
@@ -190,7 +204,11 @@ REPLAY ATTEMPT
 ## 10. Security Model & Defensive Guardrails
 
 - **Zero Raw SQL Tools**: Absolutely no `execute_sql`, `run_query`, or raw query concatenation. All database operations strictly use parameterized asyncpg SQL (`$1, $2`).
-- **Prompt Injection Isolation**: External database contents and customer notes are wrapped in untrusted data delimiters (`[UNTRUSTED_TOOL_DATA: ...]`). Server-side policy checks run before tool handlers execute and cannot be bypassed by prompts.
+- **HMAC-Signed Approval Tickets**: Gating tickets are cryptographically signed with HMAC-SHA256 (`APPROVAL_HMAC_SECRET`). Any tampering with ticket ID, target ID, action, parameter hash, or approver identity causes instantaneous rejection.
+- **Approver Separation**: Zero approval, decision, or ticket generation tools are exposed to AI clients on the FastMCP tool surface. Approvals occur strictly out-of-band via authorized administrative channels.
+- **Append-Only Audit Logs**: Database-level PostgreSQL triggers (`trg_audit_events_append_only`) enforce append-only immutability on `audit_events`, raising exceptions on any `UPDATE` or `DELETE` attempt.
+- **High-Impact Status Change Gating**: Modifying customer status to destructive states (`suspended`, `closed`, `banned`) automatically triggers `REQUIRE_APPROVAL` gating. Standard profile updates remain accessible.
+- **Prompt Injection Isolation**: External database contents and administrative notes are wrapped in untrusted data delimiters (`[UNTRUSTED_TOOL_DATA: ...]`). Server-side policy checks run before tool handlers execute and cannot be bypassed by prompts.
 - **Pure Stdio JSON-RPC Channel**: All application logging is routed strictly to `sys.stderr`. Standard output (`sys.stdout`) is reserved purely for valid JSON-RPC 2.0 frames, preventing client parse crashes.
 - **Data Minimization**: Field projection lists exclude internal system columns and credentials.
 - **Fail-Closed Execution**: If any authorization parameter, ticket status, or input schema is invalid, the operation defaults to rejection.
@@ -201,7 +219,7 @@ REPLAY ATTEMPT
 ## 11. Setup & Installation
 
 ### Prerequisites
-- Python 3.12+ (or 3.10+)
+- Python 3.10+ (tested on Python 3.10, 3.11, 3.12, 3.13)
 - PostgreSQL 16+ running locally or in Docker
 - Virtual environment (`.venv`)
 
@@ -256,6 +274,7 @@ MCP_TRANSPORT=stdio
 MAX_QUERY_LIMIT=100
 DEFAULT_QUERY_LIMIT=50
 APPROVAL_TICKET_TTL_SECONDS=3600
+APPROVAL_HMAC_SECRET=your_minimum_32_character_hmac_secret_key_here
 ```
 
 ---
@@ -287,12 +306,12 @@ Add MCP-Sentinel to your Claude Desktop configuration file:
 {
   "mcpServers": {
     "mcp-sentinel": {
-      "command": "C:\\Users\\sugud\\OneDrive\\Documents\\MCP\\.venv\\Scripts\\python.exe",
+      "command": "C:\\path\\to\\mcp-sentinel\\.venv\\Scripts\\python.exe",
       "args": [
         "-m",
         "mcp_sentinel.server.app"
       ],
-      "cwd": "C:\\Users\\sugud\\OneDrive\\Documents\\MCP",
+      "cwd": "C:\\path\\to\\mcp-sentinel",
       "env": {
         "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/mcp_sentinel_db",
         "APP_ENV": "development",
@@ -314,12 +333,12 @@ Create or edit `.cursor/mcp.json` in your workspace root:
 {
   "mcpServers": {
     "mcp-sentinel": {
-      "command": "C:\\Users\\sugud\\OneDrive\\Documents\\MCP\\.venv\\Scripts\\python.exe",
+      "command": "C:\\path\\to\\mcp-sentinel\\.venv\\Scripts\\python.exe",
       "args": [
         "-m",
         "mcp_sentinel.server.app"
       ],
-      "cwd": "C:\\Users\\sugud\\OneDrive\\Documents\\MCP",
+      "cwd": "C:\\path\\to\\mcp-sentinel",
       "env": {
         "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/mcp_sentinel_db",
         "APP_ENV": "development",
@@ -351,7 +370,7 @@ python scripts/manual_mcp_verification.py
 # 3. Release Candidate Live Demos (Read, Write, Destructive HITL, Replay Defense, Prompt Injection)
 python scripts/run_release_demos.py
 
-# 4. Full Pytest Suite (447 tests)
+# 4. Full Pytest Suite (453 tests)
 pytest -q
 ```
 

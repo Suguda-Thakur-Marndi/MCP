@@ -20,6 +20,7 @@ from mcp_sentinel.security.decisions.models import (
 from mcp_sentinel.security.policy.defaults import get_default_policy
 from mcp_sentinel.security.policy.evaluator import RuleEvaluator
 from mcp_sentinel.security.policy.models import PolicyContext, PolicyDefinition
+from mcp_sentinel.schemas.common import HIGH_IMPACT_CUSTOMER_STATUSES
 from mcp_sentinel.security.risk.engine import RiskEngine
 from mcp_sentinel.security.risk.factors import get_tool_profile
 from mcp_sentinel.security.risk.models import DataSensitivityEnum, RiskExplanation
@@ -124,6 +125,10 @@ class PolicyEngine:
                     break
 
         destructive = profile.destructive if profile else False
+        if tool_name == "update_customer":
+            tgt_status = str(clean_args.get("status") or "").lower()
+            if tgt_status in HIGH_IMPACT_CUSTOMER_STATUSES:
+                destructive = True
         external_side_effect = profile.external_side_effect if profile else False
         data_sens = profile.data_sensitivity if profile else DataSensitivityEnum.CONFIDENTIAL
         operation = profile.operation_type if profile else "unknown"

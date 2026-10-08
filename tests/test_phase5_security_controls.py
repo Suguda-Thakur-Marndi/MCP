@@ -868,3 +868,33 @@ async def test_sec_25_privilege_escalation_attempt(auth_tokens, db_pool):
             json={"decision": "APPROVED"},
         )
         assert res_oper.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# 26. Approver Separation: MCP tool surface has no approve/decide tools
+# ---------------------------------------------------------------------------
+@pytest.mark.asyncio
+async def test_mcp_surface_has_no_approval_or_decision_tools():
+    """Confirms no MCP tool exists that lets an AI client approve, decide, or modify tickets."""
+    from mcp_sentinel.server.app import create_app
+
+    server = create_app()
+    tools = await server.list_tools()
+    tool_names = [t.name.lower() for t in tools]
+
+    # Verify expected business tools are present
+    assert "query_customer_records" in tool_names
+    assert "get_customer" in tool_names
+    assert "get_customer_orders" in tool_names
+    assert "get_order" in tool_names
+    assert "append_customer_audit_note" in tool_names
+    assert "update_customer" in tool_names
+    assert "delete_customer" in tool_names
+    assert "purge_inactive_customer_data" in tool_names
+
+    # Verify no approval or decision tools exist over MCP
+    prohibited_keywords = ["approve", "decision", "decide", "reject", "cancel_approval", "sign_ticket"]
+    for t_name in tool_names:
+        for kw in prohibited_keywords:
+            assert kw not in t_name, f"Forbidden approval tool '{t_name}' exposed on MCP surface!"
+

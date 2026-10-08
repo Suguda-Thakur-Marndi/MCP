@@ -13,8 +13,8 @@ import pytest_asyncio
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
 from mcp_sentinel.config.settings import get_settings
-from mcp_sentinel.database.repositories.approval_repository import ApprovalRepository
-from mcp_sentinel.database.repositories.customer_repository import CustomerRepository
+from mcp_sentinel.repositories.approval_repository import ApprovalRepository
+from mcp_sentinel.repositories.customer_repository import CustomerRepository
 
 
 @pytest_asyncio.fixture

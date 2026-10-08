@@ -15,7 +15,11 @@ from mcp_sentinel.config.settings import get_settings
 from mcp_sentinel.repositories.approval_repository import ApprovalRepository
 from mcp_sentinel.repositories.audit_repository import AuditRepository
 from mcp_sentinel.repositories.customer_repository import CustomerRepository
-from mcp_sentinel.schemas.common import CustomerStatusEnum, parse_customer_id
+from mcp_sentinel.schemas.common import (
+    HIGH_IMPACT_CUSTOMER_STATUSES,
+    CustomerStatusEnum,
+    parse_customer_id,
+)
 from mcp_sentinel.security.audit_logger import (
     APPROVAL_REQUIRED,
     DESTRUCTIVE_ACTION_BLOCKED,
@@ -154,9 +158,11 @@ class CustomerService:
         customer_id: Union[int, str],
         status: Optional[str] = None,
         country: Optional[str] = None,
+        approval_ticket: Optional[str] = None,
     ) -> dict[str, Any]:
         """
         Updates allow-listed customer fields with strict parameterization.
+        High-impact status updates (suspended, banned, closed) strictly require an approval ticket.
         """
         req_id = get_request_id() or "unknown_req"
         try:
@@ -169,20 +175,64 @@ class CustomerService:
         if current_user:
             check_resource_access(current_user, "customer", str(num_id), "write")
 
+        status_val: Optional[str] = None
         if status is not None:
             if isinstance(status, str):
                 try:
-                    CustomerStatusEnum(status.lower())
+                    status_enum = CustomerStatusEnum(status.lower())
+                    status_val = status_enum.value
                 except ValueError:
                     raise SecurityValidationError(
-                        f"Invalid customer status: '{status}'. Must be one of active, inactive, suspended."
+                        f"Invalid customer status: '{status}'. Must be one of active, inactive, suspended, pending, closed, banned."
                     )
             elif isinstance(status, CustomerStatusEnum):
-                pass
+                status_val = status.value
             else:
                 raise SecurityValidationError(
                     f"Invalid customer status type: {type(status).__name__}"
                 )
+
+            # High-impact status gating: require verified approval ticket
+            if status_val in HIGH_IMPACT_CUSTOMER_STATUSES:
+                if not approval_ticket or not str(approval_ticket).strip():
+                    log_security_event(
+                        event_type=DESTRUCTIVE_ACTION_BLOCKED,
+                        tool_name="update_customer",
+                        action="update_customer_status",
+                        decision="BLOCKED",
+                        request_id=req_id,
+                        details={
+                            "customer_id": num_id,
+                            "target_status": status_val,
+                            "reason": "Missing required approval ticket for high-impact status modification.",
+                        },
+                    )
+                    raise AuthorizationDeniedError(
+                        f"High-impact status modification to '{status_val}' strictly requires a verified Human-in-the-Loop approval ticket."
+                    )
+
+                # Verify and consume approval ticket
+                ticket_valid = await self.approval_repo.verify_and_consume(
+                    ticket_id=approval_ticket,
+                    target_id=str(num_id),
+                    action="update_customer",
+                )
+                if not ticket_valid:
+                    log_security_event(
+                        event_type=DESTRUCTIVE_ACTION_BLOCKED,
+                        tool_name="update_customer",
+                        action="update_customer_status",
+                        decision="BLOCKED",
+                        request_id=req_id,
+                        details={
+                            "customer_id": num_id,
+                            "target_status": status_val,
+                            "reason": "Invalid, unapproved, expired, or consumed approval ticket.",
+                        },
+                    )
+                    raise AuthorizationDeniedError(
+                        f"Approval ticket '{approval_ticket}' is invalid, unapproved, expired, or already consumed."
+                    )
 
         exists = await self.customer_repo.customer_exists(num_id)
         if not exists:

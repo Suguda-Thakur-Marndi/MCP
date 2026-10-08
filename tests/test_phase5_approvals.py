@@ -296,3 +296,97 @@ async def test_wrong_environment_blocked(db_pool):
         parameters=params,
     )
     assert wrong_env_consumed is False
+
+
+@pytest.mark.asyncio
+async def test_tampered_ticket_hmac_signature_blocked(db_pool):
+    """Verifies that tampering with the HMAC signature in the database blocks ticket execution."""
+    repo = ApprovalRepository(pool=db_pool)
+    params = {"customer_id": "cust-tamper-001"}
+
+    req = ApprovalRequestCreate(
+        request_id="req-tamper-sig-001",
+        agent_id="test-agent",
+        requester_id="user-1",
+        tool_name="delete_customer",
+        target_id="cust-tamper-001",
+        action="delete_customer",
+        reason="Testing HMAC tamper detection",
+        parameters=params,
+        environment="development",
+        policy_id="sentinel-core-policy",
+        risk_level="CRITICAL",
+        risk_score=85,
+    )
+    ticket = await repo.create_approval_request(req)
+    await repo.decide_approval(
+        ticket_id=ticket["ticket_id"],
+        approver_id="approver-2",
+        decision="APPROVED",
+    )
+
+    # 1. Tamper with the HMAC signature in the database
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE approval_requests SET signature = $1 WHERE ticket_id = $2",
+            "badf00d" * 8,
+            ticket["ticket_id"],
+        )
+
+    # 2. Attempt execution with tampered signature: must be BLOCKED
+    consumed = await repo.verify_and_consume_bound(
+        ticket_id=ticket["ticket_id"],
+        target_id="cust-tamper-001",
+        action="delete_customer",
+        tool_name="delete_customer",
+        environment="development",
+        parameters=params,
+    )
+    assert consumed is False
+
+
+@pytest.mark.asyncio
+async def test_tampered_ticket_approver_identity_blocked(db_pool):
+    """Verifies that tampering with the approver_id in the database invalidates HMAC signature."""
+    repo = ApprovalRepository(pool=db_pool)
+    params = {"customer_id": "cust-tamper-002"}
+
+    req = ApprovalRequestCreate(
+        request_id="req-tamper-approver-001",
+        agent_id="test-agent",
+        requester_id="user-1",
+        tool_name="delete_customer",
+        target_id="cust-tamper-002",
+        action="delete_customer",
+        reason="Testing approver tamper detection",
+        parameters=params,
+        environment="development",
+        policy_id="sentinel-core-policy",
+        risk_level="CRITICAL",
+        risk_score=85,
+    )
+    ticket = await repo.create_approval_request(req)
+    await repo.decide_approval(
+        ticket_id=ticket["ticket_id"],
+        approver_id="approver-2",
+        decision="APPROVED",
+    )
+
+    # 1. Tamper with approver_id in the database without re-signing
+    async with db_pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE approval_requests SET approver_id = $1 WHERE ticket_id = $2",
+            "rogue-approver-99",
+            ticket["ticket_id"],
+        )
+
+    # 2. Attempt execution: must fail because HMAC signature bound original approver_id
+    consumed = await repo.verify_and_consume_bound(
+        ticket_id=ticket["ticket_id"],
+        target_id="cust-tamper-002",
+        action="delete_customer",
+        tool_name="delete_customer",
+        environment="development",
+        parameters=params,
+    )
+    assert consumed is False
