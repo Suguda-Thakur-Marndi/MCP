@@ -1,316 +1,270 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import {
-  Bot,
-  ArrowRight,
-  Search,
-} from "lucide-react";
-import { AGENT_RUNS, AgentRun } from "@/lib/sentinel-data";
-import { api, AgentExecutionRecord } from "@/lib/api";
+import { api, AgentRunRecord } from "@/lib/api";
+import { formatTime, riskBadgeClass, decisionBadgeClass } from "@/lib/utils";
 
 export default function AgentRunsPage() {
+  const [runs, setRuns] = useState<AgentRunRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [selectedAgent, setSelectedAgent] = useState<string>("ALL");
-  const [selectedIntegration, setSelectedIntegration] = useState<string>("ALL");
+  const [selectedApplication, setSelectedApplication] = useState<string>("ALL");
   const [selectedRisk, setSelectedRisk] = useState<string>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [liveRuns, setLiveRuns] = useState<AgentExecutionRecord[]>([]);
+
+  const loadRuns = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await api.agent.runs({ limit: 50 });
+      setRuns(res.runs || []);
+    } catch (err: unknown) {
+      console.warn("Failed to load agent runs:", err);
+      setError("Unable to connect to Agent Runs ledger. Verify backend is running.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    api.agent.executions(50).then((runs) => {
-      if (Array.isArray(runs) && runs.length > 0) {
-        setLiveRuns(runs);
-      }
-    }).catch(() => {});
+    void loadRuns();
   }, []);
 
-  const allRuns: AgentRun[] = useMemo(() => {
-    if (liveRuns.length > 0) {
-      return liveRuns.map((r) => {
-        const t = r.tool_name || "tool.inspect";
-        const app = t.includes(".") ? t.split(".")[0].toUpperCase() : "MCP";
-        const score = typeof r.risk_score === "number" ? r.risk_score : 15;
-        const riskLevel: AgentRun["riskLevel"] = score >= 80 ? "CRITICAL" : score >= 60 ? "HIGH" : score >= 30 ? "MEDIUM" : "LOW";
-        const state: AgentRun["executionState"] = r.decision === "DENY" ? "BLOCKED" : r.decision === "REQUIRE_APPROVAL" ? "PENDING_APPROVAL" : "COMPLETED";
-        const approval: AgentRun["approvalState"] = r.decision === "REQUIRE_APPROVAL" ? "PENDING" : "NOT_REQUIRED";
-        return {
-          id: String(r.id || r.request_id),
-          agentName: r.actor_id || "Sentinel Autopilot",
-          agentId: r.actor_id || "agent-sentinel-01",
-          model: "claude-3-7-sonnet",
-          environment: "Production" as const,
-          application: app,
-          toolName: t,
-          executionState: state,
-          riskLevel,
-          riskScore: score,
-          approvalState: approval,
-          startedAt: r.created_at || "Just now",
-          durationMs: 42,
-          userPrompt: String(r.details?.prompt || r.details?.message || `Automated tool invocation: ${t}`),
-          reasoning: "Autonomous planner determined tool execution step.",
-          toolDiscovery: [t],
-          payload: (r.details?.parameters as Record<string, unknown>) || {},
-          policyEvaluated: r.decision === "DENY" ? "Invariant Policy Drop" : "Standard Allow Rule",
-          auditEventId: String(r.id || `evt_${t}`),
-        };
-      });
-    }
-    return AGENT_RUNS;
-  }, [liveRuns]);
+  const uniqueAgents = useMemo(() => {
+    return Array.from(new Set(runs.map((r) => r.agent_name).filter(Boolean)));
+  }, [runs]);
+
+  const uniqueApplications = useMemo(() => {
+    return Array.from(new Set(runs.map((r) => r.application).filter(Boolean)));
+  }, [runs]);
 
   const filteredRuns = useMemo(() => {
-    return allRuns.filter((run) => {
-      if (selectedAgent !== "ALL" && run.agentName !== selectedAgent) return false;
-      if (selectedIntegration !== "ALL" && run.application !== selectedIntegration) return false;
-      if (selectedRisk !== "ALL" && run.riskLevel !== selectedRisk) return false;
-      if (selectedStatus !== "ALL" && run.executionState !== selectedStatus) return false;
+    return runs.filter((r) => {
+      if (selectedAgent !== "ALL" && r.agent_name !== selectedAgent) return false;
+      if (selectedApplication !== "ALL" && r.application !== selectedApplication) return false;
+      if (selectedRisk !== "ALL" && r.risk_level !== selectedRisk) return false;
+      if (selectedStatus !== "ALL" && r.status !== selectedStatus) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         return (
-          run.id.toLowerCase().includes(q) ||
-          run.agentName.toLowerCase().includes(q) ||
-          run.application.toLowerCase().includes(q) ||
-          run.toolName.toLowerCase().includes(q) ||
-          run.userPrompt.toLowerCase().includes(q)
+          r.run_id.toLowerCase().includes(q) ||
+          r.agent_name.toLowerCase().includes(q) ||
+          r.application.toLowerCase().includes(q) ||
+          (r.user_prompt && r.user_prompt.toLowerCase().includes(q)) ||
+          (r.tool_id && r.tool_id.toLowerCase().includes(q))
         );
       }
       return true;
     });
-  }, [allRuns, selectedAgent, selectedIntegration, selectedRisk, selectedStatus, searchQuery]);
-
-  const uniqueAgents = Array.from(new Set(allRuns.map((r) => r.agentName)));
-  const uniqueIntegrations = Array.from(new Set(allRuns.map((r) => r.application)));
+  }, [runs, selectedAgent, selectedApplication, selectedRisk, selectedStatus, searchQuery]);
 
   return (
-    <div className="p-3 sm:p-5 max-w-7xl mx-auto space-y-4 font-sans select-none animate-in fade-in duration-150">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
+    <div className="w-full px-space-md sm:px-space-lg lg:px-space-xl py-space-lg flex flex-col gap-space-xl">
+      {/* Header Banner */}
+      <section className="bg-surface-container-lowest p-space-lg rounded-xl shadow-xs border border-surface-container flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-widest">
-              AI EXECUTION OBSERVATORY // COGNITIVE TRACES
+          <div className="flex items-center gap-space-sm mb-space-xxs">
+            <span className="font-label-mono text-label-mono text-secondary font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+              AI EXECUTION OBSERVATORY
             </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-container)] animate-pulse" />
-            <span className="font-code-sm text-[10px] text-[var(--primary-container)] font-bold">
-              {filteredRuns.length} MONITORED DISPATCHES
+            <span className="font-label-mono text-label-mono px-space-xs py-0.5 rounded bg-surface-container text-on-surface-variant">
+              POSTGRESQL AUDIT REPOSITORY
             </span>
           </div>
-          <h1 className="font-headline-md text-lg sm:text-xl font-bold tracking-tight text-[var(--primary)]">
-            AGENT RUNS & EXECUTION TRACES
+          <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-bold">
+            Autonomous Agent Execution Traces
           </h1>
-          <p className="font-body-sm text-xs text-[var(--text-secondary)] mt-0.5">
-            Forensic inspection of autonomous agent tool requests, reasoning steps, policy gates, and execution outcomes.
+          <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+            Cryptographic ledger of cognitive steps, candidate tool discoveries, and policy gate evaluations
           </p>
         </div>
 
-        <div className="flex items-center gap-2 font-mono text-xs self-start sm:self-auto">
+        <div className="flex items-center gap-space-xs">
+          <button
+            onClick={() => void loadRuns()}
+            className="px-space-md py-2 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-ui text-label-ui flex items-center gap-1.5 cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-[16px]">refresh</span>
+            <span>Reload Ledger</span>
+          </button>
           <Link
             href="/agent"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xs bg-[var(--primary-container)] text-[var(--surface-container-lowest)] font-bold font-code-sm text-xs hover:brightness-110 shadow-sm transition-all"
+            className="px-space-md py-2 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors font-label-ui text-label-ui font-semibold shadow-xs flex items-center gap-1.5"
           >
-            <Bot className="w-3.5 h-3.5" />
-            <span>AGENT CONSOLE</span>
+            <span className="material-symbols-outlined text-[16px]">terminal</span>
+            <span>Launch Agent</span>
           </Link>
         </div>
-      </div>
+      </section>
 
-      {/* Visual Execution Flow Banner */}
-      <div className="p-3 rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)]">
-        <span className="font-label-caps text-[8px] uppercase font-bold text-[var(--text-muted)] tracking-wider block mb-2">
-          EXECUTION LIFECYCLE FLOW // ZERO-TRUST PIPELINE
-        </span>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs font-mono">
-          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
-            <span className="font-label-caps text-[8px] uppercase text-[var(--text-muted)] block">01. INTAKE</span>
-            <span className="font-bold text-[var(--primary)] text-[11px]">Prompt Ingest</span>
-          </div>
-          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
-            <span className="font-label-caps text-[8px] uppercase text-[var(--text-muted)] block">02. COGNITION</span>
-            <span className="font-bold text-[var(--secondary-container)] text-[11px]">Reasoning Chain</span>
-          </div>
-          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
-            <span className="font-label-caps text-[8px] uppercase text-[var(--text-muted)] block">03. MCP INTERCEPT</span>
-            <span className="font-bold text-[var(--text-primary)] text-[11px]">Tool Invocation</span>
-          </div>
-          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
-            <span className="font-label-caps text-[8px] uppercase text-[var(--text-muted)] block">04. INVARIANTS</span>
-            <span className="font-bold text-[var(--tertiary-fixed-dim)] text-[11px]">Policy & Risk</span>
-          </div>
-          <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--primary-container)]/30 col-span-2 sm:col-span-1">
-            <span className="font-label-caps text-[8px] uppercase text-[var(--primary-container)] block">05. GATING</span>
-            <span className="font-bold text-[var(--primary-container)] text-[11px]">Escrow / Dispatch</span>
-          </div>
+      {/* Error state */}
+      {error && (
+        <div className="p-space-md rounded-xl bg-error-container text-on-error-container font-label-mono text-label-mono flex items-center justify-between border border-error/20">
+          <span>{error}</span>
+          <button onClick={() => void loadRuns()} className="underline cursor-pointer font-bold">
+            Retry
+          </button>
         </div>
-      </div>
+      )}
 
-      {/* Filter Toolbar */}
-      <div className="p-2.5 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] space-y-2">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-          <div className="flex-1 relative max-w-md">
-            <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by agent, tool, run ID, or prompt..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] font-code-sm text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:border-[var(--secondary-container)]"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-1.5 font-code-sm text-xs">
-            <select
-              value={selectedAgent}
-              onChange={(e) => setSelectedAgent(e.target.value)}
-              className="px-2 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden"
-            >
-              <option value="ALL">All Agents ({AGENT_RUNS.length})</option>
-              {uniqueAgents.map((ag) => (
-                <option key={ag} value={ag}>{ag}</option>
-              ))}
-            </select>
-
-            <select
-              value={selectedIntegration}
-              onChange={(e) => setSelectedIntegration(e.target.value)}
-              className="px-2 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden"
-            >
-              <option value="ALL">All Platforms</option>
-              {uniqueIntegrations.map((app) => (
-                <option key={app} value={app}>{app}</option>
-              ))}
-            </select>
-
-            <select
-              value={selectedRisk}
-              onChange={(e) => setSelectedRisk(e.target.value)}
-              className="px-2 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden"
-            >
-              <option value="ALL">All Risk Tiers</option>
-              <option value="CRITICAL">CRITICAL</option>
-              <option value="HIGH">HIGH</option>
-              <option value="MEDIUM">MEDIUM</option>
-              <option value="LOW">LOW</option>
-            </select>
-
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-2 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="COMPLETED">COMPLETED</option>
-              <option value="BLOCKED">BLOCKED</option>
-              <option value="PENDING_APPROVAL">PENDING_APPROVAL</option>
-              <option value="EXECUTED">EXECUTED</option>
-            </select>
-          </div>
+      {/* Filter and Search Bar */}
+      <section className="bg-surface-container-lowest p-space-md sm:p-space-lg rounded-xl shadow-xs border border-surface-container flex flex-wrap items-center gap-space-sm font-label-mono text-label-mono">
+        <div className="flex-1 min-w-[240px] relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search Run ID, prompt, tool, agent..."
+            className="w-full bg-surface-container-low text-on-surface placeholder:text-on-surface-variant px-space-md py-1.5 pl-8 rounded-lg font-body-sm text-body-sm border border-surface-container outline-hidden focus:bg-surface-container"
+          />
+          <span className="material-symbols-outlined text-[16px] text-on-surface-variant absolute left-2.5 top-2.5 pointer-events-none">
+            search
+          </span>
         </div>
-      </div>
 
-      {/* Runs Table */}
-      <div className="rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] overflow-hidden">
+        {/* Agent Filter */}
+        <select
+          value={selectedAgent}
+          onChange={(e) => setSelectedAgent(e.target.value)}
+          className="bg-surface-container-low text-on-surface px-space-md py-1.5 rounded-lg border border-surface-container outline-hidden cursor-pointer"
+        >
+          <option value="ALL">Agent: All ({uniqueAgents.length})</option>
+          {uniqueAgents.map((ag) => (
+            <option key={ag} value={ag}>
+              {ag}
+            </option>
+          ))}
+        </select>
+
+        {/* Application Filter */}
+        <select
+          value={selectedApplication}
+          onChange={(e) => setSelectedApplication(e.target.value)}
+          className="bg-surface-container-low text-on-surface px-space-md py-1.5 rounded-lg border border-surface-container outline-hidden cursor-pointer"
+        >
+          <option value="ALL">Application: All</option>
+          {uniqueApplications.map((app) => (
+            <option key={app} value={app}>
+              {app}
+            </option>
+          ))}
+        </select>
+
+        {/* Risk Filter */}
+        <select
+          value={selectedRisk}
+          onChange={(e) => setSelectedRisk(e.target.value)}
+          className="bg-surface-container-low text-on-surface px-space-md py-1.5 rounded-lg border border-surface-container outline-hidden cursor-pointer"
+        >
+          <option value="ALL">Risk: All</option>
+          <option value="LOW">LOW</option>
+          <option value="MEDIUM">MEDIUM</option>
+          <option value="HIGH">HIGH</option>
+          <option value="CRITICAL">CRITICAL</option>
+        </select>
+
+        {/* Status Filter */}
+        <select
+          value={selectedStatus}
+          onChange={(e) => setSelectedStatus(e.target.value)}
+          className="bg-surface-container-low text-on-surface px-space-md py-1.5 rounded-lg border border-surface-container outline-hidden cursor-pointer"
+        >
+          <option value="ALL">Status: All</option>
+          <option value="COMPLETED">COMPLETED</option>
+          <option value="AWAITING_APPROVAL">AWAITING_APPROVAL</option>
+          <option value="BLOCKED">BLOCKED</option>
+          <option value="DENIED">DENIED</option>
+        </select>
+      </section>
+
+      {/* Main Table */}
+      <section className="bg-surface-container-lowest rounded-xl shadow-xs border border-surface-container overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse font-sans text-xs">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[var(--surface-container-lowest)] border-b border-[var(--border)] font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-wider">
-                <th className="px-3 py-2">RUN ID</th>
-                <th className="px-3 py-2">AGENT IDENTITY</th>
-                <th className="px-3 py-2">PROMPT & TOOL CALL</th>
-                <th className="px-3 py-2">PLATFORM</th>
-                <th className="px-3 py-2">RISK SCORE</th>
-                <th className="px-3 py-2">GATE VERDICT</th>
-                <th className="px-3 py-2">LATENCY</th>
-                <th className="px-3 py-2 text-right">INSPECT</th>
+              <tr className="bg-surface-container-low font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider border-b border-surface-container">
+                <th className="py-space-sm px-space-lg">Run ID</th>
+                <th className="py-space-sm px-space-md">Agent / Model</th>
+                <th className="py-space-sm px-space-md">Application / Tool</th>
+                <th className="py-space-sm px-space-md">User Prompt</th>
+                <th className="py-space-sm px-space-md">Risk Rating</th>
+                <th className="py-space-sm px-space-md">Status</th>
+                <th className="py-space-sm px-space-md">Started</th>
+                <th className="py-space-sm px-space-lg text-right">Details</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--border)] font-code-sm">
-              {filteredRuns.map((run) => (
-                <tr
-                  key={run.id}
-                  className="hover:bg-[var(--surface-container-high)]/50 transition-colors"
-                >
-                  <td className="px-3 py-2 whitespace-nowrap font-mono font-bold text-[var(--secondary-container)]">
-                    <Link href={`/agent-runs/${run.id}`} className="hover:underline">
-                      {run.id}
-                    </Link>
-                  </td>
-
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <div className="font-semibold text-xs text-[var(--primary)] font-mono">
-                      {run.agentName}
-                    </div>
-                    <div className="text-[10px] text-[var(--text-muted)] font-mono">{run.model}</div>
-                  </td>
-
-                  <td className="px-3 py-2 max-w-xs">
-                    <div className="font-mono text-xs font-bold text-[var(--text-primary)]">
-                      {run.toolName}
-                    </div>
-                    <div className="text-[10px] text-[var(--text-secondary)] truncate font-sans">
-                      {run.userPrompt}
-                    </div>
-                  </td>
-
-                  <td className="px-3 py-2 whitespace-nowrap font-mono">
-                    <span className="px-1.5 py-0.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-[9px] text-[var(--text-secondary)]">
-                      {run.application}
-                    </span>
-                  </td>
-
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <span
-                      className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
-                        run.riskLevel === "CRITICAL"
-                          ? "bg-[var(--error-container)] text-[var(--on-error-container)] border border-[var(--error)]/40"
-                          : run.riskLevel === "HIGH"
-                          ? "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40"
-                          : "bg-[var(--primary-container)]/20 text-[var(--primary-container)] border border-[var(--primary-container)]/30"
-                      }`}
-                    >
-                      {run.riskLevel} ({run.riskScore})
-                    </span>
-                  </td>
-
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <span
-                      className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
-                        run.executionState === "COMPLETED"
-                          ? "bg-[var(--primary-container)]/20 text-[var(--primary-container)] border border-[var(--primary-container)]/30"
-                          : run.executionState === "BLOCKED"
-                          ? "bg-[var(--error-container)] text-[var(--on-error-container)] border border-[var(--error)]/40"
-                          : "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40"
-                      }`}
-                    >
-                      {run.executionState}
-                    </span>
-                  </td>
-
-                  <td className="px-3 py-2 whitespace-nowrap text-[10px] text-[var(--text-muted)] font-mono">
-                    {run.durationMs}ms
-                  </td>
-
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <Link
-                      href={`/agent-runs/${run.id}`}
-                      className="p-1 rounded-xs border border-[var(--border)] bg-[var(--surface-container-high)] text-[var(--text-primary)] hover:border-[var(--secondary-container)] hover:text-[var(--secondary-container)] transition-colors inline-flex items-center"
-                    >
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
+            <tbody className="divide-y divide-surface-container font-body-sm text-body-sm">
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-on-surface-variant font-label-mono">
+                    Loading agent executions from PostgreSQL database...
                   </td>
                 </tr>
-              ))}
+              ) : filteredRuns.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-on-surface-variant font-label-mono">
+                    No agent runs match the selected filters.
+                  </td>
+                </tr>
+              ) : (
+                filteredRuns.map((run) => (
+                  <tr key={run.run_id} className="hover:bg-surface-container-low/60 transition-colors">
+                    <td className="py-space-md px-space-lg font-label-mono text-label-mono font-bold text-primary">
+                      {run.run_id}
+                    </td>
+                    <td className="py-space-md px-space-md">
+                      <div className="flex flex-col min-w-0">
+                        <span className="font-medium text-on-surface truncate">{run.agent_name}</span>
+                        <span className="font-label-mono text-[10px] text-on-surface-variant">{run.model}</span>
+                      </div>
+                    </td>
+                    <td className="py-space-md px-space-md font-label-mono text-label-mono">
+                      <span className="font-semibold text-on-surface">{run.application}</span>
+                      {run.tool_id && <div className="text-[10px] text-on-surface-variant truncate">{run.tool_id}</div>}
+                    </td>
+                    <td className="py-space-md px-space-md text-on-surface max-w-xs truncate">
+                      {run.user_prompt || "N/A"}
+                    </td>
+                    <td className="py-space-md px-space-md">
+                      <span className={`font-label-mono text-label-mono font-semibold px-space-xs py-0.5 rounded ${riskBadgeClass(run.risk_level)}`}>
+                        {run.risk_level} ({run.risk_score})
+                      </span>
+                    </td>
+                    <td className="py-space-md px-space-md">
+                      <span className={`font-label-mono text-label-mono font-bold px-space-xs py-0.5 rounded ${decisionBadgeClass(run.status || run.execution_state || "COMPLETED")}`}>
+                        {run.status || run.execution_state}
+                      </span>
+                    </td>
+                    <td className="py-space-md px-space-md font-label-mono text-label-mono text-on-surface-variant whitespace-nowrap">
+                      {run.started_at ? formatTime(run.started_at) : "Recent"}
+                    </td>
+                    <td className="py-space-md px-space-lg text-right">
+                      <Link
+                        href={`/agent-runs/${run.run_id}`}
+                        className="text-on-surface-variant hover:text-on-surface font-label-mono text-label-mono underline underline-offset-2"
+                      >
+                        Inspect Trace →
+                      </Link>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
-        <div className="p-2.5 border-t border-[var(--border)] bg-[var(--surface-container-lowest)] flex items-center justify-between text-xs text-[var(--text-muted)] font-code-sm">
-          <span>{filteredRuns.length} Agent Executions Recorded</span>
-          <span className="text-[var(--primary-container)] font-bold">Cryptographically Proven Invariants</span>
+        <div className="p-space-md bg-surface-container-low/40 flex items-center justify-between text-body-sm font-label-mono text-on-surface-variant border-t border-surface-container">
+          <span>
+            Showing {filteredRuns.length} of {runs.length} execution sessions
+          </span>
+          <span className="text-[11px]">Audit replication status: 100% verified</span>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

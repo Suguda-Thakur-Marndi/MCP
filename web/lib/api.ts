@@ -10,6 +10,22 @@ export interface HealthStatus {
   status: string;
   alive?: boolean;
   service?: string;
+  environment?: string;
+  server_name?: string;
+  database?: string;
+  db?: string;
+  mcp_server?: string;
+  gemini?: string;
+  dependencies?: Record<string, string | { status: string; latency_ms?: number }>;
+  pool?: {
+    total: number;
+    used: number;
+    free: number;
+    total_connections?: number;
+    used_connections?: number;
+    free_connections?: number;
+  };
+  error?: string;
 }
 
 // --------------------------------------------------------------------------
@@ -150,13 +166,16 @@ export interface DashboardStats {
 }
 
 export interface ApprovalRecord {
+  id?: string;
   ticket_id: string;
   request_id: string;
   agent_id: string;
+  requester?: string;
   requester_id: string;
   approver_id: string | null;
   tool_name: string;
   target_id: string;
+  target_resource?: string;
   action: string;
   parameters: Record<string, unknown>;
   parameter_hash: string;
@@ -167,7 +186,9 @@ export interface ApprovalRecord {
   risk_score: number;
   status: string;
   reason: string;
+  justification?: string;
   decision_notes: string | null;
+  signature?: string | null;
   created_at: string;
   expires_at: string;
   decided_at: string | null;
@@ -245,6 +266,48 @@ export interface ToolInfo {
   schema?: Record<string, unknown> | null;
 }
 
+export interface AgentRunRecord {
+  id?: string;
+  run_id: string;
+  agent_id: string;
+  agent_name: string;
+  model: string;
+  environment: string;
+  application: string;
+  tool_id?: string | null;
+  user_prompt?: string | null;
+  reasoning?: string | null;
+  payload?: Record<string, unknown> | null;
+  risk_level: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | string;
+  risk_score: number;
+  approval_state: string;
+  execution_state: "RUNNING" | "COMPLETED" | "FAILED" | "BLOCKED" | "INTERCEPTED" | string;
+  status?: string;
+  started_at?: string;
+  duration_ms: number;
+  created_at: string;
+  completed_at?: string | null;
+  approval_ticket_id?: string | null;
+  policy_id?: string | null;
+  policy_decision?: string | null;
+}
+
+export interface ToolExecutionRecord {
+  id: string | number;
+  run_id: string;
+  tool_id: string;
+  tool_name?: string;
+  ticket_id?: string | null;
+  parameters: Record<string, unknown> | string;
+  parameters_hash?: string | null;
+  result?: unknown;
+  error_message?: string | null;
+  status: string;
+  latency_ms: number;
+  execution_time_ms?: number;
+  executed_at: string;
+}
+
 export interface SecurityEvalScenario {
   scenario_id: string | number;
   test_id?: string;
@@ -319,19 +382,24 @@ export interface AgentChatResponse {
   final_state?: string;
 }
 
-export interface HealthStatus {
-  status: string;
-  db?: string;
-}
-
 export interface IntegrationListItem {
   id: string;
-  name?: string;
-  status?: string;
+  name: string;
+  status: string;
   live_status?: string;
+  category?: string;
+  description?: string;
+  auth_type?: string;
+  protocol_type?: string;
+  connection_endpoint?: string;
+  icon?: string;
   tools_count?: number;
   scopes?: string[];
-  [key: string]: unknown;
+  risk_level?: string;
+  latency_ms?: number;
+  created_at?: string;
+  config?: Record<string, unknown>;
+  capabilities?: string[];
 }
 
 export interface ToolExecutionResponse {
@@ -422,6 +490,43 @@ function normalizeSecurityEval(res: unknown): SecurityEvalResult {
   };
 }
 
+function normalizeApproval(r: Record<string, unknown>): ApprovalRecord {
+  const ticketId = String(r.ticket_id || r.id || "");
+  const requester = String(r.requester_id || r.requester || "unknown");
+  const target = String(r.target_id || r.target_resource || "default");
+  const reason = String(r.reason || r.justification || "");
+  const pHash = String(r.parameter_hash || r.parameters_hash || "");
+  return {
+    ...(r as unknown as ApprovalRecord),
+    id: ticketId,
+    ticket_id: ticketId,
+    requester,
+    requester_id: requester,
+    target_id: target,
+    target_resource: target,
+    reason,
+    justification: reason,
+    parameter_hash: pHash,
+    parameters_hash: pHash,
+    signature: (r.signature as string) || null,
+  };
+}
+
+function normalizeAgentRun(r: Record<string, unknown>): AgentRunRecord {
+  const runId = String(r.run_id || r.id || "");
+  const execState = String(r.execution_state || r.status || "COMPLETED");
+  const createdAt = String(r.created_at || r.started_at || new Date().toISOString());
+  return {
+    ...(r as unknown as AgentRunRecord),
+    id: runId,
+    run_id: runId,
+    execution_state: execState,
+    status: execState,
+    created_at: createdAt,
+    started_at: createdAt,
+  };
+}
+
 // --------------------------------------------------------------------------
 // API Functions
 // --------------------------------------------------------------------------
@@ -437,32 +542,44 @@ export const api = {
 
   // Approvals
   approvals: {
-    list: (params?: { status?: string; limit?: number; offset?: number }) => {
+    list: async (params?: { status?: string; limit?: number; offset?: number }) => {
       const q = new URLSearchParams();
       if (params?.status && params.status !== "ALL") q.set("status", params.status);
       if (params?.limit) q.set("limit", String(params.limit));
       if (params?.offset) q.set("offset", String(params.offset));
       const qs = q.toString();
-      return apiFetch<ApprovalRecord[]>(`/api/approvals${qs ? "?" + qs : ""}`);
+      const res = await apiFetch<Record<string, unknown>[]>(`/api/approvals${qs ? "?" + qs : ""}`);
+      return (res || []).map(normalizeApproval);
     },
-    pending: (): Promise<ApprovalRecord[]> => apiFetch("/api/approvals/pending"),
-    get: (ticketId: string): Promise<ApprovalRecord> =>
-      apiFetch(`/api/approvals/${ticketId}`),
-    approve: (ticketId: string, notes?: string): Promise<ApprovalRecord> =>
-      apiFetch(`/api/approvals/${ticketId}/approve`, {
+    pending: async (): Promise<ApprovalRecord[]> => {
+      const res = await apiFetch<Record<string, unknown>[]>("/api/approvals/pending");
+      return (res || []).map(normalizeApproval);
+    },
+    get: async (ticketId: string): Promise<ApprovalRecord> => {
+      const res = await apiFetch<Record<string, unknown>>(`/api/approvals/${ticketId}`);
+      return normalizeApproval(res);
+    },
+    approve: async (ticketId: string, notes?: string): Promise<ApprovalRecord> => {
+      const res = await apiFetch<Record<string, unknown>>(`/api/approvals/${ticketId}/approve`, {
         method: "POST",
         body: JSON.stringify({ decision_notes: notes }),
-      }),
-    deny: (ticketId: string, notes?: string): Promise<ApprovalRecord> =>
-      apiFetch(`/api/approvals/${ticketId}/deny`, {
+      });
+      return normalizeApproval(res);
+    },
+    deny: async (ticketId: string, notes?: string): Promise<ApprovalRecord> => {
+      const res = await apiFetch<Record<string, unknown>>(`/api/approvals/${ticketId}/deny`, {
         method: "POST",
         body: JSON.stringify({ decision_notes: notes }),
-      }),
-    cancel: (ticketId: string, notes?: string): Promise<ApprovalRecord> =>
-      apiFetch(`/api/approvals/${ticketId}/cancel`, {
+      });
+      return normalizeApproval(res);
+    },
+    cancel: async (ticketId: string, notes?: string): Promise<ApprovalRecord> => {
+      const res = await apiFetch<Record<string, unknown>>(`/api/approvals/${ticketId}/cancel`, {
         method: "POST",
         body: notes ? JSON.stringify({ decision_notes: notes }) : undefined,
-      }),
+      });
+      return normalizeApproval(res);
+    },
   },
 
   // Audit
@@ -581,6 +698,9 @@ export const api = {
         };
       });
     },
+    get: async (ruleId: string): Promise<{ rule: PolicyRule; policy_id: string; policy_version: string }> => {
+      return apiFetch(`/api/policies/${ruleId}`);
+    },
   },
 
   // Security Evaluation
@@ -631,6 +751,39 @@ export const api = {
         action: typeof ex.details?.action === "string" ? (ex.details.action as string) : ex.event_type,
         risk_score: typeof ex.details?.risk_score === "number" ? (ex.details.risk_score as number) : undefined,
       }));
+    },
+    runs: async (params?: {
+      status?: string;
+      application?: string;
+      limit?: number;
+      offset?: number;
+    }): Promise<{ total: number; count: number; runs: AgentRunRecord[] }> => {
+      const q = new URLSearchParams();
+      if (params?.status && params.status !== "ALL") q.set("status", params.status);
+      if (params?.application && params.application !== "ALL") q.set("application", params.application);
+      if (params?.limit) q.set("limit", String(params.limit));
+      if (params?.offset) q.set("offset", String(params.offset));
+      const qs = q.toString();
+      const res = await apiFetch<{ total?: number; count?: number; runs?: Record<string, unknown>[] }>(
+        `/api/agent/runs${qs ? "?" + qs : ""}`
+      );
+      const runs = (res?.runs || []).map(normalizeAgentRun);
+      return {
+        total: res?.total ?? runs.length,
+        count: res?.count ?? runs.length,
+        runs,
+      };
+    },
+    run: async (
+      runId: string
+    ): Promise<{ run: AgentRunRecord; tool_executions: ToolExecutionRecord[] }> => {
+      const res = await apiFetch<{ run: Record<string, unknown>; tool_executions: ToolExecutionRecord[] }>(
+        `/api/agent/runs/${runId}`
+      );
+      return {
+        run: normalizeAgentRun(res.run),
+        tool_executions: res.tool_executions || [],
+      };
     },
   },
 
@@ -688,7 +841,7 @@ export const api = {
       }),
     getGithubOAuthUrl: (redirectUri?: string): Promise<{ authorization_url: string; state: string; client_id: string; redirect_uri: string }> =>
       apiFetch(`/api/integrations/github/connect${redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : ""}`),
-    tools: (id: string): Promise<IntegrationListItem[]> => apiFetch(`/api/integrations/${id}/tools`),
+    tools: (id: string): Promise<ToolInfo[]> => apiFetch(`/api/integrations/${id}/tools`),
     executeTool: (toolId: string, parameters: Record<string, unknown>, approvalTicketId?: string, reason?: string): Promise<ToolExecutionResponse> =>
       apiFetch(`/api/tools/${toolId}/execute`, {
         method: "POST",

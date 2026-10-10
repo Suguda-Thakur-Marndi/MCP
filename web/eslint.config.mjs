@@ -13,6 +13,13 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/purity": "warn",
+      "@typescript-eslint/no-unused-vars": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;

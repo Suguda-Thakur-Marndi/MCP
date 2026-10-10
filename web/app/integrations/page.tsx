@@ -2,282 +2,218 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import {
-  Search,
-  ArrowRight,
-  Server,
-} from "lucide-react";
-import { INTEGRATIONS, Integration } from "@/lib/sentinel-data";
-import { api } from "@/lib/api";
+import { api, IntegrationListItem } from "@/lib/api";
 
 export default function IntegrationsPage() {
-  const [items, setItems] = useState<Integration[]>(INTEGRATIONS);
+  const [items, setItems] = useState<IntegrationListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedRisk, setSelectedRisk] = useState("ALL");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
+  const [selectedStatus, setSelectedStatus] = useState("ALL");
+
+  const loadIntegrations = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const list = await api.integrations.list();
+      setItems(list || []);
+    } catch (err: unknown) {
+      console.warn("Failed to load integrations:", err);
+      setError("Unable to connect to integrations catalog. Verify backend is running.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    api.integrations
-      .list()
-      .then((liveList) => {
-        if (Array.isArray(liveList) && liveList.length > 0) {
-          setItems((prev) =>
-            prev.map((staticItem) => {
-              const live = liveList.find((l) => l.id === staticItem.id);
-              if (live) {
-                return {
-                  ...staticItem,
-                  status: ((live.live_status || live.status) === "CONNECTED" ? "CONNECTED" : (live.live_status || live.status) === "DISCONNECTED" ? "DISCONNECTED" : (live.live_status || live.status) === "ERROR" ? "ERROR" : "WARNING") as Integration["status"],
-                  toolsCount: live.tools_count ?? staticItem.toolsCount,
-                };
-              }
-              return staticItem;
-            })
-          );
-        }
-      })
-      .catch(() => {});
+    void loadIntegrations();
   }, []);
 
   const categories = useMemo(() => {
-    const cats = Array.from(new Set(items.map((i) => i.category)));
+    const cats = Array.from(new Set(items.map((i) => i.category).filter(Boolean)));
     return ["ALL", ...cats];
   }, [items]);
 
   const filtered = useMemo(() => {
     return items.filter((item) => {
-      if (selectedRisk !== "ALL" && item.riskLevel !== selectedRisk) return false;
+      const status = item.live_status || item.status;
+      if (selectedStatus !== "ALL" && status !== selectedStatus) return false;
       if (selectedCategory !== "ALL" && item.category !== selectedCategory) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const matches =
+        return (
           item.name.toLowerCase().includes(q) ||
-          item.description.toLowerCase().includes(q) ||
-          item.tools.some((t) => t.name.toLowerCase().includes(q));
-        if (!matches) return false;
+          item.id.toLowerCase().includes(q) ||
+          (item.description && item.description.toLowerCase().includes(q))
+        );
       }
       return true;
     });
-  }, [items, searchQuery, selectedRisk, selectedCategory]);
+  }, [items, searchQuery, selectedCategory, selectedStatus]);
+
+  const connectedCount = items.filter((i) => (i.live_status || i.status) === "CONNECTED").length;
 
   return (
-    <div className="p-3 sm:p-5 max-w-7xl mx-auto space-y-4 font-sans select-none animate-in fade-in duration-150">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
+    <div className="w-full px-space-md sm:px-space-lg lg:px-space-xl py-space-lg flex flex-col gap-space-xl">
+      {/* Header Banner */}
+      <section className="bg-surface-container-lowest p-space-lg rounded-xl shadow-xs border border-surface-container flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-widest">
-              MISSION CONTROL // INTEGRATION BOUNDARIES
+          <div className="flex items-center gap-space-sm mb-space-xxs">
+            <span className="font-label-mono text-label-mono text-secondary font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+              MULTI-SOFTWARE BOUNDARY GATEWAY
             </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-container)] animate-pulse" />
-            <span className="font-code-sm text-[10px] text-[var(--primary-container)] font-bold">
-              {items.length} MONITORED PLATFORMS
+            <span className="font-label-mono text-label-mono px-space-xs py-0.5 rounded bg-surface-container text-on-surface-variant">
+              {connectedCount} OF {items.length} CONNECTED
             </span>
           </div>
-          <h1 className="font-headline-md text-lg sm:text-xl font-bold tracking-tight text-[var(--primary)]">
-            CONNECTED SOFTWARE & BOUNDARY REGISTRY
+          <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-bold">
+            Connected Software &amp; Boundary Registry
           </h1>
-          <p className="font-body-sm text-xs text-[var(--text-secondary)] mt-0.5">
+          <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
             Enterprise integrations and custom MCP servers connected through Sentinel. Every tool call and permission boundary is evaluated in real time.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 font-mono text-xs self-start sm:self-auto">
+        <div className="flex items-center gap-space-xs font-label-mono text-label-mono">
           <Link
             href="/mcp-servers"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] text-[var(--text-primary)] hover:border-[var(--secondary-container)] transition-all font-code-sm text-xs"
+            className="px-space-md py-2 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors flex items-center gap-1.5"
           >
-            <Server className="w-3.5 h-3.5 text-[var(--secondary-container)]" />
-            <span>MCP SERVERS</span>
+            <span className="material-symbols-outlined text-[16px]">dns</span>
+            <span>MCP Servers</span>
           </Link>
           <Link
             href="/tools"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xs bg-[var(--primary-container)] text-[var(--surface-container-lowest)] font-bold font-code-sm text-xs hover:brightness-110 transition-all"
+            className="px-space-md py-2 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors font-semibold shadow-xs flex items-center gap-1.5"
           >
-            <span>ALL TOOLS INVENTORY</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <span className="material-symbols-outlined text-[16px]">construction</span>
+            <span>All Tools Inventory</span>
           </Link>
         </div>
-      </div>
+      </section>
+
+      {/* Error state */}
+      {error && (
+        <div className="p-space-md rounded-xl bg-error-container text-on-error-container font-label-mono text-label-mono flex items-center justify-between border border-error/20">
+          <span>{error}</span>
+          <button onClick={() => void loadIntegrations()} className="cursor-pointer font-bold underline">
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
-      <div className="p-2.5 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] space-y-2">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-          <div className="flex-1 relative max-w-md">
-            <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search connected software, tools, or permissions..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] font-code-sm text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:border-[var(--secondary-container)]"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 font-code-sm text-xs">
-            {/* Category pills */}
-            <div className="flex items-center gap-1">
-              {categories.map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`px-2 py-0.5 rounded-xs border transition-all cursor-pointer ${
-                    selectedCategory === cat
-                      ? "bg-[var(--secondary-container)]/20 text-[var(--secondary-container)] border-[var(--secondary-container)] font-bold"
-                      : "bg-[var(--surface-container-lowest)] text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text-primary)]"
-                  }`}
-                >
-                  {cat.toUpperCase()}
-                </button>
-              ))}
-            </div>
-
-            {/* Risk filter */}
-            <select
-              value={selectedRisk}
-              onChange={(e) => setSelectedRisk(e.target.value)}
-              className="px-2 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden"
-            >
-              <option value="ALL">All Risk Tiers</option>
-              <option value="LOW">Low Risk</option>
-              <option value="MEDIUM">Medium Risk</option>
-              <option value="HIGH">High Risk</option>
-              <option value="CRITICAL">Critical Risk</option>
-            </select>
-          </div>
+      <section className="bg-surface-container-lowest p-space-md sm:p-space-lg rounded-xl shadow-xs border border-surface-container flex flex-wrap items-center gap-space-sm font-label-mono text-label-mono">
+        <div className="flex-1 min-w-[240px] relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search integration by name, endpoint..."
+            className="w-full bg-surface-container-low text-on-surface placeholder:text-on-surface-variant px-space-md py-1.5 pl-8 rounded-lg font-body-sm text-body-sm border border-surface-container outline-hidden focus:bg-surface-container"
+          />
+          <span className="material-symbols-outlined text-[16px] text-on-surface-variant absolute left-2.5 top-2.5 pointer-events-none">
+            search
+          </span>
         </div>
-      </div>
 
-      {/* Integration Registry Table */}
-      <div className="rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse font-sans text-xs">
-            <thead>
-              <tr className="bg-[var(--surface-container-lowest)] border-b border-[var(--border)] font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-wider">
-                <th className="px-3 py-2">SOFTWARE / PLATFORM</th>
-                <th className="px-3 py-2">LINK STATUS</th>
-                <th className="px-3 py-2">AUTHENTICATION VAULT</th>
-                <th className="px-3 py-2">CAPABILITIES</th>
-                <th className="px-3 py-2">LAST TELEMETRY</th>
-                <th className="px-3 py-2">THREAT PROFILE</th>
-                <th className="px-3 py-2">SCOPES & PERMISSIONS</th>
-                <th className="px-3 py-2 text-right">INSPECT</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border)] font-code-sm">
-              {filtered.map((item) => (
-                <tr
-                  key={item.id}
-                  className="hover:bg-[var(--surface-container-high)]/50 transition-colors cursor-pointer"
-                >
-                  {/* Logo and Name */}
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{item.logo}</span>
-                      <div>
-                        <Link
-                          href={`/integrations/${item.id}`}
-                          className="font-bold text-xs text-[var(--primary)] hover:text-[var(--secondary-container)] transition-colors block font-mono"
-                        >
-                          {item.name}
-                        </Link>
-                        <span className="font-label-caps text-[8px] text-[var(--text-muted)] block uppercase">
-                          {item.category}
-                        </span>
-                      </div>
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="bg-surface-container-low text-on-surface px-space-md py-1.5 rounded-lg border border-surface-container outline-hidden cursor-pointer"
+        >
+          {categories.map((c) => (
+            <option key={c} value={c}>
+              Category: {c}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={selectedStatus}
+          onChange={(e) => setSelectedStatus(e.target.value)}
+          className="bg-surface-container-low text-on-surface px-space-md py-1.5 rounded-lg border border-surface-container outline-hidden cursor-pointer"
+        >
+          <option value="ALL">Status: All</option>
+          <option value="CONNECTED">CONNECTED</option>
+          <option value="DISCONNECTED">DISCONNECTED</option>
+          <option value="ERROR">ERROR</option>
+        </select>
+      </section>
+
+      {/* Integrations Grid */}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+        {loading ? (
+          <div className="col-span-full bg-surface-container-lowest p-12 rounded-xl text-center font-label-mono text-on-surface-variant border border-surface-container">
+            Loading integrations catalog from PostgreSQL...
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="col-span-full bg-surface-container-lowest p-12 rounded-xl text-center font-label-mono text-on-surface-variant border border-surface-container">
+            No integrations match search filters.
+          </div>
+        ) : (
+          filtered.map((item) => {
+            const isConnected = (item.live_status || item.status) === "CONNECTED";
+            return (
+              <div
+                key={item.id}
+                className="bg-surface-container-lowest p-space-lg rounded-xl shadow-xs border border-surface-container flex flex-col justify-between gap-space-md hover:border-border transition-all"
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-space-xs mb-space-xs">
+                    <div>
+                      <span className="font-label-mono text-[10px] text-on-surface-variant uppercase">
+                        {item.category}
+                      </span>
+                      <h3 className="font-headline-sm text-headline-sm text-on-surface font-bold mt-0.5">
+                        {item.name}
+                      </h3>
                     </div>
-                  </td>
-
-                  {/* Status */}
-                  <td className="px-3 py-2 whitespace-nowrap">
                     <span
-                      className={`inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-xs text-[9px] font-bold font-label-caps ${
-                        item.status === "CONNECTED"
-                          ? "bg-[var(--primary-container)]/20 border border-[var(--primary-container)]/30 text-[var(--primary-container)]"
-                          : "bg-[var(--error-container)] border border-[var(--error)]/40 text-[var(--on-error-container)]"
+                      className={`font-label-mono text-[10px] font-bold px-2 py-0.5 rounded ${
+                        isConnected ? "bg-secondary text-on-secondary" : "bg-surface-container text-on-surface-variant"
                       }`}
                     >
-                      <span
-                        className={`w-1.5 h-1.5 rounded-full ${
-                          item.status === "CONNECTED" ? "bg-[var(--primary-container)] animate-pulse" : "bg-[var(--error)]"
-                        }`}
-                      />
-                      {item.status}
+                      {item.live_status || item.status}
                     </span>
-                  </td>
+                  </div>
 
-                  {/* Auth */}
-                  <td className="px-3 py-2 whitespace-nowrap font-mono text-[11px] text-[var(--text-primary)]">
-                    {item.authType}
-                  </td>
+                  <p className="font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                    {item.description}
+                  </p>
+                </div>
 
-                  {/* Available tools */}
-                  <td className="px-3 py-2 whitespace-nowrap font-mono">
-                    <span className="font-bold text-[var(--secondary-container)] text-xs">
-                      {item.toolsCount} Tools
-                    </span>
-                  </td>
+                <div className="space-y-1 font-label-mono text-label-mono text-[11px]">
+                  <div className="p-space-xs bg-surface-container-low rounded border border-surface-container flex justify-between">
+                    <span className="text-on-surface-variant">Auth Type:</span>
+                    <span className="font-semibold text-on-surface">{item.auth_type}</span>
+                  </div>
+                  <div className="p-space-xs bg-surface-container-low rounded border border-surface-container flex justify-between">
+                    <span className="text-on-surface-variant">Protocol:</span>
+                    <span className="font-semibold text-on-surface">{item.protocol_type}</span>
+                  </div>
+                </div>
 
-                  {/* Last activity */}
-                  <td className="px-3 py-2 text-[10px] text-[var(--text-muted)] whitespace-nowrap font-mono">
-                    {item.lastActivity}
-                  </td>
-
-                  {/* Risk */}
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <span
-                      className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
-                        item.riskLevel === "CRITICAL"
-                          ? "bg-[var(--error-container)] text-[var(--on-error-container)] border border-[var(--error)]/40"
-                          : item.riskLevel === "HIGH"
-                          ? "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40"
-                          : "bg-[var(--primary-container)]/20 text-[var(--primary-container)] border border-[var(--primary-container)]/30"
-                      }`}
-                    >
-                      {item.riskLevel}
-                    </span>
-                  </td>
-
-                  {/* Permissions */}
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap gap-1 max-w-xs font-mono text-[10px]">
-                      {item.permissions.slice(0, 2).map((perm) => (
-                        <span
-                          key={perm}
-                          className="px-1 py-0.2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-[9px] text-[var(--text-secondary)]"
-                        >
-                          {perm}
-                        </span>
-                      ))}
-                      {item.permissions.length > 2 && (
-                        <span className="text-[9px] text-[var(--text-muted)]">
-                          +{item.permissions.length - 2}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-
-                  {/* Action */}
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <Link
-                      href={`/integrations/${item.id}`}
-                      className="p-1 rounded-xs border border-[var(--border)] bg-[var(--surface-container-high)] text-[var(--text-primary)] hover:border-[var(--secondary-container)] hover:text-[var(--secondary-container)] transition-colors inline-flex items-center"
-                      title={`Inspect ${item.name} tools and security policy`}
-                    >
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="p-2.5 border-t border-[var(--border)] bg-[var(--surface-container-lowest)] flex items-center justify-between text-xs text-[var(--text-muted)] font-code-sm">
-          <span>{filtered.length} Enterprise Integrations Active</span>
-          <span className="text-[var(--primary-container)] font-bold">Encrypted Fernet Credential Vault Sealed</span>
-        </div>
-      </div>
+                <div className="pt-space-xs border-t border-surface-container flex items-center justify-between">
+                  <span className="font-label-mono text-[10px] text-on-surface-variant truncate max-w-[140px]">
+                    {item.connection_endpoint || "Local"}
+                  </span>
+                  <Link
+                    href={`/integrations/${item.id}`}
+                    className="font-label-ui text-label-ui text-primary hover:underline font-semibold flex items-center gap-1"
+                  >
+                    <span>Configure &amp; Test</span>
+                    <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                  </Link>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </section>
     </div>
   );
 }

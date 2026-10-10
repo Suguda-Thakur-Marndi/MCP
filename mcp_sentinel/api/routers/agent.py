@@ -183,3 +183,140 @@ async def get_agent_executions(
         "count": len(executions),
         "executions": executions,
     }
+
+
+@router.get(
+    "/runs",
+    summary="List real historical AI agent runs from database",
+)
+async def list_agent_runs(
+    status_filter: Optional[str] = Query(None, alias="status"),
+    application: Optional[str] = Query(None),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    current_user: AuthUser = Depends(get_current_user),
+) -> dict[str, Any]:
+    """
+    Returns real agent execution records from PostgreSQL agent_runs table.
+    """
+    pool = await get_db_pool()
+    conditions = []
+    params: list[Any] = []
+
+    if status_filter and status_filter.upper() != "ALL":
+        params.append(status_filter.upper())
+        conditions.append(f"execution_state = ${len(params)}")
+
+    if application and application.upper() != "ALL":
+        params.append(application.lower())
+        conditions.append(f"application = ${len(params)}")
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    params.append(limit)
+    limit_param = f"${len(params)}"
+    params.append(offset)
+    offset_param = f"${len(params)}"
+
+    query = f"""
+        SELECT run_id, agent_id, agent_name, model, environment, application, tool_id,
+               user_prompt, reasoning, payload, risk_level, risk_score, approval_state,
+               execution_state, duration_ms, created_at, completed_at
+        FROM agent_runs
+        {where_clause}
+        ORDER BY created_at DESC
+        LIMIT {limit_param} OFFSET {offset_param}
+    """
+
+    count_query = f"SELECT COUNT(*) FROM agent_runs {where_clause}"
+
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(query, *params)
+        total = await conn.fetchval(count_query, *params[:len(params) - 2])
+
+    runs = []
+    for r in rows:
+        item = dict(r)
+        if item.get("created_at"):
+            item["created_at"] = item["created_at"].isoformat()
+        if item.get("completed_at"):
+            item["completed_at"] = item["completed_at"].isoformat()
+        if isinstance(item.get("payload"), str):
+            try:
+                item["payload"] = json.loads(item["payload"])
+            except Exception:
+                pass
+        runs.append(item)
+
+    return {
+        "status": "success",
+        "total": total or len(runs),
+        "count": len(runs),
+        "limit": limit,
+        "offset": offset,
+        "runs": runs,
+    }
+
+
+@router.get(
+    "/runs/{run_id}",
+    summary="Get single agent run details and associated tool executions",
+)
+async def get_agent_run_detail(
+    run_id: str,
+    current_user: AuthUser = Depends(get_current_user),
+) -> dict[str, Any]:
+    """
+    Retrieves full details for a specific agent execution including linked tool executions.
+    """
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        run_row = await conn.fetchrow(
+            """
+            SELECT run_id, agent_id, agent_name, model, environment, application, tool_id,
+                   user_prompt, reasoning, payload, risk_level, risk_score, approval_state,
+                   execution_state, duration_ms, created_at, completed_at
+            FROM agent_runs
+            WHERE run_id = $1
+            """,
+            run_id,
+        )
+        if not run_row:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Agent run '{run_id}' not found.",
+            )
+
+        run_data = dict(run_row)
+        if run_data.get("created_at"):
+            run_data["created_at"] = run_data["created_at"].isoformat()
+        if run_data.get("completed_at"):
+            run_data["completed_at"] = run_data["completed_at"].isoformat()
+        if isinstance(run_data.get("payload"), str):
+            try:
+                run_data["payload"] = json.loads(run_data["payload"])
+            except Exception:
+                pass
+
+        exec_rows = await conn.fetch(
+            """
+            SELECT id, run_id, tool_id, ticket_id, parameters, parameters_hash,
+                   result, error_message, status, latency_ms, executed_at
+            FROM tool_executions
+            WHERE run_id = $1
+            ORDER BY executed_at ASC
+            """,
+            run_id,
+        )
+        tool_executions = []
+        for er in exec_rows:
+            ed = dict(er)
+            if ed.get("executed_at"):
+                ed["executed_at"] = ed["executed_at"].isoformat()
+            tool_executions.append(ed)
+
+    return {
+        "status": "success",
+        "run": run_data,
+        "tool_executions": tool_executions,
+    }

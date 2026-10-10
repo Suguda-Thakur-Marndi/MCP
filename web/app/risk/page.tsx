@@ -8,8 +8,9 @@ import {
   Wrench,
   ArrowRight,
   RefreshCw,
+  AlertTriangle,
+  Info,
 } from "lucide-react";
-import { RISK_FACTORS } from "@/lib/sentinel-data";
 import { api, DashboardStats, ToolInfo, AuditEvent, IntegrationListItem } from "@/lib/api";
 
 interface RankedTool {
@@ -30,6 +31,66 @@ interface BoundaryDisplay {
   risk_level: string;
   tools_count: number;
 }
+
+interface RiskFactorDefinition {
+  name: string;
+  factorKey: string;
+  weightPct: number;
+  description: string;
+  evalCriteria: string;
+  scoreRange: string;
+}
+
+const DETERMINISTIC_RISK_FACTORS: RiskFactorDefinition[] = [
+  {
+    name: "Tool Base Risk Profile",
+    factorKey: "tool_base_risk",
+    weightPct: 25,
+    description: "Inherent vulnerability and privileged capability baseline assigned to the registered MCP tool signature.",
+    evalCriteria: "Trusted registry profile & protocol capability level",
+    scoreRange: "0 - 30 pts",
+  },
+  {
+    name: "Destructive Operation Factor",
+    factorKey: "destructive_factor",
+    weightPct: 25,
+    description: "Penalty added when invoking irrecoverable mutations (DROP, DELETE, TRUNCATE, file purge, revoke).",
+    evalCriteria: "AST syntax inspection & verb classification",
+    scoreRange: "+25 to +40 pts",
+  },
+  {
+    name: "Target Data Sensitivity",
+    factorKey: "data_sensitivity_factor",
+    weightPct: 20,
+    description: "Classification penalty based on access to RESTRICTED, CONFIDENTIAL, or PII database schemas and tables.",
+    evalCriteria: "Information barrier tags & schema classification",
+    scoreRange: "+15 to +30 pts",
+  },
+  {
+    name: "Runtime Environment Boundary",
+    factorKey: "environment_factor",
+    weightPct: 15,
+    description: "Operational blast radius multiplier distinguishing PRODUCTION infrastructure from isolated STAGING or DEV.",
+    evalCriteria: "Runtime environment tag & deployment target",
+    scoreRange: "+10 to +25 pts",
+  },
+  {
+    name: "Scale & Blast Radius",
+    factorKey: "scale_factor",
+    weightPct: 10,
+    description: "Volume penalty triggered by batch parameters, bulk mutations, or query operations exceeding safe limits.",
+    evalCriteria: "Estimated affected rows and argument scope",
+    scoreRange: "+10 to +30 pts",
+  },
+  {
+    name: "External Side Effects",
+    factorKey: "external_side_effect_factor",
+    weightPct: 5,
+    description: "Third-party network exfiltration, webhook broadcasts, outbound API transmission, or cloud state alterations.",
+    evalCriteria: "Egress detection & multi-software connector traversal",
+    scoreRange: "+10 to +25 pts",
+  },
+];
 
 export default function RiskCenterPage() {
   const [selectedTimeframe, setSelectedTimeframe] = useState<"24h" | "7d" | "30d">("24h");
@@ -83,7 +144,8 @@ export default function RiskCenterPage() {
 
   // Compute live distribution dynamically from real audit telemetry
   const dist = { low: 0, medium: 0, high: 0, critical: 0 };
-  if (auditEvents.length > 0) {
+  const totalAuditEvents = auditEvents.length;
+  if (totalAuditEvents > 0) {
     auditEvents.forEach((e) => {
       const s = typeof e.risk_score === "number" ? e.risk_score : 15;
       if (s >= 80) dist.critical++;
@@ -91,18 +153,13 @@ export default function RiskCenterPage() {
       else if (s >= 30) dist.medium++;
       else dist.low++;
     });
-  } else {
-    dist.low = 64;
-    dist.medium = 21;
-    dist.high = 11;
-    dist.critical = 4;
   }
 
-  const totalDist = (dist.low || 0) + (dist.medium || 0) + (dist.high || 0) + (dist.critical || 0) || 100;
-  const lowPct = Math.round(((dist.low || 0) / totalDist) * 100);
-  const medPct = Math.round(((dist.medium || 0) / totalDist) * 100);
-  const highPct = Math.round(((dist.high || 0) / totalDist) * 100);
-  const critPct = Math.max(0, 100 - lowPct - medPct - highPct);
+  const totalDist = (dist.low || 0) + (dist.medium || 0) + (dist.high || 0) + (dist.critical || 0);
+  const lowPct = totalDist > 0 ? Math.round(((dist.low || 0) / totalDist) * 100) : 0;
+  const medPct = totalDist > 0 ? Math.round(((dist.medium || 0) / totalDist) * 100) : 0;
+  const highPct = totalDist > 0 ? Math.round(((dist.high || 0) / totalDist) * 100) : 0;
+  const critPct = totalDist > 0 ? Math.max(0, 100 - lowPct - medPct - highPct) : 0;
 
   // Compute blocked counts per tool from real audit events
   const toolBlockMap = new Map<string, number>();
@@ -116,7 +173,7 @@ export default function RiskCenterPage() {
   });
 
   // Rank real tools by risk score and destructiveness
-  const rankedTools: RankedTool[] = (tools.length > 0 ? tools : []).map((t) => {
+  const rankedTools: RankedTool[] = tools.map((t) => {
     const rawScore = parseInt(t.base_risk?.replace("/100", "") || "0", 10);
     const score = rawScore > 0 ? rawScore : t.risk_level === "CRITICAL" ? 95 : t.risk_level === "HIGH" ? 78 : t.risk_level === "MEDIUM" ? 45 : 15;
     const appPrefix = t.tool_name.includes(".") ? t.tool_name.split(".")[0].toUpperCase() : "MCP";
@@ -131,32 +188,14 @@ export default function RiskCenterPage() {
     };
   }).sort((a, b) => b.score - a.score).slice(0, 8);
 
-  // Fallback high-risk tools if backend has no tools registered yet
-  const displayTools = rankedTools.length > 0 ? rankedTools : [
-    { name: "github.delete_repository", app: "GITHUB", score: 98, level: "CRITICAL" as const, policy: "Production Repository Destruction Defense", blocksCount: 14, destructive: true },
-    { name: "drive.delete_file", app: "GOOGLE DRIVE", score: 94, level: "CRITICAL" as const, policy: "Production Data Exfiltration Quarantine", blocksCount: 19, destructive: true },
-    { name: "mcp.delete_customer", app: "CUSTOM MCP", score: 88, level: "HIGH" as const, policy: "Sensitive Record Mutation Gate", blocksCount: 8, destructive: true },
-    { name: "jira.delete_project", app: "JIRA", score: 99, level: "CRITICAL" as const, policy: "Infrastructure Destructive Intercept", blocksCount: 2, destructive: true },
-    { name: "drive.share_file", app: "GOOGLE DRIVE", score: 82, level: "HIGH" as const, policy: "Cross-Boundary Transmission Guard", blocksCount: 31, destructive: false },
-  ];
-
-  // Map boundaries with strict string types
-  const displayIntegrations: BoundaryDisplay[] = (integrations.length > 0
-    ? integrations.map((i) => ({
-        id: i.id,
-        name: String(i.name || i.id),
-        icon: typeof i.icon === "string" ? i.icon : "🔌",
-        status: String(i.status || i.live_status || "ACTIVE"),
-        risk_level: typeof i.risk_level === "string" ? i.risk_level : "HIGH",
-        tools_count: typeof i.tools_count === "number" ? i.tools_count : 5,
-      }))
-    : [
-        { id: "github", name: "GitHub", icon: "🐙", status: "CONNECTED", risk_level: "CRITICAL", tools_count: 10 },
-        { id: "google_drive", name: "Google Drive", icon: "📁", status: "CONNECTED", risk_level: "HIGH", tools_count: 5 },
-        { id: "jira", name: "Jira", icon: "📐", status: "CONNECTED", risk_level: "HIGH", tools_count: 4 },
-        { id: "postgres", name: "PostgreSQL Database", icon: "⚡", status: "CONNECTED", risk_level: "CRITICAL", tools_count: 8 },
-      ]
-  );
+  const displayIntegrations: BoundaryDisplay[] = integrations.map((i) => ({
+    id: i.id,
+    name: String(i.name || i.id),
+    icon: typeof i.icon === "string" ? i.icon : "🔌",
+    status: String(i.status || i.live_status || "ACTIVE"),
+    risk_level: typeof i.risk_level === "string" ? i.risk_level : "HIGH",
+    tools_count: typeof i.tools_count === "number" ? i.tools_count : 0,
+  }));
 
   return (
     <div className="p-3 sm:p-5 max-w-7xl mx-auto space-y-4 font-sans select-none animate-in fade-in duration-150">
@@ -214,18 +253,26 @@ export default function RiskCenterPage() {
             LIVE RISK DISTRIBUTION ({selectedTimeframe.toUpperCase()} WINDOW)
           </span>
           <span className="font-code-sm text-[10px] text-[var(--primary-container)] font-bold font-mono">
-            COMPOSITE SCORE: {Math.round((lowPct * 0.15) + (medPct * 0.45) + (highPct * 0.75) + (critPct * 0.95))} / 100 {stats?.metrics?.blocked_actions !== undefined ? `[${stats.metrics.blocked_actions} BLOCKED]` : "[NOMINAL BOUNDARY]"}
+            {totalDist > 0
+              ? `COMPOSITE SCORE: ${Math.round((lowPct * 0.15) + (medPct * 0.45) + (highPct * 0.75) + (critPct * 0.95))} / 100 [${totalAuditEvents} EVENTS]`
+              : "[NO TELEMETRY RECORDED IN WINDOW]"}
           </span>
         </div>
 
         {/* Visual Segmented Distribution Bar */}
         <div className="space-y-2 font-mono text-xs">
-          <div className="w-full h-2 rounded-xs bg-[var(--surface-container-lowest)] overflow-hidden flex border border-[var(--border)]">
-            <div className="h-full bg-[var(--primary-container)]" style={{ width: `${lowPct}%` }} title={`Low Risk: ${lowPct}%`} />
-            <div className="h-full bg-[var(--secondary-container)]" style={{ width: `${medPct}%` }} title={`Medium Risk: ${medPct}%`} />
-            <div className="h-full bg-[var(--tertiary-fixed-dim)]" style={{ width: `${highPct}%` }} title={`High Risk: ${highPct}%`} />
-            <div className="h-full bg-[var(--error)]" style={{ width: `${critPct}%` }} title={`Critical Risk: ${critPct}%`} />
-          </div>
+          {totalDist > 0 ? (
+            <div className="w-full h-2 rounded-xs bg-[var(--surface-container-lowest)] overflow-hidden flex border border-[var(--border)]">
+              <div className="h-full bg-[var(--primary-container)]" style={{ width: `${lowPct}%` }} title={`Low Risk: ${lowPct}%`} />
+              <div className="h-full bg-[var(--secondary-container)]" style={{ width: `${medPct}%` }} title={`Medium Risk: ${medPct}%`} />
+              <div className="h-full bg-[var(--tertiary-fixed-dim)]" style={{ width: `${highPct}%` }} title={`High Risk: ${highPct}%`} />
+              <div className="h-full bg-[var(--error)]" style={{ width: `${critPct}%` }} title={`Critical Risk: ${critPct}%`} />
+            </div>
+          ) : (
+            <div className="w-full h-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] flex items-center justify-center">
+              <span className="text-[8px] text-[var(--text-muted)]">No audit events available for distribution breakdown</span>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono">
             <div className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--primary-container)]/30">
@@ -268,28 +315,32 @@ export default function RiskCenterPage() {
             </h2>
           </div>
           <span className="font-code-sm text-[10px] text-[var(--text-muted)] font-mono">
-            SCORE = &sum;(WEIGHT &times; FACTOR_SCORE)
+            RAW_SCORE = &sum;(FACTOR_VAL) &rarr; CLAMP(0, 100)
           </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 font-mono text-xs">
-          {RISK_FACTORS.map((factor) => (
+          {DETERMINISTIC_RISK_FACTORS.map((factor) => (
             <div
-              key={factor.name}
+              key={factor.factorKey}
               className="p-3 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] space-y-1.5 hover:border-[var(--border-interactive)] transition-colors"
             >
               <div className="flex items-center justify-between">
                 <span className="font-bold text-[var(--text-primary)] text-xs font-mono">{factor.name}</span>
                 <span className="font-label-caps text-[8px] px-1.5 py-0.5 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] font-bold text-[var(--secondary-container)]">
-                  WEIGHT: {factor.weight * 100}%
+                  WEIGHT: {factor.weightPct}%
                 </span>
               </div>
               <p className="font-body-sm text-[11px] text-[var(--text-secondary)] leading-relaxed">
                 {factor.description}
               </p>
               <div className="flex items-center justify-between pt-1 border-t border-[var(--border)] font-code-sm text-[10px]">
-                <span className="text-[var(--text-muted)]">Calculated Score:</span>
-                <span className="font-bold text-[var(--primary-container)]">{factor.score} / 100</span>
+                <span className="text-[var(--text-muted)]">Factor Key:</span>
+                <code className="text-[var(--secondary-container)] font-mono">{factor.factorKey}</code>
+              </div>
+              <div className="flex items-center justify-between font-code-sm text-[10px]">
+                <span className="text-[var(--text-muted)]">Contribution:</span>
+                <span className="font-bold text-[var(--primary-container)]">{factor.scoreRange}</span>
               </div>
             </div>
           ))}
@@ -306,52 +357,71 @@ export default function RiskCenterPage() {
               HIGH-RISK TOOLS INVENTORY
             </h3>
             <span className="font-code-sm text-[9px] text-[var(--text-muted)] font-mono">
-              {displayTools.length} Governed Actions
+              {rankedTools.length} Governed Actions
             </span>
           </div>
 
-          <div className="space-y-1.5 font-mono text-xs">
-            {displayTools.map((tool) => (
-              <div
-                key={tool.name}
-                className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] flex items-center justify-between gap-2 hover:border-[var(--border-interactive)] transition-colors"
+          {loading ? (
+            <div className="py-8 text-center text-[var(--text-muted)] text-xs font-mono">
+              Loading tool risk inventory...
+            </div>
+          ) : rankedTools.length === 0 ? (
+            <div className="py-8 px-4 text-center border border-dashed border-[var(--border)] rounded-xs bg-[var(--surface-container-lowest)] space-y-2">
+              <Info className="w-5 h-5 mx-auto text-[var(--text-muted)]" />
+              <p className="text-xs text-[var(--text-secondary)] font-mono">
+                No MCP tools currently registered in the security registry.
+              </p>
+              <Link
+                href="/tools"
+                className="inline-block px-3 py-1 rounded-xs border border-[var(--secondary-container)] text-[var(--secondary-container)] text-xs font-mono hover:bg-[var(--secondary-container)]/10"
               >
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <code className="text-xs font-bold text-[var(--secondary-container)] font-mono">{tool.name}</code>
-                    <span className="px-1 py-0.2 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] font-label-caps text-[8px] text-[var(--text-muted)]">
-                      {tool.app}
+                Inspect Tool Catalog &rarr;
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-1.5 font-mono text-xs">
+              {rankedTools.map((tool) => (
+                <div
+                  key={tool.name}
+                  className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] flex items-center justify-between gap-2 hover:border-[var(--border-interactive)] transition-colors"
+                >
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <code className="text-xs font-bold text-[var(--secondary-container)] font-mono">{tool.name}</code>
+                      <span className="px-1 py-0.2 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] font-label-caps text-[8px] text-[var(--text-muted)]">
+                        {tool.app}
+                      </span>
+                      {tool.destructive && (
+                        <span className="px-1 py-0.2 rounded-xs bg-[var(--error-container)] text-[var(--on-error-container)] font-label-caps text-[7px] font-bold">
+                          DESTRUCTIVE
+                        </span>
+                      )}
+                    </div>
+                    <span className="font-body-sm text-[10px] text-[var(--text-muted)] block mt-0.5">
+                      {tool.policy}
                     </span>
-                    {tool.destructive && (
-                      <span className="px-1 py-0.2 rounded-xs bg-[var(--error-container)] text-[var(--on-error-container)] font-label-caps text-[7px] font-bold">
-                        DESTRUCTIVE
+                  </div>
+
+                  <div className="flex items-center gap-2 text-right">
+                    <span
+                      className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
+                        tool.level === "CRITICAL"
+                          ? "bg-[var(--error-container)] text-[var(--on-error-container)] border border-[var(--error)]/40"
+                          : "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40"
+                      }`}
+                    >
+                      {tool.level} ({tool.score})
+                    </span>
+                    {tool.blocksCount > 0 && (
+                      <span className="font-code-sm text-[9px] text-[var(--error)] font-bold hidden sm:inline">
+                        {tool.blocksCount} BLOCKED
                       </span>
                     )}
                   </div>
-                  <span className="font-body-sm text-[10px] text-[var(--text-muted)] block mt-0.5">
-                    {tool.policy}
-                  </span>
                 </div>
-
-                <div className="flex items-center gap-2 text-right">
-                  <span
-                    className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
-                      tool.level === "CRITICAL"
-                        ? "bg-[var(--error-container)] text-[var(--on-error-container)] border border-[var(--error)]/40"
-                        : "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40"
-                    }`}
-                  >
-                    {tool.level} ({tool.score})
-                  </span>
-                  {tool.blocksCount > 0 && (
-                    <span className="font-code-sm text-[9px] text-[var(--error)] font-bold hidden sm:inline">
-                      {tool.blocksCount} BLOCKED
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* High-Risk Software Boundaries */}
@@ -366,44 +436,63 @@ export default function RiskCenterPage() {
             </span>
           </div>
 
-          <div className="space-y-1.5 font-mono text-xs">
-            {displayIntegrations.map((app) => (
-              <div
-                key={app.id}
-                className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] flex items-center justify-between gap-2 hover:border-[var(--border-interactive)] transition-colors"
+          {loading ? (
+            <div className="py-8 text-center text-[var(--text-muted)] text-xs font-mono">
+              Loading boundary integrations...
+            </div>
+          ) : displayIntegrations.length === 0 ? (
+            <div className="py-8 px-4 text-center border border-dashed border-[var(--border)] rounded-xs bg-[var(--surface-container-lowest)] space-y-2">
+              <AlertTriangle className="w-5 h-5 mx-auto text-[var(--text-muted)]" />
+              <p className="text-xs text-[var(--text-secondary)] font-mono">
+                No external software boundaries configured.
+              </p>
+              <Link
+                href="/integrations"
+                className="inline-block px-3 py-1 rounded-xs border border-[var(--secondary-container)] text-[var(--secondary-container)] text-xs font-mono hover:bg-[var(--secondary-container)]/10"
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-base">{app.icon}</span>
-                  <div>
-                    <span className="font-bold text-xs text-[var(--primary)] block font-mono">
-                      {app.name}
+                Configure Integrations &rarr;
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-1.5 font-mono text-xs">
+              {displayIntegrations.map((app) => (
+                <div
+                  key={app.id}
+                  className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] flex items-center justify-between gap-2 hover:border-[var(--border-interactive)] transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{app.icon}</span>
+                    <div>
+                      <span className="font-bold text-xs text-[var(--primary)] block font-mono">
+                        {app.name}
+                      </span>
+                      <span className="font-code-sm text-[10px] text-[var(--text-muted)]">
+                        {app.tools_count} callable tools · Status: {app.status}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
+                        app.risk_level === "CRITICAL"
+                          ? "bg-[var(--error-container)] text-[var(--on-error-container)] border border-[var(--error)]/40"
+                          : "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40"
+                      }`}
+                    >
+                      {app.risk_level}
                     </span>
-                    <span className="font-code-sm text-[10px] text-[var(--text-muted)]">
-                      {app.tools_count} callable tools · Status: {app.status}
-                    </span>
+                    <Link
+                      href={`/integrations/${app.id}`}
+                      className="p-1 rounded-xs border border-[var(--border)] bg-[var(--surface-container-high)] text-[var(--text-secondary)] hover:text-[var(--secondary-container)] hover:border-[var(--secondary-container)] transition-colors"
+                    >
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
-                      app.risk_level === "CRITICAL"
-                        ? "bg-[var(--error-container)] text-[var(--on-error-container)] border border-[var(--error)]/40"
-                        : "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40"
-                    }`}
-                  >
-                    {app.risk_level}
-                  </span>
-                  <Link
-                    href={`/integrations/${app.id}`}
-                    className="p-1 rounded-xs border border-[var(--border)] bg-[var(--surface-container-high)] text-[var(--text-secondary)] hover:text-[var(--secondary-container)] hover:border-[var(--secondary-container)] transition-colors"
-                  >
-                    <ArrowRight className="w-3 h-3" />
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

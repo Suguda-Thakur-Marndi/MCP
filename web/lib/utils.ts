@@ -26,10 +26,13 @@ export function riskClass(level: string): string {
 
 export function riskBadgeClass(level: string): string {
   const l = level?.toUpperCase();
-  if (l === "CRITICAL") return "badge badge-danger";
-  if (l === "HIGH") return "badge badge-warning";
-  if (l === "MEDIUM") return "badge badge-warning";
-  return "badge badge-success";
+  if (l === "CRITICAL")
+    return "font-label-mono text-label-mono font-semibold px-space-xs py-0.5 rounded-xs bg-[#FAECEC] text-[#B33939] border border-[#F3D1D1]";
+  if (l === "HIGH")
+    return "font-label-mono text-label-mono font-semibold px-space-xs py-0.5 rounded-xs bg-[#FEF7EC] text-[#D97706] border border-[#FCE2B6]";
+  if (l === "MEDIUM")
+    return "font-label-mono text-label-mono font-semibold px-space-xs py-0.5 rounded-xs bg-surface-container-high text-on-surface-variant border border-surface-container-highest";
+  return "font-label-mono text-label-mono font-semibold px-space-xs py-0.5 rounded-xs bg-[#EEF6F5] text-[#2A7B76] border border-[#C5E3E1]";
 }
 
 // --------------------------------------------------------------------------
@@ -37,12 +40,15 @@ export function riskBadgeClass(level: string): string {
 // --------------------------------------------------------------------------
 export function statusBadgeClass(status: string): string {
   const s = status?.toUpperCase();
-  if (s === "APPROVED" || s === "COMPLETED") return "badge badge-success";
-  if (s === "PENDING") return "badge badge-warning";
-  if (s === "DENIED" || s === "FAILED") return "badge badge-danger";
-  if (s === "EXPIRED" || s === "CANCELLED") return "badge badge-neutral";
-  if (s === "EXECUTING") return "badge badge-info";
-  return "badge badge-neutral";
+  if (s === "APPROVED" || s === "COMPLETED")
+    return "font-label-mono text-label-mono font-semibold px-space-xs py-0.5 rounded-xs bg-secondary text-on-secondary";
+  if (s === "PENDING" || s === "AWAITING")
+    return "font-label-mono text-label-mono font-semibold px-space-xs py-0.5 rounded-xs bg-primary text-on-primary";
+  if (s === "DENIED" || s === "FAILED" || s === "REJECTED" || s === "BLOCKED")
+    return "font-label-mono text-label-mono font-semibold px-space-xs py-0.5 rounded-xs bg-error text-on-error";
+  if (s === "EXECUTING" || s === "RUNNING")
+    return "font-label-mono text-label-mono font-semibold px-space-xs py-0.5 rounded-xs bg-secondary-container text-on-secondary-container";
+  return "font-label-mono text-label-mono font-semibold px-space-xs py-0.5 rounded-xs bg-surface-container-high text-on-surface-variant";
 }
 
 // --------------------------------------------------------------------------
@@ -50,15 +56,33 @@ export function statusBadgeClass(status: string): string {
 // --------------------------------------------------------------------------
 export function decisionBadgeClass(decision: string): string {
   const d = decision?.toUpperCase();
-  if (d === "ALLOW" || d === "ALLOWED" || d === "PASS") return "badge badge-success";
-  if (d === "BLOCK" || d === "BLOCKED" || d === "REJECTED" || d === "FAIL") return "badge badge-danger";
-  if (d === "REQUIRE_APPROVAL" || d === "PENDING") return "badge badge-warning";
-  return "badge badge-neutral";
+  if (d === "ALLOW" || d === "ALLOWED" || d === "PASS")
+    return "font-label-mono text-label-mono font-bold px-space-xs py-0.5 rounded-xs bg-secondary text-on-secondary";
+  if (d === "BLOCK" || d === "BLOCKED" || d === "REJECTED" || d === "FAIL" || d === "INTERCEPTED")
+    return "font-label-mono text-label-mono font-bold px-space-xs py-0.5 rounded-xs bg-error text-on-error";
+  if (d === "REQUIRE_APPROVAL" || d === "PENDING" || d === "PENDING APPROVAL")
+    return "font-label-mono text-label-mono font-bold px-space-xs py-0.5 rounded-xs bg-primary text-on-primary";
+  return "font-label-mono text-label-mono font-semibold px-space-xs py-0.5 rounded-xs bg-surface-container-high text-on-surface-variant";
 }
 
 // --------------------------------------------------------------------------
-// Date formatting
+// Number and date formatting with fixed locale to avoid hydration mismatches
 // --------------------------------------------------------------------------
+export function formatNumber(num: number | undefined | null): string {
+  if (num === undefined || num === null || isNaN(Number(num))) return "0";
+  return new Intl.NumberFormat("en-US").format(Number(num));
+}
+
+export function formatTime(iso: string | Date | undefined | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
 export function formatDate(iso: string): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("en-US", {

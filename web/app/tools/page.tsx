@@ -12,15 +12,16 @@ import {
   Lock,
   ChevronRight,
   RefreshCw,
+  Wrench,
+  AlertTriangle,
 } from "lucide-react";
-import { INTEGRATIONS } from "@/lib/sentinel-data";
 import { api, ToolInfo } from "@/lib/api";
-import { prettyJson } from "@/lib/utils";
+import { prettyJson, formatNumber, riskBadgeClass } from "@/lib/utils";
+import { LoadingState, EmptyState } from "@/components/ui/FeedbackStates";
 
 interface UnifiedToolRow {
   id: string;
   application: string;
-  appLogo: string;
   toolName: string;
   description: string;
   riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
@@ -31,7 +32,6 @@ interface UnifiedToolRow {
   status: "ACTIVE" | "ENFORCING" | "RESTRICTED";
   allowedResources: string[];
   parametersSchema: Record<string, unknown>;
-  recentExecutionsCount: number;
 }
 
 export default function ToolRegistryPage() {
@@ -50,466 +50,364 @@ export default function ToolRegistryPage() {
       .tools()
       .then((data) => {
         startTransition(() => {
-          if (Array.isArray(data) && data.length > 0) {
+          if (Array.isArray(data)) {
             setLiveTools(data);
+          } else {
+            setLiveTools([]);
           }
           setLoading(false);
         });
       })
       .catch(() => {
         startTransition(() => {
+          setLiveTools([]);
           setLoading(false);
         });
       });
   };
 
   useEffect(() => {
-    let isMounted = true;
-    api.policies
-      .tools()
-      .then((data) => {
-        if (isMounted) {
-          startTransition(() => {
-            if (Array.isArray(data) && data.length > 0) {
-              setLiveTools(data);
-            }
-            setLoading(false);
-          });
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          startTransition(() => {
-            setLoading(false);
-          });
-        }
-      });
-    return () => {
-      isMounted = false;
-    };
+    loadTools();
   }, []);
 
-  // Compile unified tools array across every connected application or backend FastMCP tools
   const allTools: UnifiedToolRow[] = useMemo(() => {
-    if (liveTools.length > 0) {
-      return liveTools.map((t) => {
-        const name = t.tool_name || t.name;
-        let app = "FastMCP Daemon";
-        let logo = "⚡";
-        if (name.startsWith("github.")) {
-          app = "GitHub";
-          logo = "🐙";
-        } else if (name.startsWith("drive.")) {
-          app = "Google Drive";
-          logo = "📁";
-        } else if (name.startsWith("jira.")) {
-          app = "Jira";
-          logo = "📐";
-        } else if (name.startsWith("slack.")) {
-          app = "Slack";
-          logo = "💬";
-        } else if (name.startsWith("linear.")) {
-          app = "Linear";
-          logo = "📐";
-        } else if (name.startsWith("canva.")) {
-          app = "Canva";
-          logo = "🎨";
-        } else if (name.startsWith("postgres.") || name.startsWith("customer.") || name.startsWith("database.")) {
-          app = "PostgreSQL DB";
-          logo = "🐘";
-        }
+    return liveTools.map((t) => {
+      const name = t.tool_name || t.name;
+      let app = "FastMCP Core";
+      if (name.startsWith("github.") || name.includes("github")) {
+        app = "GitHub";
+      } else if (name.startsWith("postgres.") || name.startsWith("customer.") || name.startsWith("order.") || name.startsWith("database.")) {
+        app = "PostgreSQL DB";
+      } else if (name.startsWith("k8s.") || name.includes("kubernetes")) {
+        app = "Kubernetes";
+      } else if (name.startsWith("aws.") || name.includes("iam")) {
+        app = "AWS IAM";
+      } else if (name.startsWith("audit.")) {
+        app = "Audit WORM";
+      }
 
-        const rawScore = parseInt(t.base_risk?.replace("/100", "") || "0", 10);
-        const score = rawScore > 0 ? rawScore : t.risk_level === "CRITICAL" ? 95 : t.risk_level === "HIGH" ? 75 : t.risk_level === "MEDIUM" ? 45 : 15;
-        const riskLevel = (t.risk_level as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL") || (t.is_destructive ? "CRITICAL" : "MEDIUM");
+      const rawScore = parseInt(t.base_risk?.replace("/100", "") || "0", 10);
+      const score = rawScore > 0 ? rawScore : t.risk_level === "CRITICAL" ? 95 : t.risk_level === "HIGH" ? 75 : t.risk_level === "MEDIUM" ? 45 : 15;
+      const riskLevel = (t.risk_level as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL") || (t.is_destructive ? "CRITICAL" : "MEDIUM");
 
-        return {
-          id: `live_${name}`,
-          application: app,
-          appLogo: logo,
-          toolName: name,
-          description: t.description || `FastMCP governed capability: ${name}`,
-          riskLevel,
-          riskScore: score,
-          requiredApproval: Boolean(t.requires_approval || t.is_destructive),
-          isDestructive: Boolean(t.is_destructive),
-          policy: t.is_destructive ? "Destructive Operation Quarantine" : t.requires_approval ? "Dual-Custody Gated" : "Standard Invariant Guardrail",
-          status: t.is_destructive ? "RESTRICTED" : t.requires_approval ? "ENFORCING" : "ACTIVE",
-          allowedResources: [t.resource_type || "default", "cluster/prod"],
-          parametersSchema: t.parameters || {},
-          recentExecutionsCount: score * 12,
-        };
-      });
-    }
-
-    // Default static inventory if backend has not yet registered remote servers
-    const list: UnifiedToolRow[] = [];
-    INTEGRATIONS.forEach((app) => {
-      app.tools.forEach((t) => {
-        list.push({
-          id: `${app.id}_${t.name}`,
-          application: app.name,
-          appLogo: app.logo,
-          toolName: t.name,
-          description: t.description,
-          riskLevel: t.riskLevel,
-          riskScore: t.riskScore,
-          requiredApproval: t.requiresApproval,
-          isDestructive: t.isDestructive,
-          policy: t.policy,
-          status: t.isDestructive ? "RESTRICTED" : t.requiresApproval ? "ENFORCING" : "ACTIVE",
-          allowedResources: t.allowedResources,
-          parametersSchema: t.parametersSchema,
-          recentExecutionsCount: t.recentExecutionsCount,
-        });
-      });
+      return {
+        id: `live_${name}`,
+        application: app,
+        toolName: name,
+        description: t.description || `FastMCP governed capability: ${name}`,
+        riskLevel,
+        riskScore: score,
+        requiredApproval: Boolean(t.requires_approval || t.is_destructive),
+        isDestructive: Boolean(t.is_destructive),
+        policy: t.is_destructive ? "Destructive Operation Quarantine" : t.requires_approval ? "Dual-Custody Gated" : "Standard Invariant Guardrail",
+        status: t.is_destructive ? "RESTRICTED" : t.requires_approval ? "ENFORCING" : "ACTIVE",
+        allowedResources: [t.resource_type || "default", "cluster/prod"],
+        parametersSchema: (t.parameters || {}) as Record<string, unknown>,
+      };
     });
-    return list;
   }, [liveTools]);
 
-  const applications = useMemo(() => {
-    return ["ALL", ...Array.from(new Set(allTools.map((t) => t.application)))];
+  const uniqueApplications = useMemo(() => {
+    return Array.from(new Set(allTools.map((t) => t.application)));
   }, [allTools]);
 
   const filteredTools = useMemo(() => {
-    return allTools.filter((t) => {
-      if (selectedApp !== "ALL" && t.application !== selectedApp) return false;
-      if (selectedRisk !== "ALL" && t.riskLevel !== selectedRisk) return false;
+    return allTools.filter((tool) => {
+      if (selectedApp !== "ALL" && tool.application !== selectedApp) return false;
+      if (selectedRisk !== "ALL" && tool.riskLevel !== selectedRisk) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const matches =
-          t.toolName.toLowerCase().includes(q) ||
-          t.application.toLowerCase().includes(q) ||
-          t.description.toLowerCase().includes(q) ||
-          t.policy.toLowerCase().includes(q);
-        if (!matches) return false;
+        return (
+          tool.toolName.toLowerCase().includes(q) ||
+          tool.description.toLowerCase().includes(q) ||
+          tool.application.toLowerCase().includes(q)
+        );
       }
       return true;
     });
   }, [allTools, selectedApp, selectedRisk, searchQuery]);
 
-  const handleCopy = (text: string) => {
+  const handleCopySchema = (schema: Record<string, unknown>) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(text);
+      navigator.clipboard.writeText(prettyJson(schema));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   };
 
   return (
-    <div className="p-3 sm:p-5 max-w-7xl mx-auto space-y-4 font-sans select-none animate-in fade-in duration-150">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
+    <div className="w-full px-space-md sm:px-space-lg lg:px-space-xl py-space-lg flex flex-col gap-space-xl">
+      {/* Header Banner */}
+      <section className="bg-surface-container-lowest p-space-lg rounded-xl shadow-xs border border-surface-container flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-widest">
-              MISSION CONTROL // MCP TOOL INVENTORY
+          <div className="flex items-center gap-space-sm mb-space-xxs">
+            <span className="font-label-mono text-label-mono text-secondary font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
+              CAPABILITY GOVERNANCE
             </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-container)] animate-pulse" />
-            <span className="font-code-sm text-[10px] text-[var(--primary-container)] font-bold">
-              {allTools.length} GOVERNED CAPABILITIES
+            <span className="font-label-mono text-label-mono px-space-xs py-0.5 rounded bg-surface-container text-on-surface-variant font-bold">
+              FASTMCP AUTHORITATIVE
             </span>
           </div>
-          <h1 className="font-headline-md text-lg sm:text-xl font-bold tracking-tight text-[var(--primary)]">
-            CENTRAL TOOL REGISTRY & CAPABILITY CATALOG
+          <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-bold">
+            Governed Tool Registry &amp; Capabilities
           </h1>
-          <p className="font-body-sm text-xs text-[var(--text-secondary)] mt-0.5">
-            Monitored MCP tools across all connected services with strict Pydantic V2 parameter schema enforcement, blast-radius limits, and invariant gating.
+          <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+            Cryptographically bounded tool schemas, parameter validations, and risk thresholds
           </p>
         </div>
 
-        <div className="flex items-center gap-2 font-mono text-xs self-start sm:self-auto">
+        <div className="flex items-center gap-space-xs">
           <button
             onClick={loadTools}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] text-[var(--text-primary)] hover:border-[var(--secondary-container)] transition-all font-code-sm text-xs cursor-pointer"
-            title="Refresh tool registry"
+            className="p-2 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
+            title="Reload Tool Registry"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-[var(--secondary-container)] ${loading ? "animate-spin" : ""}`} />
-            <span>SYNC TOOLS</span>
+            <RefreshCw className="w-4 h-4" />
           </button>
-          <Link
-            href="/integrations"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] text-[var(--text-primary)] hover:border-[var(--secondary-container)] transition-all font-code-sm text-xs"
+        </div>
+      </section>
+
+      {/* KPI Stats Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-space-sm font-label-mono text-label-mono">
+        <div className="p-space-md rounded-xl bg-surface-container-lowest border border-surface-container">
+          <span className="text-on-surface-variant uppercase text-[11px] block">BOUND TOOLS</span>
+          <span className="font-headline-xl text-headline-xl text-on-surface font-bold block mt-1">
+            {allTools.length}
+          </span>
+          <span className="text-[10px] text-secondary font-semibold">FastMCP registered endpoints</span>
+        </div>
+        <div className="p-space-md rounded-xl bg-surface-container-lowest border border-surface-container">
+          <span className="text-on-surface-variant uppercase text-[11px] block">APPROVAL GATED</span>
+          <span className="font-headline-xl text-headline-xl text-primary font-bold block mt-1">
+            {allTools.filter((t) => t.requiredApproval).length}
+          </span>
+          <span className="text-[10px] text-primary font-semibold">Strict dual-custody enforced</span>
+        </div>
+        <div className="p-space-md rounded-xl bg-surface-container-lowest border border-surface-container">
+          <span className="text-on-surface-variant uppercase text-[11px] block">DESTRUCTIVE ACTIONS</span>
+          <span className="font-headline-xl text-headline-xl text-error font-bold block mt-1">
+            {allTools.filter((t) => t.isDestructive).length}
+          </span>
+          <span className="text-[10px] text-error font-semibold">Zero auto-execution quarantine</span>
+        </div>
+        <div className="p-space-md rounded-xl bg-surface-container-lowest border border-surface-container">
+          <span className="text-on-surface-variant uppercase text-[11px] block">SUBSYSTEM SOURCES</span>
+          <span className="font-headline-xl text-headline-xl text-on-surface font-bold block mt-1">
+            {uniqueApplications.length || 1}
+          </span>
+          <span className="text-[10px] text-on-surface-variant">Connected tool providers</span>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-space-sm">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-on-surface-variant absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search tools by name, description..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant pl-9 pr-3 py-1.5 rounded-lg border border-surface-container text-body-sm font-body-sm outline-hidden"
+          />
+        </div>
+
+        <div className="flex items-center gap-space-xs w-full sm:w-auto">
+          <select
+            value={selectedApp}
+            onChange={(e) => setSelectedApp(e.target.value)}
+            className="bg-surface-container-lowest text-on-surface px-space-md py-1.5 rounded-lg border border-surface-container text-body-sm font-body-sm outline-hidden cursor-pointer"
           >
-            <Layers className="w-3.5 h-3.5 text-[var(--secondary-container)]" />
-            <span>CONNECTED SOFTWARE ({applications.length - 1})</span>
-          </Link>
+            <option value="ALL">All Application Sources</option>
+            {uniqueApplications.map((app) => (
+              <option key={app} value={app}>
+                {app}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={selectedRisk}
+            onChange={(e) => setSelectedRisk(e.target.value)}
+            className="bg-surface-container-lowest text-on-surface px-space-md py-1.5 rounded-lg border border-surface-container text-body-sm font-body-sm outline-hidden cursor-pointer"
+          >
+            <option value="ALL">All Risk Ratings</option>
+            <option value="LOW">LOW</option>
+            <option value="MEDIUM">MEDIUM</option>
+            <option value="HIGH">HIGH</option>
+            <option value="CRITICAL">CRITICAL</option>
+          </select>
         </div>
       </div>
 
-      {/* Filter and Search Bar */}
-      <div className="p-2.5 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] space-y-2">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-          <div className="flex-1 relative max-w-md">
-            <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search tools across GitHub, Drive, Jira, Slack, FastMCP..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] font-code-sm text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:border-[var(--secondary-container)]"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 font-code-sm text-xs">
-            {/* App filter */}
-            <select
-              value={selectedApp}
-              onChange={(e) => setSelectedApp(e.target.value)}
-              className="px-2 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden"
-            >
-              <option value="ALL">All Applications ({allTools.length})</option>
-              {applications.filter((a) => a !== "ALL").map((app) => (
-                <option key={app} value={app}>{app}</option>
-              ))}
-            </select>
-
-            {/* Risk filter */}
-            <select
-              value={selectedRisk}
-              onChange={(e) => setSelectedRisk(e.target.value)}
-              className="px-2 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden"
-            >
-              <option value="ALL">All Risk Levels</option>
-              <option value="LOW">Low Risk</option>
-              <option value="MEDIUM">Medium Risk</option>
-              <option value="HIGH">High Risk</option>
-              <option value="CRITICAL">Critical Risk</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Central Tool Registry Table */}
-      <div className="rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse font-sans text-xs">
-            <thead>
-              <tr className="bg-[var(--surface-container-lowest)] border-b border-[var(--border)] font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-wider">
-                <th className="px-3 py-2">APPLICATION</th>
-                <th className="px-3 py-2">TOOL IDENTIFIER</th>
-                <th className="px-3 py-2">GOVERNED CAPABILITY DESCRIPTION</th>
-                <th className="px-3 py-2">RISK SCORE</th>
-                <th className="px-3 py-2">GATING</th>
-                <th className="px-3 py-2">POLICY INVARIANT</th>
-                <th className="px-3 py-2">STATUS</th>
-                <th className="px-3 py-2 text-right">INSPECT</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border)] font-code-sm">
-              {filteredTools.map((t) => (
-                <tr
-                  key={t.id}
-                  className="hover:bg-[var(--surface-container-high)]/50 transition-colors cursor-pointer"
-                  onClick={() => setSelectedTool(t)}
-                >
-                  {/* APPLICATION */}
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-sm">{t.appLogo}</span>
-                      <span className="font-semibold text-xs text-[var(--text-primary)] font-sans">
-                        {t.application}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* TOOL */}
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <code className="text-[11px] font-bold text-[var(--secondary-container)] font-mono">
-                      {t.toolName}
-                    </code>
-                  </td>
-
-                  {/* DESCRIPTION */}
-                  <td className="px-3 py-2 text-[var(--text-secondary)] font-sans max-w-xs truncate">
-                    {t.description}
-                  </td>
-
-                  {/* RISK */}
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <span
-                      className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[8px] font-bold ${
-                        t.riskLevel === "CRITICAL"
-                          ? "bg-[var(--error-container)] text-[var(--on-error-container)] border border-[var(--error)]/40"
-                          : t.riskLevel === "HIGH"
-                          ? "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40"
-                          : t.riskLevel === "MEDIUM"
-                          ? "bg-[var(--secondary-container)]/20 text-[var(--secondary-container)] border border-[var(--secondary-container)]/40"
-                          : "bg-[var(--primary-container)]/20 text-[var(--primary-container)] border border-[var(--primary-container)]/40"
-                      }`}
-                    >
-                      {t.riskLevel} ({t.riskScore})
-                    </span>
-                  </td>
-
-                  {/* GATING */}
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    {t.requiredApproval ? (
-                      <span className="inline-flex items-center gap-1 font-label-caps text-[8px] px-1.5 py-0.5 rounded-xs bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] font-bold">
-                        <Lock className="w-2.5 h-2.5" />
-                        DUAL-CUSTODY
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 font-label-caps text-[8px] px-1.5 py-0.5 rounded-xs bg-[var(--surface-container-high)] text-[var(--text-muted)]">
-                        AUTOMATIC
-                      </span>
-                    )}
-                  </td>
-
-                  {/* POLICY */}
-                  <td className="px-3 py-2 text-[var(--text-muted)] font-mono text-[10px] max-w-xs truncate">
-                    {t.policy}
-                  </td>
-
-                  {/* STATUS */}
-                  <td className="px-3 py-2 whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center gap-1 font-label-caps text-[8px] px-1.5 py-0.5 rounded-xs font-bold ${
-                        t.status === "RESTRICTED"
-                          ? "bg-[var(--error-container)] text-[var(--on-error-container)]"
-                          : t.status === "ENFORCING"
-                          ? "bg-[var(--secondary-container)]/20 text-[var(--secondary-container)]"
-                          : "bg-[var(--primary-container)]/20 text-[var(--primary-container)]"
-                      }`}
-                    >
-                      <span className="w-1 h-1 rounded-full bg-current" />
-                      {t.status}
-                    </span>
-                  </td>
-
-                  {/* INSPECT */}
-                  <td className="px-3 py-2 text-right whitespace-nowrap">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedTool(t);
-                      }}
-                      className="p-1 rounded-xs border border-[var(--border)] bg-[var(--surface-container-high)] text-[var(--text-secondary)] hover:text-[var(--secondary-container)] hover:border-[var(--secondary-container)] transition-colors cursor-pointer"
-                    >
-                      <Eye className="w-3 h-3" />
-                    </button>
-                  </td>
+      {/* Tool Table */}
+      <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-surface-container overflow-hidden">
+        {loading ? (
+          <LoadingState message="Querying authoritative FastMCP capability registry..." />
+        ) : filteredTools.length === 0 ? (
+          <EmptyState
+            title="No Governed Tools Found"
+            message="No registered tools matched your query filters or have been published by active MCP daemons."
+            icon={Wrench}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse font-body-sm text-body-sm">
+              <thead>
+                <tr className="bg-surface-container-low font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider border-b border-surface-container">
+                  <th className="py-space-sm px-space-lg">Tool Name</th>
+                  <th className="py-space-sm px-space-md">Application</th>
+                  <th className="py-space-sm px-space-md">Risk Score</th>
+                  <th className="py-space-sm px-space-md">Approval Gating</th>
+                  <th className="py-space-sm px-space-md">Governing Policy</th>
+                  <th className="py-space-sm px-space-lg text-right">Inspection</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-surface-container font-body-sm">
+                {filteredTools.map((tool) => (
+                  <tr key={tool.id} className="hover:bg-surface-container-low/60 transition-colors">
+                    <td className="py-space-md px-space-lg">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-on-surface font-label-mono text-body-sm">
+                            {tool.toolName}
+                          </span>
+                          {tool.isDestructive && (
+                            <span className="px-1.5 py-0.5 rounded bg-error-container text-on-error-container font-label-mono text-[9px] font-bold">
+                              DESTRUCTIVE
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-on-surface-variant line-clamp-1 mt-0.5">
+                          {tool.description}
+                        </div>
+                      </div>
+                    </td>
 
-        <div className="p-2.5 border-t border-[var(--border)] bg-[var(--surface-container-lowest)] flex items-center justify-between text-xs text-[var(--text-muted)] font-code-sm">
-          <span>{filteredTools.length} Tools Enforced in Central Registry</span>
-          <span className="text-[var(--primary-container)] font-bold">Zero Direct Privileged Executions Permitted</span>
-        </div>
+                    <td className="py-space-md px-space-md whitespace-nowrap">
+                      <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-mono text-[10px] font-bold">
+                        {tool.application}
+                      </span>
+                    </td>
+
+                    <td className="py-space-md px-space-md whitespace-nowrap">
+                      <span className={`px-2 py-0.5 rounded font-label-mono text-[10px] font-semibold ${riskBadgeClass(tool.riskLevel)}`}>
+                        {tool.riskLevel} ({tool.riskScore})
+                      </span>
+                    </td>
+
+                    <td className="py-space-md px-space-md whitespace-nowrap font-label-mono">
+                      {tool.requiredApproval ? (
+                        <span className="px-2 py-0.5 rounded bg-primary text-on-primary font-bold text-[10px] flex items-center gap-1 w-fit">
+                          <Lock className="w-3 h-3" />
+                          <span>MANDATORY GATED</span>
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-secondary font-semibold">
+                          Permitted (Guarded)
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="py-space-md px-space-md text-[11px] font-label-mono text-on-surface-variant max-w-xs truncate">
+                      {tool.policy}
+                    </td>
+
+                    <td className="py-space-md px-space-lg text-right whitespace-nowrap">
+                      <button
+                        onClick={() => setSelectedTool(tool)}
+                        className="px-2.5 py-1 rounded bg-surface-container text-on-surface hover:bg-surface-container-high font-label-ui text-label-ui font-semibold transition-colors cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>Inspect Schema</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* TOOL DETAIL INSPECTION DRAWER */}
+      {/* Schema Drawer Modal */}
       {selectedTool && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/75 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-w-lg h-full bg-[var(--surface-container-low)] border-l border-[var(--border-interactive)] shadow-2xl p-4 sm:p-5 flex flex-col justify-between overflow-y-auto space-y-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
-                <div>
-                  <div className="flex items-center gap-1.5 font-label-caps text-[9px] uppercase text-[var(--text-muted)]">
-                    <span>{selectedTool.appLogo}</span>
-                    <span>{selectedTool.application}</span>
-                  </div>
-                  <h3 className="font-headline-sm text-sm font-bold text-[var(--primary)] font-mono">
-                    {selectedTool.toolName}
-                  </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-surface-container-lowest rounded-xl max-w-2xl w-full p-space-xl border border-surface-container shadow-xl max-h-[85vh] flex flex-col">
+            <div className="flex items-start justify-between pb-space-sm border-b border-surface-container mb-space-md">
+              <div>
+                <div className="flex items-center gap-space-xs font-label-mono text-[11px] text-on-surface-variant mb-1">
+                  <span className="font-bold text-primary">{selectedTool.application}</span>
+                  <span>•</span>
+                  <span>{selectedTool.riskLevel} Risk</span>
                 </div>
-                <button
-                  onClick={() => setSelectedTool(null)}
-                  className="p-1 rounded-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-container-high)] cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <h3 className="font-headline-md text-headline-md text-on-surface font-bold">
+                  {selectedTool.toolName}
+                </h3>
               </div>
+              <button
+                onClick={() => setSelectedTool(null)}
+                className="text-on-surface-variant hover:text-on-surface cursor-pointer p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-              <p className="font-body-sm text-xs text-[var(--text-secondary)] leading-relaxed">
-                {selectedTool.description}
-              </p>
-
-              {/* Attributes Grid */}
-              <div className="grid grid-cols-2 gap-2 font-code-sm text-xs">
-                <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
-                  <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">RISK LEVEL</span>
-                  <span className="font-bold text-[var(--tertiary-fixed-dim)]">
-                    {selectedTool.riskLevel} ({selectedTool.riskScore}/100)
-                  </span>
-                </div>
-                <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
-                  <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">APPROVAL GATING</span>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    {selectedTool.requiredApproval ? "DUAL-CUSTODY" : "AUTOMATIC"}
-                  </span>
-                </div>
-                <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
-                  <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">DESTRUCTIVE ACTION</span>
-                  <span className={`font-bold ${selectedTool.isDestructive ? "text-[var(--error)]" : "text-[var(--primary-container)]"}`}>
-                    {selectedTool.isDestructive ? "MUTATION / PURGE" : "READ-ONLY"}
-                  </span>
-                </div>
-                <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
-                  <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">USAGE HISTORY</span>
-                  <span className="font-bold text-[var(--text-primary)]">
-                    {selectedTool.recentExecutionsCount.toLocaleString()} calls
-                  </span>
-                </div>
-              </div>
-
-              {/* Allowed Resources & Permissions */}
-              <div className="space-y-1 font-code-sm text-xs">
-                <span className="font-label-caps text-[8px] uppercase text-[var(--text-muted)] font-bold block">
-                  ALLOWED RESOURCE PATHS
+            <div className="flex-1 overflow-y-auto space-y-space-md pr-1">
+              <div>
+                <span className="font-label-mono text-[10px] text-on-surface-variant uppercase font-semibold block mb-1">
+                  Purpose &amp; Security Boundary
                 </span>
-                <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] font-mono">
-                  {selectedTool.allowedResources.join(", ")}
+                <p className="font-body-sm text-body-sm text-on-surface leading-relaxed">
+                  {selectedTool.description}
+                </p>
+              </div>
+
+              <div className="p-space-md rounded-lg bg-surface-container-low border border-surface-container font-label-mono text-label-mono space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-on-surface-variant">Policy Invariant:</span>
+                  <span className="font-semibold text-on-surface">{selectedTool.policy}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-on-surface-variant">Dual-Custody Sign-Off:</span>
+                  <span className="font-semibold text-primary">
+                    {selectedTool.requiredApproval ? "Enforced" : "Not Required"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-on-surface-variant">Destructive Vector:</span>
+                  <span className="font-semibold text-error">
+                    {selectedTool.isDestructive ? "Yes (Irreversible)" : "No (Safe/Scoped)"}
+                  </span>
                 </div>
               </div>
 
-              {/* Policy Enforced */}
-              <div className="space-y-1 font-code-sm text-xs">
-                <span className="font-label-caps text-[8px] uppercase text-[var(--text-muted)] font-bold block">
-                  ACTIVE INVARIANT POLICY BINDING
-                </span>
-                <div className="p-2 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs font-semibold text-[var(--secondary-container)] font-mono">
-                  {selectedTool.policy}
-                </div>
-              </div>
-
-              {/* Schema and Parameters */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-label-caps text-[8px] uppercase text-[var(--text-muted)] font-bold">
-                    PYDANTIC V2 PARAMETERS JSON SCHEMA
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-label-mono text-[10px] text-on-surface-variant uppercase font-semibold">
+                    Input Parameters Schema (JSONSchema)
                   </span>
                   <button
-                    onClick={() => handleCopy(JSON.stringify(selectedTool.parametersSchema, null, 2))}
-                    className="flex items-center gap-1 font-code-sm text-[10px] text-[var(--secondary-container)] hover:underline font-mono cursor-pointer"
+                    onClick={() => handleCopySchema(selectedTool.parametersSchema)}
+                    className="flex items-center gap-1 font-label-mono text-[10px] text-primary hover:underline cursor-pointer"
                   >
-                    {copied ? <Check className="w-3 h-3 text-[var(--primary-container)]" /> : <Copy className="w-3 h-3" />}
+                    {copied ? <Check className="w-3 h-3 text-secondary" /> : <Copy className="w-3 h-3" />}
                     <span>{copied ? "Copied" : "Copy Schema"}</span>
                   </button>
                 </div>
-                <pre className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-[10px] font-mono leading-relaxed text-[var(--text-primary)] overflow-x-auto max-h-48">
+                <pre className="p-space-md bg-surface-container rounded-lg font-label-mono text-code-sm text-on-surface overflow-x-auto border border-surface-container max-h-60">
                   {prettyJson(selectedTool.parametersSchema)}
                 </pre>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-[var(--border)] flex items-center justify-between">
-              <Link
-                href="/audit"
-                className="font-code-sm text-xs text-[var(--secondary-container)] font-semibold hover:underline flex items-center gap-1"
-              >
-                <span>Recent Tool Audit Events</span>
-                <ChevronRight className="w-3.5 h-3.5" />
-              </Link>
+            <div className="pt-space-md border-t border-surface-container flex justify-end">
               <button
                 onClick={() => setSelectedTool(null)}
-                className="px-3 py-1 rounded-xs font-code-sm text-xs font-semibold bg-[var(--surface-container-high)] border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--surface-container-highest)] cursor-pointer"
+                className="px-space-md py-1.5 rounded-lg bg-surface-container text-on-surface font-label-ui text-label-ui font-semibold hover:bg-surface-container-high transition-colors cursor-pointer"
               >
-                CLOSE INSPECTOR
+                Close Inspector
               </button>
             </div>
           </div>

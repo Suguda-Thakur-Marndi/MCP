@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   User,
   Building,
@@ -19,6 +19,7 @@ import {
   Monitor,
 } from "lucide-react";
 import { useTheme } from "@/components/layout/ThemeProvider";
+import { api, CurrentUser } from "@/lib/api";
 
 type SettingsSection =
   | "account"
@@ -35,9 +36,29 @@ export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
   const [activeSection, setActiveSection] = useState<SettingsSection>("account");
   const [copied, setCopied] = useState<string | null>(null);
+  const [user, setUser] = useState<CurrentUser | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
 
   // Masked keys state
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+    api.auth
+      .me()
+      .then((data) => {
+        if (isMounted) {
+          setUser(data);
+          setLoadingUser(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setLoadingUser(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const toggleShowKey = (keyId: string) => {
     setShowKeys((prev) => ({ ...prev, [keyId]: !prev[keyId] }));
@@ -118,38 +139,44 @@ export default function SettingsPage() {
               <h2 className="font-label-caps text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-wider pb-1.5 border-b border-[var(--border)]">
                 ACTIVE OPERATOR ACCOUNT
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">DISPLAY NAME</label>
-                  <input
-                    type="text"
-                    disabled
-                    value="Security Administrator"
-                    className="w-full p-2 rounded-xs border border-[var(--border)] bg-[var(--surface-container-lowest)] text-[var(--text-primary)] text-xs font-mono"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">EMAIL ADDRESS</label>
-                  <input
-                    type="text"
-                    disabled
-                    value="admin@sentinel.test"
-                    className="w-full p-2 rounded-xs border border-[var(--border)] bg-[var(--surface-container-lowest)] text-[var(--text-primary)] text-xs font-mono"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">ASSIGNED RBAC ROLE</label>
-                  <div className="pt-0.5">
-                    <span className="px-2 py-0.5 rounded-xs font-label-caps text-[9px] font-bold bg-[var(--secondary-container)]/20 text-[var(--secondary-container)] border border-[var(--secondary-container)]/30">
-                      ADMINISTRATOR
+              {loadingUser ? (
+                <div className="py-4 text-center text-[var(--text-muted)] font-mono">Loading operator profile...</div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">DISPLAY NAME</label>
+                    <input
+                      type="text"
+                      disabled
+                      value={user?.display_name || user?.name || "Security Operator"}
+                      className="w-full p-2 rounded-xs border border-[var(--border)] bg-[var(--surface-container-lowest)] text-[var(--text-primary)] text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">EMAIL ADDRESS</label>
+                    <input
+                      type="text"
+                      disabled
+                      value={user?.email || "operator@mcp-sentinel.local"}
+                      className="w-full p-2 rounded-xs border border-[var(--border)] bg-[var(--surface-container-lowest)] text-[var(--text-primary)] text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">ASSIGNED RBAC ROLE</label>
+                    <div className="pt-0.5">
+                      <span className="px-2 py-0.5 rounded-xs font-label-caps text-[9px] font-bold bg-[var(--secondary-container)]/20 text-[var(--secondary-container)] border border-[var(--secondary-container)]/30">
+                        {user?.role || "ADMIN"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">ACCOUNT STATUS</label>
+                    <span className="text-[var(--primary-container)] block pt-1 font-bold font-mono">
+                      {user?.is_active ? "AUTHENTICATED // ACTIVE" : "SUSPENDED"}
                     </span>
                   </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">SESSION TOKEN EXPIRATION</label>
-                  <span className="text-[var(--primary-container)] block pt-1 font-bold font-mono">23h 48m Remaining</span>
-                </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -165,14 +192,14 @@ export default function SettingsPage() {
                   <input
                     type="text"
                     disabled
-                    value="org_mcp_sentinel_enterprise_prod"
+                    value={user?.organization || "org_mcp_sentinel_enterprise"}
                     className="w-full p-2 rounded-xs border border-[var(--border)] bg-[var(--surface-container-lowest)] text-[var(--text-primary)] text-xs font-mono"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <div className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
                     <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">ACTIVE AGENTS LIMIT</span>
-                    <span className="font-bold text-[var(--text-primary)] font-mono">Unlimited (Enterprise Plan)</span>
+                    <span className="font-bold text-[var(--text-primary)] font-mono">Governed Security Envelope</span>
                   </div>
                   <div className="p-2.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)]">
                     <span className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block">DUAL-CUSTODY MANDATE</span>

@@ -42,3 +42,38 @@ async def get_policies(current_user: Optional[AuthUser] = Depends(get_current_us
         "rule_count": len(rules_data),
         "rules": rules_data,
     }
+
+
+@router.get(
+    "/{rule_id}",
+    summary="Get single policy rule definition by rule ID",
+)
+async def get_policy_rule(
+    rule_id: str,
+    current_user: Optional[AuthUser] = Depends(get_current_user_optional),
+) -> dict[str, Any]:
+    from fastapi import HTTPException, status
+    engine = get_policy_engine()
+    policy = engine._policy
+
+    rule = next((r for r in policy.rules if r.rule_id.lower() == rule_id.lower()), None)
+    if not rule:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Policy rule '{rule_id}' not found.",
+        )
+
+    return {
+        "status": "success",
+        "policy_id": policy.policy_id,
+        "policy_version": policy.policy_version,
+        "rule": {
+            "rule_id": rule.rule_id,
+            "name": rule.name,
+            "description": rule.description,
+            "priority": rule.priority,
+            "target_decision": rule.target_decision.value,
+            "reason": rule.reason,
+            "conditions": getattr(rule, "conditions", []),
+        },
+    }

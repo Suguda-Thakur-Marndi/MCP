@@ -4,323 +4,218 @@ import React, { useState, useEffect, useRef, useTransition, useCallback } from "
 import Link from "next/link";
 import {
   api,
+  AgentRunRecord,
   AgentExecutionRecord,
   AgentStatusResponse,
 } from "@/lib/api";
+import { formatTime, riskBadgeClass, decisionBadgeClass } from "@/lib/utils";
 
-interface SessionItem {
+interface ChatMessage {
   id: string;
-  code: string;
-  title: string;
-  step: string;
-  timeAgo: string;
-  status: "awaiting" | "denied" | "completed" | "draft" | "executing";
-  targetDb: string;
-  intent: string;
-  sqlProposal: string;
-  affectedRows: number;
-  riskScore: number;
-  policyTrigger: string;
-  diffRows: {
-    id: string;
-    table: string;
-    field: string;
-    before: string;
-    after: string;
-    riskTag: string;
-  }[];
+  sender: "user" | "agent" | "system";
+  text: string;
+  timestamp: string;
+  toolCalls?: Array<{ tool: string; result?: string }>;
+  status?: string;
+  riskScore?: number;
 }
 
-const PRESET_SESSIONS: SessionItem[] = [
-  {
-    id: "session-1",
-    code: "#CMD-4091",
-    title: "Customer Status Lifecycle Migration",
-    step: "Step 5/8",
-    timeAgo: "4m ago",
-    status: "awaiting",
-    targetDb: "prod_billing_postgres",
-    intent: "Update the status of users in the beta cohort who haven't logged in since Jan 2024 to 'inactive', and archive workspace allocations.",
-    sqlProposal: "UPDATE public.customers SET status = 'inactive' WHERE cohort = 'beta' AND last_login < '2024-01-01 00:00:00+00';\nUPDATE public.workspace_allocations SET state = 'archived' WHERE customer_id IN (...matched_target_ids);",
-    affectedRows: 142,
-    riskScore: 78,
-    policyTrigger: "POL-009: Customer Status Modification Dual-Custody",
-    diffRows: [
-      { id: "cust_98124", table: "public.customers", field: "status", before: "active", after: "inactive", riskTag: "Lifecycle Mod" },
-      { id: "cust_98124", table: "workspace_alloc", field: "state / bytes", before: "allocated (128GB)", after: "archived (0GB)", riskTag: "Deprovision" },
-      { id: "cust_98125", table: "public.customers", field: "status", before: "active", after: "inactive", riskTag: "Lifecycle Mod" },
-      { id: "cust_98125", table: "workspace_alloc", field: "state / bytes", before: "allocated (64GB)", after: "archived (0GB)", riskTag: "Deprovision" },
-      { id: "cust_98126", table: "public.customers", field: "status", before: "active", after: "inactive", riskTag: "Lifecycle Mod" },
-    ],
-  },
-  {
-    id: "session-2",
-    code: "#CMD-4088",
-    title: "Investigate blocked SQL drops in US-East",
-    step: "Blocked",
-    timeAgo: "18m ago",
-    status: "denied",
-    targetDb: "prod_billing_postgres",
-    intent: "DROP TABLE audit_log_staging; -- Attempted automated table drop.",
-    sqlProposal: "DROP TABLE audit_log_staging; --",
-    affectedRows: 0,
-    riskScore: 99,
-    policyTrigger: "POL-001: Strict Schema Drop Prevention",
-    diffRows: [
-      { id: "tbl_staging", table: "public.audit_log_staging", field: "schema_table", before: "PRESENT (42.1k rows)", after: "DROPPED (BLOCKED)", riskTag: "Critical DDL" },
-    ],
-  },
-  {
-    id: "session-3",
-    code: "#CMD-4074",
-    title: "Audit 30d Claude agent execution metrics",
-    step: "Step 8/8",
-    timeAgo: "2h ago",
-    status: "completed",
-    targetDb: "prod_billing_postgres",
-    intent: "Summarize denied tool executions and policy triggers from the last 30 days.",
-    sqlProposal: "SELECT tool_name, decision, COUNT(*) FROM audit_events WHERE created_at >= NOW() - INTERVAL '30 days' GROUP BY tool_name, decision;",
-    affectedRows: 512,
-    riskScore: 12,
-    policyTrigger: "POL-018: Read-Only Audit Access",
-    diffRows: [
-      { id: "query_res", table: "audit_events", field: "read_projection", before: "N/A", after: "512 rows projected", riskTag: "Safe Read" },
-    ],
-  },
-  {
-    id: "session-4",
-    code: "#CMD-4069",
-    title: "Inspect customer_records PII access frequency",
-    step: "Step 8/8",
-    timeAgo: "5h ago",
-    status: "completed",
-    targetDb: "prod_billing_postgres",
-    intent: "Find failed executions and rate anomalies associated with customer_records query tool.",
-    sqlProposal: "SELECT actor_id, COUNT(*) FROM audit_events WHERE tool_name = 'query_customer_records' AND decision = 'BLOCK' GROUP BY actor_id;",
-    affectedRows: 84,
-    riskScore: 15,
-    policyTrigger: "POL-018: Read-Only Audit Access",
-    diffRows: [
-      { id: "query_res_2", table: "audit_events", field: "read_projection", before: "N/A", after: "84 rows projected", riskTag: "Safe Read" },
-    ],
-  },
-];
-
-const SUGGESTED_COMMANDS = [
+const QUICK_PROMPTS = [
   "Show pending high-risk approvals in the queue.",
   "Summarize denied tool executions from the last 24 hours.",
   "Show the most frequently triggered security policies.",
-  "Find failed executions associated with query_customer_records.",
-  "Preview customer records with status = 'ACTIVE' and country = 'US'.",
-  "Request a status update for customer CUST-0001 to SUSPENDED.",
-  "Explain why this operation requires human dual-custody approval.",
+  "Query customer records with active lifecycle status.",
+  "Explain why destructive DDL operations require human escrow sign-off.",
 ];
 
 export default function AICommandCenterPage() {
   const [, startTransition] = useTransition();
 
-  const [sessions, setSessions] = useState<SessionItem[]>(PRESET_SESSIONS);
-  const [selectedSession, setSelectedSession] = useState<SessionItem>(PRESET_SESSIONS[0]);
+  const [runs, setRuns] = useState<AgentRunRecord[]>([]);
+  const [selectedRun, setSelectedRun] = useState<AgentRunRecord | null>(null);
   const [sessionFilter, setSessionFilter] = useState<string>("");
   const [promptInput, setPromptInput] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [justificationNote, setJustificationNote] = useState<string>("");
-  const [mfaChecked, setMfaChecked] = useState<boolean>(true);
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
 
   const [agentStatus, setAgentStatus] = useState<AgentStatusResponse | null>(null);
   const [recentExecutions, setRecentExecutions] = useState<AgentExecutionRecord[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-  const sessionEndRef = useRef<HTMLDivElement>(null);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
 
-  const fetchAgentTelemetry = useCallback(async () => {
+  const fetchTelemetryAndRuns = useCallback(async () => {
     try {
-      const [statusRes, execsRes] = await Promise.all([
+      const [statusRes, execsRes, runsRes] = await Promise.all([
         api.agent.status().catch(() => null),
         api.agent.executions(15).catch(() => []),
+        api.agent.runs({ limit: 25 }).catch(() => ({ total: 0, count: 0, runs: [] })),
       ]);
+
       startTransition(() => {
         if (statusRes) setAgentStatus(statusRes);
         if (Array.isArray(execsRes)) setRecentExecutions(execsRes);
+        if (runsRes?.runs) {
+          setRuns(runsRes.runs);
+          if (!selectedRun && runsRes.runs.length > 0) {
+            setSelectedRun(runsRes.runs[0]);
+          }
+        }
       });
     } catch (err: unknown) {
-      console.warn("Telemetry fetch error:", err);
+      console.warn("Failed to fetch agent telemetry:", err);
     }
-  }, []);
+  }, [selectedRun]);
 
   useEffect(() => {
-    fetchAgentTelemetry();
-  }, [fetchAgentTelemetry]);
+    void fetchTelemetryAndRuns();
+  }, [fetchTelemetryAndRuns]);
 
-  // Handle Natural Language Command Execution
-  const handleExecuteCommand = async (commandToRun?: string) => {
-    const text = (commandToRun || promptInput).trim();
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  // When a run is selected from the left panel, load its prompt and details into view
+  const handleSelectRun = (run: AgentRunRecord) => {
+    setSelectedRun(run);
+    if (run.user_prompt) {
+      setMessages([
+        {
+          id: `msg-${run.run_id}-u`,
+          sender: "user",
+          text: run.user_prompt,
+          timestamp: run.started_at || new Date().toISOString(),
+        },
+        {
+          id: `msg-${run.run_id}-a`,
+          sender: "agent",
+          text: run.reasoning || (run.status === "COMPLETED" ? "Execution verified and completed within policy boundary." : `Operation status: ${run.status}`),
+          timestamp: run.completed_at || run.started_at || new Date().toISOString(),
+          status: run.status,
+          riskScore: run.risk_score,
+        },
+      ]);
+    }
+  };
+
+  // Submit prompt to real agent backend
+  const handleExecutePrompt = async (promptToRun?: string) => {
+    const text = (promptToRun || promptInput).trim();
     if (!text || loading) return;
 
     setLoading(true);
     setActionFeedback(null);
 
-    // Create a new in-flight session
-    const newSessionId = `session-${Date.now()}`;
-    const codeNum = Math.floor(4100 + Math.random() * 100);
-
-    const isDestructive =
-      text.toLowerCase().includes("delete") ||
-      text.toLowerCase().includes("drop") ||
-      text.toLowerCase().includes("purge") ||
-      text.toLowerCase().includes("truncate");
-
-    const isUpdate =
-      text.toLowerCase().includes("update") ||
-      text.toLowerCase().includes("modify") ||
-      text.toLowerCase().includes("set status");
-
-    const newSession: SessionItem = {
-      id: newSessionId,
-      code: `#CMD-${codeNum}`,
-      title: text.length > 45 ? text.slice(0, 45) + "..." : text,
-      step: isDestructive ? "Blocked" : isUpdate ? "Step 5/8" : "Step 8/8",
-      timeAgo: "Just now",
-      status: isDestructive ? "denied" : isUpdate ? "awaiting" : "completed",
-      targetDb: "prod_billing_postgres",
-      intent: text,
-      sqlProposal: isDestructive
-        ? "-- BLOCKED BY POLICY RULE POL-001\n-- Destructive SQL operation rejected by Sentinel AST Parser."
-        : isUpdate
-        ? "UPDATE public.customers SET status = 'SUSPENDED', updated_at = NOW() WHERE customer_id = 'CUST-0001';"
-        : "SELECT id, full_name, email, status, country, updated_at FROM customers WHERE status = 'ACTIVE' LIMIT 25;",
-      affectedRows: isDestructive ? 0 : isUpdate ? 1 : 25,
-      riskScore: isDestructive ? 95 : isUpdate ? 78 : 10,
-      policyTrigger: isDestructive
-        ? "POL-001: Immediate Circuit Breaker for Destructive DDL"
-        : isUpdate
-        ? "POL-009: Enterprise Customer Lifecycle State Gating"
-        : "POL-018: Verified Column Projection Filter",
-      diffRows: isUpdate
-        ? [
-            {
-              id: "CUST-0001",
-              table: "public.customers",
-              field: "status",
-              before: "ACTIVE",
-              after: "SUSPENDED",
-              riskTag: "State Mod",
-            },
-          ]
-        : [
-            {
-              id: "result_set",
-              table: "public.customers",
-              field: "query_projection",
-              before: "N/A",
-              after: "25 rows projected",
-              riskTag: "Safe Read",
-            },
-          ],
+    const userMsgId = `usr-${Date.now()}`;
+    const newMsg: ChatMessage = {
+      id: userMsgId,
+      sender: "user",
+      text,
+      timestamp: new Date().toISOString(),
     };
 
-    setSessions((prev) => [newSession, ...prev]);
-    setSelectedSession(newSession);
+    setMessages((prev) => [...prev, newMsg]);
     setPromptInput("");
 
     try {
-      // Dispatch real chat turn to backend
       const res = await api.agent.chat(text);
-      if (res?.response) {
-        setActionFeedback(`Agent Response: ${res.response}`);
-      }
-      fetchAgentTelemetry();
+
+      const agentMsg: ChatMessage = {
+        id: `agt-${Date.now()}`,
+        sender: "agent",
+        text: res.response || "No response received from agent.",
+        timestamp: new Date().toISOString(),
+        toolCalls: res.tool_calls,
+        status: res.status,
+      };
+
+      setMessages((prev) => [...prev, agentMsg]);
+      setActionFeedback(`Agent completed turn (Status: ${res.status}, Tools used: ${res.tool_calls_made || 0})`);
+
+      // Refresh runs list to show new execution in left drawer
+      await fetchTelemetryAndRuns();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Execution gated by Sentinel policy engine.";
-      setActionFeedback(`Gateway Interception: ${msg}`);
+      const msg = err instanceof Error ? err.message : "Execution failed or was intercepted by Sentinel gate.";
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `sys-${Date.now()}`,
+          sender: "system",
+          text: `Gateway Interception: ${msg}`,
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+      setActionFeedback(`Interception: ${msg}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAuthorizeExecution = async () => {
+  // Handle immediate authorization or denial of pending ticket associated with run
+  const handleApprovalAction = async (decision: "approve" | "deny") => {
+    if (!selectedRun?.approval_ticket_id) return;
     setLoading(true);
-    setActionFeedback(null);
     try {
-      // If there is an actual live pending ticket matching this action, approve it
-      const pendingList = await api.approvals.pending().catch(() => []);
-      if (pendingList.length > 0) {
+      if (decision === "approve") {
         await api.approvals.approve(
-          pendingList[0].ticket_id,
-          justificationNote || "Authorized via AI Command Center Signature Console"
+          selectedRun.approval_ticket_id,
+          justificationNote || "Authorized via AI Command Center console"
         );
-      }
-
-      setSelectedSession((prev) => ({
-        ...prev,
-        status: "completed",
-        step: "Step 8/8",
-      }));
-      setActionFeedback(
-        "TRANSACTION EXECUTED: Cryptographic signature validated, mutation committed to PostgreSQL, audit record created."
-      );
-      setJustificationNote("");
-      fetchAgentTelemetry();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Authorization failed.";
-      setActionFeedback(`ERROR: ${msg}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRejectExecution = async () => {
-    setLoading(true);
-    setActionFeedback(null);
-    try {
-      const pendingList = await api.approvals.pending().catch(() => []);
-      if (pendingList.length > 0) {
+        setActionFeedback("Ticket approved. Execution authorized.");
+      } else {
         await api.approvals.deny(
-          pendingList[0].ticket_id,
-          justificationNote || "Proposal denied and quarantined by Security Operator."
+          selectedRun.approval_ticket_id,
+          justificationNote || "Denied by Security Operator in AI Command Center"
         );
+        setActionFeedback("Ticket denied and quarantined.");
       }
-
-      setSelectedSession((prev) => ({
-        ...prev,
-        status: "denied",
-        step: "Denied",
-      }));
-      setActionFeedback(
-        "PROPOSAL REJECTED: Agent execution aborted, temporary token revoked, incident logged in audit trail."
-      );
       setJustificationNote("");
-      fetchAgentTelemetry();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Denial action failed.";
-      setActionFeedback(`ERROR: ${msg}`);
+      await fetchTelemetryAndRuns();
+    } catch (err) {
+      console.error("Approval error:", err);
+      setActionFeedback("Failed to update approval status.");
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredSessions = sessions.filter(
-    (s) =>
-      s.title.toLowerCase().includes(sessionFilter.toLowerCase()) ||
-      s.code.toLowerCase().includes(sessionFilter.toLowerCase()) ||
-      s.intent.toLowerCase().includes(sessionFilter.toLowerCase())
+  const filteredRuns = runs.filter(
+    (r) =>
+      r.run_id.toLowerCase().includes(sessionFilter.toLowerCase()) ||
+      r.agent_name.toLowerCase().includes(sessionFilter.toLowerCase()) ||
+      (r.user_prompt && r.user_prompt.toLowerCase().includes(sessionFilter.toLowerCase())) ||
+      (r.application && r.application.toLowerCase().includes(sessionFilter.toLowerCase()))
   );
 
   return (
     <div className="w-full px-space-md sm:px-space-lg lg:px-space-xl py-space-lg flex flex-col gap-space-lg">
+      {/* Action Feedback Banner */}
+      {actionFeedback && (
+        <div className="p-space-md rounded-xl bg-surface-container-lowest border border-surface-container font-label-mono text-label-mono text-on-surface flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-space-sm">
+            <span className="material-symbols-outlined text-secondary text-[18px]">verified</span>
+            <span>{actionFeedback}</span>
+          </div>
+          <button onClick={() => setActionFeedback(null)} className="cursor-pointer font-bold text-on-surface-variant hover:text-on-surface">
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* 3-Column Studio Grid Layout */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-space-lg items-start">
         {/* ==================================================== */}
-        {/* LEFT PANE: Operational Session Stream & Context (3 cols) */}
+        {/* LEFT PANE: Real Agent Runs & Sessions (3 cols) */}
         {/* ==================================================== */}
-        <div className="xl:col-span-3 flex flex-col gap-space-md bg-surface-container-lowest rounded-xl p-space-md border border-border shadow-sm">
+        <div className="xl:col-span-3 flex flex-col gap-space-md bg-surface-container-lowest rounded-xl p-space-md border border-surface-container shadow-xs">
           {/* Header */}
-          <div className="flex items-center justify-between pb-space-xs border-b border-border">
-            <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">
-              Operational Sessions
+          <div className="flex items-center justify-between pb-space-xs border-b border-surface-container font-label-mono text-label-mono">
+            <span className="text-on-surface-variant uppercase tracking-wider font-semibold">
+              Execution Sessions
             </span>
-            <span className="font-code-sm text-code-sm px-space-xs py-space-xxs rounded bg-surface-container text-secondary font-semibold">
-              Live Gateway
+            <span className="px-space-xs py-0.5 rounded bg-surface-container text-secondary font-bold">
+              {runs.length} LOGGED
             </span>
           </div>
 
@@ -330,8 +225,8 @@ export default function AICommandCenterPage() {
               type="text"
               value={sessionFilter}
               onChange={(e) => setSessionFilter(e.target.value)}
-              placeholder="Filter operational sessions..."
-              className="w-full bg-surface-container-low text-on-surface placeholder:text-on-surface-variant px-space-md py-space-xs pl-8 rounded-lg font-body-sm text-body-sm border border-border outline-none focus:bg-surface-container focus:ring-1 focus:ring-on-surface"
+              placeholder="Filter by Run ID, prompt..."
+              className="w-full bg-surface-container-low text-on-surface placeholder:text-on-surface-variant px-space-md py-space-xs pl-8 rounded-lg font-body-sm text-body-sm border border-surface-container outline-hidden focus:bg-surface-container transition-colors"
             />
             <span className="material-symbols-outlined text-[16px] text-on-surface-variant absolute left-2.5 top-2.5 pointer-events-none">
               search
@@ -339,776 +234,296 @@ export default function AICommandCenterPage() {
           </div>
 
           {/* Session List */}
-          <div className="flex flex-col gap-space-xs max-h-[460px] overflow-y-auto">
-            {filteredSessions.map((session) => {
-              const isSelected = selectedSession.id === session.id;
-              return (
-                <div
-                  key={session.id}
-                  onClick={() => setSelectedSession(session)}
-                  className={`p-space-sm rounded-lg transition-all cursor-pointer relative overflow-hidden group border ${
-                    isSelected
-                      ? "bg-surface-container-low border-primary/40 shadow-xs"
-                      : "bg-surface-container-lowest border-transparent hover:bg-surface-container-low hover:border-border"
-                  }`}
-                >
-                  {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>}
+          <div className="flex flex-col gap-space-xs max-h-[480px] overflow-y-auto">
+            {filteredRuns.length === 0 ? (
+              <div className="p-space-lg text-center font-label-mono text-body-sm text-on-surface-variant">
+                No runs recorded matching filter.
+              </div>
+            ) : (
+              filteredRuns.map((run) => {
+                const isSelected = selectedRun?.run_id === run.run_id;
+                const isPending = run.status === "AWAITING_APPROVAL" || run.status === "PENDING";
+                const isDenied = run.status === "DENIED" || run.status === "BLOCKED";
 
-                  <div className="flex items-start justify-between gap-space-xs">
-                    <span className="font-headline-sm text-headline-sm text-on-surface truncate">
-                      {session.title}
-                    </span>
-                    {session.status === "awaiting" && (
-                      <span className="w-2 h-2 rounded-full bg-tertiary shrink-0 mt-1.5 animate-pulse" title="Awaiting Authorization"></span>
-                    )}
-                    {session.status === "denied" && (
-                      <span className="w-2 h-2 rounded-full bg-error shrink-0 mt-1.5" title="Rejected Policy"></span>
-                    )}
-                    {session.status === "completed" && (
-                      <span className="w-2 h-2 rounded-full bg-secondary shrink-0 mt-1.5" title="Execution Completed"></span>
-                    )}
-                  </div>
+                return (
+                  <div
+                    key={run.run_id}
+                    onClick={() => handleSelectRun(run)}
+                    className={`p-space-sm rounded-lg transition-all cursor-pointer relative overflow-hidden group border ${
+                      isSelected
+                        ? "bg-surface-container-low border-primary/40 shadow-xs"
+                        : "bg-surface-container-lowest border-transparent hover:bg-surface-container-low hover:border-surface-container"
+                    }`}
+                  >
+                    {isSelected && <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary"></div>}
 
-                  <div className="flex items-center gap-space-xs mt-space-xs font-code-sm text-code-sm text-on-surface-variant">
-                    <span>{session.code}</span>
-                    <span>•</span>
-                    <span
-                      className={`font-semibold ${
-                        session.status === "awaiting"
-                          ? "text-tertiary"
-                          : session.status === "denied"
-                          ? "text-error"
-                          : "text-secondary"
-                      }`}
-                    >
-                      {session.step}
-                    </span>
-                    <span>•</span>
-                    <span>{session.timeAgo}</span>
+                    <div className="flex items-start justify-between gap-space-xs">
+                      <span className="font-headline-sm text-headline-sm text-on-surface truncate">
+                        {run.user_prompt || run.agent_name || run.run_id}
+                      </span>
+                      {isPending && (
+                        <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1.5 animate-pulse" title="Awaiting Sign-Off"></span>
+                      )}
+                      {isDenied && (
+                        <span className="w-2 h-2 rounded-full bg-error shrink-0 mt-1.5" title="Policy Intercepted"></span>
+                      )}
+                      {!isPending && !isDenied && (
+                        <span className="w-2 h-2 rounded-full bg-secondary shrink-0 mt-1.5" title="Completed"></span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-space-xs mt-space-xs font-label-mono text-[10px] text-on-surface-variant">
+                      <span className="font-bold text-on-surface">{run.run_id.slice(0, 10)}</span>
+                      <span>•</span>
+                      <span className={`font-semibold ${isPending ? "text-primary" : isDenied ? "text-error" : "text-secondary"}`}>
+                        {run.status}
+                      </span>
+                      <span>•</span>
+                      <span>{run.started_at ? formatTime(run.started_at) : "Recent"}</span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
 
-          {/* Target Context Pins */}
-          <div className="pt-space-md border-t border-border flex flex-col gap-space-xs">
-            <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-space-xxs">
-              Target Context Pins
+          {/* Context Pins */}
+          <div className="pt-space-md border-t border-surface-container flex flex-col gap-space-xs font-label-mono text-label-mono">
+            <span className="text-on-surface-variant uppercase tracking-wider text-[10px] font-semibold">
+              Gateway Target State
             </span>
-
-            <div className="p-space-xs px-space-sm bg-surface-container rounded-lg flex items-center justify-between border border-border">
-              <div className="flex items-center gap-space-xs min-w-0">
-                <span className="material-symbols-outlined text-[16px] text-secondary">
-                  database
-                </span>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-code-sm text-code-sm text-on-surface truncate font-semibold">
-                    prod_billing_postgres
-                  </span>
-                  <span className="font-code-sm text-code-sm text-on-surface-variant">
-                    10.0.4.12:5432
-                  </span>
-                </div>
-              </div>
-              <span className="material-symbols-outlined text-[14px] text-secondary">
-                lock
-              </span>
+            <div className="p-space-xs px-space-sm bg-surface-container rounded-lg flex items-center justify-between border border-surface-container">
+              <span className="text-on-surface font-medium truncate">PostgreSQL Core Daemon</span>
+              <span className="text-secondary font-bold text-[10px]">CONNECTED</span>
             </div>
-
-            <div className="p-space-xs px-space-sm bg-surface-container rounded-lg flex items-center justify-between border border-border">
-              <div className="flex items-center gap-space-xs min-w-0">
-                <span className="material-symbols-outlined text-[16px] text-tertiary">
-                  fork_right
-                </span>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-code-sm text-code-sm text-on-surface truncate font-semibold">
-                    main/enforced
-                  </span>
-                  <span className="font-code-sm text-code-sm text-on-surface-variant">
-                    SHA: c7019d1
-                  </span>
-                </div>
-              </div>
-              <span className="px-space-xxs py-0.5 rounded bg-surface-container-high text-on-surface-variant font-code-sm text-code-sm uppercase">
-                Protected
-              </span>
-            </div>
-
-            <div className="p-space-xs px-space-sm bg-surface-container rounded-lg flex items-center justify-between border border-border">
-              <div className="flex items-center gap-space-xs min-w-0">
-                <span className="material-symbols-outlined text-[16px] text-primary">
-                  policy
-                </span>
-                <div className="flex flex-col min-w-0">
-                  <span className="font-code-sm text-code-sm text-on-surface truncate font-semibold">
-                    PCI-DSS + ZT-Agent-v2
-                  </span>
-                  <span className="font-code-sm text-code-sm text-on-surface-variant">
-                    Strict L4 Policy
-                  </span>
-                </div>
-              </div>
-              <span className="material-symbols-outlined text-[16px] text-secondary">
-                verified
-              </span>
+            <div className="p-space-xs px-space-sm bg-surface-container rounded-lg flex items-center justify-between border border-surface-container">
+              <span className="text-on-surface font-medium truncate">Model: {agentStatus?.model || "gemini-2.5-flash"}</span>
+              <span className="text-secondary font-bold text-[10px]">READY</span>
             </div>
           </div>
         </div>
 
         {/* ==================================================== */}
-        {/* CENTER PANE: Interactive Timeline & Canvas (6 cols) */}
+        {/* CENTER PANE: Interactive Agent Chat & Trace (6 cols) */}
         {/* ==================================================== */}
-        <div className="xl:col-span-6 flex flex-col gap-space-lg">
-          {/* Session Header Bar */}
-          <div className="bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-border flex flex-col md:flex-row md:items-center justify-between gap-space-sm">
-            <div className="flex flex-col">
-              <div className="flex items-center gap-space-xs">
-                <span className="font-code-md text-code-md text-primary font-semibold">
-                  {selectedSession.code}
-                </span>
-                <span className="text-on-surface-variant">•</span>
-                <h2 className="font-headline-md text-headline-md text-on-surface">
-                  {selectedSession.title}
-                </h2>
+        <div className="xl:col-span-6 flex flex-col gap-space-md bg-surface-container-lowest rounded-xl p-space-lg border border-surface-container shadow-xs min-h-[640px]">
+          {/* Header */}
+          <div className="flex items-center justify-between pb-space-sm border-b border-surface-container">
+            <div className="flex items-center gap-space-sm">
+              <div className="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
+                <span className="material-symbols-outlined text-[20px]">smart_toy</span>
               </div>
-              <span className="font-body-sm text-body-sm text-on-surface-variant">
-                Initiated by AI Agent: {agentStatus?.agent_id || "sentinel-agent-v1"} ({agentStatus?.model || "gemini-2.5-flash"})
-              </span>
-            </div>
-
-            <div>
-              {selectedSession.status === "awaiting" && (
-                <span className="inline-flex items-center gap-space-xs px-space-sm py-space-xs rounded bg-tertiary-fixed text-on-tertiary-fixed font-code-sm text-code-sm font-semibold uppercase tracking-wider">
-                  <span className="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
-                  Awaiting Human Authorization
-                </span>
-              )}
-              {selectedSession.status === "denied" && (
-                <span className="inline-flex items-center gap-space-xs px-space-sm py-space-xs rounded bg-error-container text-on-error-container font-code-sm text-code-sm font-semibold uppercase tracking-wider">
-                  Blocked by Sentinel Policy
-                </span>
-              )}
-              {selectedSession.status === "completed" && (
-                <span className="inline-flex items-center gap-space-xs px-space-sm py-space-xs rounded bg-secondary-fixed text-on-secondary-fixed font-code-sm text-code-sm font-semibold uppercase tracking-wider">
-                  Executed &amp; Audited
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Feedback banner if available */}
-          {actionFeedback && (
-            <div className="p-space-md rounded-lg bg-surface-container-high border border-border font-code-sm text-code-sm text-on-surface flex items-start gap-space-sm animate-in fade-in">
-              <span className="material-symbols-outlined text-[18px] text-primary shrink-0 mt-0.5">
-                info
-              </span>
-              <div className="flex-1 whitespace-pre-wrap">{actionFeedback}</div>
-            </div>
-          )}
-
-          {/* Natural Language Prompt & Interpretation Card */}
-          <div className="flex flex-col gap-space-md">
-            {/* User Prompt Bubble */}
-            <div className="flex gap-space-md items-start">
-              <div className="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center shrink-0 border border-border">
-                <span className="material-symbols-outlined text-[18px] text-on-surface">
-                  account_circle
-                </span>
-              </div>
-              <div className="flex-1 bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-border">
-                <div className="flex items-center justify-between mb-space-xs">
-                  <span className="font-headline-sm text-headline-sm text-on-surface">
-                    Operator Intent Specification
-                  </span>
-                  <span className="font-code-sm text-code-sm text-on-surface-variant">
-                    Live Session
-                  </span>
-                </div>
-                <p className="font-body-md text-body-md text-on-surface leading-relaxed">
-                  &ldquo;{selectedSession.intent}&rdquo;
+              <div>
+                <h2 className="font-headline-md text-headline-md text-on-surface">AI Command Center</h2>
+                <p className="font-body-sm text-body-sm text-on-surface-variant">
+                  Governed natural language interface to MCP tools &amp; enterprise operations
                 </p>
               </div>
             </div>
-
-            {/* Sentinel AI Engine Interpretation Card */}
-            <div className="flex gap-space-md items-start">
-              <div className="w-8 h-8 rounded-full bg-secondary text-on-secondary flex items-center justify-center shrink-0 shadow-xs">
-                <span className="material-symbols-outlined text-[18px]">neurology</span>
-              </div>
-              <div className="flex-1 bg-surface-container-low p-space-md rounded-xl shadow-sm border border-border flex flex-col gap-space-sm">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-space-xs">
-                    <span className="font-headline-sm text-headline-sm text-on-surface">
-                      Sentinel AI Engine Interpretation
-                    </span>
-                    <span className="px-space-xs py-space-xxs rounded bg-secondary-fixed text-on-secondary-fixed font-code-sm text-code-sm">
-                      Deterministic Parse 100%
-                    </span>
-                  </div>
-                  <span className="font-code-sm text-code-sm text-on-surface-variant">
-                    AST Ref: ast_99f2b
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm pt-space-xs">
-                  <div className="bg-surface-container-lowest p-space-sm rounded-lg flex flex-col border border-border">
-                    <span className="font-label-caps text-label-caps text-on-surface-variant uppercase">
-                      Intent Classification
-                    </span>
-                    <span className="font-headline-sm text-headline-sm text-on-surface mt-space-xxs">
-                      {selectedSession.affectedRows > 0 ? "PostgreSQL DML Mutation" : "Read-Only Analysis"}
-                    </span>
-                    <span className="font-code-sm text-code-sm text-secondary font-medium truncate">
-                      public.customers &amp; ledger
-                    </span>
-                  </div>
-
-                  <div className="bg-surface-container-lowest p-space-sm rounded-lg flex flex-col border border-border">
-                    <span className="font-label-caps text-label-caps text-on-surface-variant uppercase">
-                      Target Clustered DB
-                    </span>
-                    <span className="font-headline-sm text-headline-sm text-on-surface mt-space-xxs">
-                      {selectedSession.targetDb}
-                    </span>
-                    <span className="font-code-sm text-code-sm text-on-surface-variant">
-                      Session SSL Verified TLS 1.3
-                    </span>
-                  </div>
-                </div>
-
-                {/* Detected Operations Well */}
-                <div className="bg-surface-container-lowest p-space-sm rounded-lg flex flex-col gap-space-xs border border-border">
-                  <span className="font-label-caps text-label-caps text-on-surface-variant uppercase">
-                    Constructed SQL AST Proposals:
-                  </span>
-                  <pre className="font-code-md text-code-md bg-surface-container p-space-xs rounded text-on-surface overflow-x-auto select-all whitespace-pre-wrap">
-                    {selectedSession.sqlProposal}
-                  </pre>
-                </div>
-              </div>
-            </div>
+            <span className="font-label-mono text-label-mono px-space-xs py-0.5 rounded bg-secondary-container text-on-secondary-container font-semibold">
+              AST GATED
+            </span>
           </div>
 
-          {/* CRITICAL SIGNATURE FEATURE: 8-Step Database Change Governance Workflow Stepper */}
-          <div className="bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-border flex flex-col gap-space-md">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-[20px] text-primary">
-                  linear_scale
-                </span>
-                <span className="font-headline-md text-headline-md text-on-surface">
-                  8-Step Database Change Governance Workflow
-                </span>
-              </div>
-              <span className="font-code-sm text-code-sm text-on-surface-variant font-medium">
-                Standard Safe-Commit SLA
-              </span>
-            </div>
-
-            {/* Stepper Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-space-xs">
-              {/* Step 1 */}
-              <div className="flex flex-col p-space-xs bg-surface-container-low rounded-lg border border-border">
-                <div className="flex items-center justify-between mb-space-xxs">
-                  <span className="font-code-sm text-code-sm text-on-surface-variant">01</span>
-                  <span className="material-symbols-outlined text-[16px] text-secondary">check_circle</span>
+          {/* Chat Message Stream */}
+          <div className="flex-1 flex flex-col gap-space-md overflow-y-auto max-h-[440px] pr-space-xs">
+            {messages.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-3">
+                <div className="w-12 h-12 rounded-full bg-surface-container-low flex items-center justify-center text-primary">
+                  <span className="material-symbols-outlined text-[24px]">terminal</span>
                 </div>
-                <span className="font-label-md text-label-md text-on-surface font-semibold truncate">Interpret</span>
-                <span className="font-code-sm text-code-sm text-secondary truncate">Completed</span>
-              </div>
-
-              {/* Step 2 */}
-              <div className="flex flex-col p-space-xs bg-surface-container-low rounded-lg border border-border">
-                <div className="flex items-center justify-between mb-space-xxs">
-                  <span className="font-code-sm text-code-sm text-on-surface-variant">02</span>
-                  <span className="material-symbols-outlined text-[16px] text-secondary">check_circle</span>
-                </div>
-                <span className="font-label-md text-label-md text-on-surface font-semibold truncate">Targets</span>
-                <span className="font-code-sm text-code-sm text-secondary truncate">
-                  {selectedSession.affectedRows} Rows
-                </span>
-              </div>
-
-              {/* Step 3 */}
-              <div className="flex flex-col p-space-xs bg-surface-container-low rounded-lg border border-border">
-                <div className="flex items-center justify-between mb-space-xxs">
-                  <span className="font-code-sm text-code-sm text-on-surface-variant">03</span>
-                  <span className="material-symbols-outlined text-[16px] text-secondary">check_circle</span>
-                </div>
-                <span className="font-label-md text-label-md text-on-surface font-semibold truncate">Impact Diff</span>
-                <span className="font-code-sm text-code-sm text-secondary truncate">Generated</span>
-              </div>
-
-              {/* Step 4 */}
-              <div className="flex flex-col p-space-xs bg-surface-container-low rounded-lg border border-border">
-                <div className="flex items-center justify-between mb-space-xxs">
-                  <span className="font-code-sm text-code-sm text-on-surface-variant">04</span>
-                  <span className="material-symbols-outlined text-[16px] text-tertiary">warning</span>
-                </div>
-                <span className="font-label-md text-label-md text-on-surface font-semibold truncate">Policies</span>
-                <span className="font-code-sm text-code-sm text-tertiary truncate">1 Policy Gate</span>
-              </div>
-
-              {/* Step 5 */}
-              <div
-                className={`flex flex-col p-space-xs rounded-lg transition-all ${
-                  selectedSession.status === "awaiting"
-                    ? "bg-tertiary-fixed ring-2 ring-tertiary border border-tertiary"
-                    : selectedSession.status === "completed"
-                    ? "bg-surface-container-low border border-border"
-                    : "bg-error-container border border-error"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-space-xxs">
-                  <span className="font-code-sm text-code-sm">05</span>
-                  <span className="material-symbols-outlined text-[16px]">
-                    {selectedSession.status === "completed"
-                      ? "check_circle"
-                      : selectedSession.status === "denied"
-                      ? "cancel"
-                      : "pending"}
-                  </span>
-                </div>
-                <span className="font-label-md text-label-md font-bold truncate">Authorize</span>
-                <span className="font-code-sm text-code-sm font-semibold truncate">
-                  {selectedSession.status === "awaiting"
-                    ? "CURRENT GATE"
-                    : selectedSession.status === "completed"
-                    ? "Approved"
-                    : "Rejected"}
-                </span>
-              </div>
-
-              {/* Step 6 */}
-              <div
-                className={`flex flex-col p-space-xs rounded-lg border border-border ${
-                  selectedSession.status === "completed"
-                    ? "bg-surface-container-low"
-                    : "bg-surface-container-low opacity-60"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-space-xxs">
-                  <span className="font-code-sm text-code-sm text-on-surface-variant">06</span>
-                  <span className="material-symbols-outlined text-[16px]">
-                    {selectedSession.status === "completed" ? "check_circle" : "lock"}
-                  </span>
-                </div>
-                <span className="font-label-md text-label-md truncate">Execute</span>
-                <span className="font-code-sm text-code-sm truncate">
-                  {selectedSession.status === "completed" ? "Executed" : "Locked"}
-                </span>
-              </div>
-
-              {/* Step 7 */}
-              <div
-                className={`flex flex-col p-space-xs rounded-lg border border-border ${
-                  selectedSession.status === "completed"
-                    ? "bg-surface-container-low"
-                    : "bg-surface-container-low opacity-60"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-space-xxs">
-                  <span className="font-code-sm text-code-sm text-on-surface-variant">07</span>
-                  <span className="material-symbols-outlined text-[16px]">
-                    {selectedSession.status === "completed" ? "verified" : "hourglass_empty"}
-                  </span>
-                </div>
-                <span className="font-label-md text-label-md truncate">Verify</span>
-                <span className="font-code-sm text-code-sm truncate">
-                  {selectedSession.status === "completed" ? "Verified" : "Pending"}
-                </span>
-              </div>
-
-              {/* Step 8 */}
-              <div
-                className={`flex flex-col p-space-xs rounded-lg border border-border ${
-                  selectedSession.status === "completed"
-                    ? "bg-surface-container-low"
-                    : "bg-surface-container-low opacity-60"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-space-xxs">
-                  <span className="font-code-sm text-code-sm text-on-surface-variant">08</span>
-                  <span className="material-symbols-outlined text-[16px]">
-                    {selectedSession.status === "completed" ? "receipt_long" : "receipt"}
-                  </span>
-                </div>
-                <span className="font-label-md text-label-md truncate">Audit Log</span>
-                <span className="font-code-sm text-code-sm truncate">
-                  {selectedSession.status === "completed" ? "Recorded" : "Pending"}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Pre-Execution Mutation Diff Preview Table */}
-          <div className="bg-surface-container-lowest rounded-xl shadow-sm border border-border overflow-hidden flex flex-col">
-            <div className="p-space-md bg-surface-container-low flex flex-col sm:flex-row sm:items-center justify-between gap-space-xs border-b border-border">
-              <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-[20px] text-secondary">
-                  difference
-                </span>
-                <span className="font-headline-sm text-headline-sm text-on-surface">
-                  Pre-Execution Mutation Diff Preview
-                </span>
-              </div>
-              <div className="flex items-center gap-space-sm font-code-sm text-code-sm">
-                <span className="px-space-xs py-space-xxs rounded bg-secondary-fixed text-on-secondary-fixed font-semibold">
-                  {selectedSession.affectedRows} Records Affected
-                </span>
-                <span className="px-space-xs py-space-xxs rounded bg-surface-container-high text-on-surface">
-                  0 FK Violations
-                </span>
-              </div>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-surface-container text-on-surface-variant font-label-caps text-label-caps uppercase border-b border-border">
-                    <th className="py-space-xs px-space-md">Row Identifier</th>
-                    <th className="py-space-xs px-space-md">Target Table</th>
-                    <th className="py-space-xs px-space-md">Field Name</th>
-                    <th className="py-space-xs px-space-md">State (Before)</th>
-                    <th className="py-space-xs px-space-md">State (After / Proposed)</th>
-                    <th className="py-space-xs px-space-md text-right">Risk Tag</th>
-                  </tr>
-                </thead>
-                <tbody className="font-code-md text-code-md divide-y divide-surface-container">
-                  {selectedSession.diffRows.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-surface-container-low transition-colors">
-                      <td className="py-space-sm px-space-md font-semibold text-on-surface">
-                        {row.id}
-                      </td>
-                      <td className="py-space-sm px-space-md text-on-surface-variant">
-                        {row.table}
-                      </td>
-                      <td className="py-space-sm px-space-md text-on-surface font-medium">
-                        {row.field}
-                      </td>
-                      <td className="py-space-sm px-space-md">
-                        <span className="px-space-xs py-0.5 rounded bg-surface-container-high text-on-surface-variant line-through">
-                          {row.before}
-                        </span>
-                      </td>
-                      <td className="py-space-sm px-space-md">
-                        <span className="px-space-xs py-0.5 rounded bg-tertiary-fixed text-on-tertiary-fixed font-semibold">
-                          {row.after}
-                        </span>
-                      </td>
-                      <td className="py-space-sm px-space-md text-right">
-                        <span className="px-space-xs py-0.5 rounded bg-error-container text-on-error-container font-code-sm text-code-sm">
-                          {row.riskTag}
-                        </span>
-                      </td>
-                    </tr>
+                <h3 className="font-headline-sm text-headline-sm text-on-surface">Enter an Operational Directive</h3>
+                <p className="font-body-sm text-body-sm text-on-surface-variant max-w-md">
+                  Ask natural-language questions, inspect database status, query customer records, or request controlled operational tasks. Every action is evaluated by policy rules.
+                </p>
+                <div className="pt-2 flex flex-wrap gap-1.5 justify-center">
+                  {QUICK_PROMPTS.slice(0, 3).map((prompt, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => void handleExecutePrompt(prompt)}
+                      className="px-space-sm py-1 rounded-lg bg-surface-container-low hover:bg-surface-container text-on-surface font-label-mono text-[11px] border border-surface-container transition-colors cursor-pointer text-left"
+                    >
+                      &ldquo;{prompt}&rdquo;
+                    </button>
                   ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Safe Sandbox Preview Notice */}
-            <div className="p-space-sm bg-surface-container-high flex items-center gap-space-sm text-on-surface-variant font-body-sm text-body-sm border-t border-border">
-              <span className="material-symbols-outlined text-[18px] text-tertiary shrink-0">
-                shield_lock
-              </span>
-              <span>
-                Notice: Destructive / state changes are locked. Direct browser SQL execution is
-                strictly forbidden. Safe sandbox preview generated via dry-run transaction with auto-rollback.
-              </span>
-            </div>
-          </div>
-
-          {/* Direct Natural Language / SQL Execution Console */}
-          <div className="bg-surface-container-lowest p-space-md rounded-xl shadow-sm border border-border flex flex-col gap-space-sm">
-            <div className="flex items-center justify-between">
-              <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">
-                Direct Natural Language / SQL Execution Console
-              </span>
-              <span className="font-code-sm text-code-sm text-on-surface-variant">
-                Grammar: PostgreSQL 16 + MCP DSL
-              </span>
-            </div>
-
-            {/* Suggested Commands Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs font-mono">
-              {SUGGESTED_COMMANDS.map((cmd, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setPromptInput(cmd)}
-                  className="px-2 py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface whitespace-nowrap transition-colors border border-border text-[11px]"
-                >
-                  {cmd}
-                </button>
-              ))}
-            </div>
-
-            <div className="relative">
-              <textarea
-                value={promptInput}
-                onChange={(e) => setPromptInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                    e.preventDefault();
-                    handleExecuteCommand();
-                  }
-                }}
-                className="w-full p-space-sm rounded-lg bg-surface-container-low font-code-md text-code-md text-on-surface placeholder:text-on-surface-variant outline-none border border-border focus:bg-surface-container focus:ring-1 focus:ring-on-surface resize-none"
-                placeholder="Ask an analytical question or propose a controlled change (e.g. 'Show me the records that would be affected if we suspend inactive customers...')"
-                rows={3}
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-space-sm pt-space-xs">
-              <div className="flex items-center gap-space-xs w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => handleExecuteCommand()}
-                  disabled={loading}
-                  className="px-space-sm py-space-xs rounded bg-surface-container-high text-on-surface font-code-sm text-code-sm hover:bg-surface-container transition-colors flex items-center gap-space-xxs border border-border cursor-pointer disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-[16px]">visibility</span>
-                  Generate Impact Diff
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleExecuteCommand()}
-                  disabled={loading}
-                  className="px-space-sm py-space-xs rounded bg-surface-container-high text-on-surface font-code-sm text-code-sm hover:bg-surface-container transition-colors flex items-center gap-space-xxs border border-border cursor-pointer disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-[16px]">rule</span>
-                  Verify Schema
-                </button>
+                </div>
               </div>
+            ) : (
+              messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex flex-col gap-1 p-space-md rounded-xl ${
+                    msg.sender === "user"
+                      ? "bg-surface-container-low border border-surface-container ml-8"
+                      : msg.sender === "system"
+                      ? "bg-error-container text-on-error-container border border-error/20"
+                      : "bg-surface-container-lowest border border-surface-container mr-8 shadow-xs"
+                  }`}
+                >
+                  <div className="flex items-center justify-between font-label-mono text-[10px] text-on-surface-variant pb-1 border-b border-surface-container">
+                    <span className="font-bold uppercase tracking-wider text-on-surface">
+                      {msg.sender === "user" ? "Security Operator" : msg.sender === "system" ? "Security Sentinel" : "Agent Response"}
+                    </span>
+                    <span>{formatTime(msg.timestamp)}</span>
+                  </div>
 
-              <button
-                type="button"
-                onClick={() => handleExecuteCommand()}
-                disabled={loading}
-                className="w-full sm:w-auto px-space-md py-space-xs rounded bg-primary-container text-on-primary-container font-headline-sm text-headline-sm hover:bg-primary transition-colors flex items-center justify-center gap-space-xs shadow-sm cursor-pointer disabled:opacity-50"
-              >
-                <span className="material-symbols-outlined text-[18px]">verified_user</span>
-                {loading ? "Reasoning..." : "Submit for Approval (⌘Enter)"}
-              </button>
-            </div>
+                  <div className="font-body-md text-body-md text-on-surface whitespace-pre-wrap mt-1">
+                    {msg.text}
+                  </div>
+
+                  {msg.toolCalls && msg.toolCalls.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-surface-container font-label-mono text-[11px] space-y-1">
+                      <span className="text-on-surface-variant uppercase text-[10px] font-semibold">
+                        Tools Executed Through FastMCP:
+                      </span>
+                      {msg.toolCalls.map((tc, idx) => (
+                        <div key={idx} className="p-1.5 rounded bg-surface-container-low flex items-center justify-between border border-surface-container">
+                          <span className="font-bold text-secondary">{tc.tool}</span>
+                          <span className="text-on-surface-variant text-[10px]">{tc.result || "Returned output"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+            <div ref={chatBottomRef} />
           </div>
-          <div ref={sessionEndRef} />
+
+          {/* Quick Prompts Carousel */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-2 border-t border-surface-container">
+            {QUICK_PROMPTS.map((prompt, idx) => (
+              <button
+                key={idx}
+                onClick={() => void handleExecutePrompt(prompt)}
+                className="whitespace-nowrap px-space-sm py-1 rounded bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-on-surface font-label-mono text-[10px] border border-surface-container transition-colors cursor-pointer"
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
+
+          {/* Input Box */}
+          <div className="flex items-center gap-space-sm bg-surface-container-low p-space-xs rounded-xl border border-surface-container">
+            <input
+              type="text"
+              value={promptInput}
+              onChange={(e) => setPromptInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void handleExecutePrompt();
+                }
+              }}
+              placeholder="Type command (e.g. 'Show pending approvals', 'Query customer records')..."
+              className="flex-1 bg-transparent px-space-sm py-2 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant outline-hidden"
+              disabled={loading}
+            />
+            <button
+              onClick={() => void handleExecutePrompt()}
+              disabled={loading || !promptInput.trim()}
+              className="px-space-md py-2 bg-primary text-on-primary rounded-lg font-label-ui text-label-ui font-semibold hover:bg-primary-container transition-colors shadow-xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
+            >
+              <span>{loading ? "Evaluating" : "Execute"}</span>
+              <span className="material-symbols-outlined text-[16px]">
+                {loading ? "sync" : "send"}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* ==================================================== */}
-        {/* RIGHT PANE: Governance & Risk Dossier (3 cols) */}
+        {/* RIGHT PANE: Policy & Security Inspection Gate (3 cols) */}
         {/* ==================================================== */}
-        <div className="xl:col-span-3 flex flex-col gap-space-md bg-surface-container-lowest rounded-xl p-space-md border border-border shadow-sm">
-          {/* Header */}
-          <div className="flex items-center justify-between pb-space-xs border-b border-border">
-            <div className="flex items-center gap-space-xs">
-              <span className="material-symbols-outlined text-[20px] text-tertiary">
-                security
-              </span>
-              <span className="font-headline-md text-headline-md text-on-surface">
-                Governance &amp; Risk Dossier
-              </span>
-            </div>
-            <span className="font-code-sm text-code-sm px-space-xs py-space-xxs rounded bg-surface-container-high text-on-surface">
-              Auto-Evaluated
+        <div className="xl:col-span-3 flex flex-col gap-space-md bg-surface-container-lowest rounded-xl p-space-md border border-surface-container shadow-xs">
+          <div className="flex items-center justify-between pb-space-xs border-b border-surface-container font-label-mono text-label-mono">
+            <span className="text-on-surface-variant uppercase tracking-wider font-semibold">
+              Gate Inspection
             </span>
+            <span className="material-symbols-outlined text-secondary text-[18px]">verified_user</span>
           </div>
 
-          {/* Risk Assessment Score Card */}
-          <div className="bg-surface-container-low p-space-md rounded-xl flex flex-col gap-space-sm border border-border">
-            <div className="flex items-center justify-between">
-              <span className="font-label-caps text-label-caps text-on-surface-variant uppercase">
-                Threat Impact Index
-              </span>
-              <span
-                className={`px-space-xs py-space-xxs rounded font-code-sm text-code-sm font-bold uppercase ${
-                  selectedSession.riskScore >= 80
-                    ? "bg-error-container text-on-error-container"
-                    : selectedSession.riskScore >= 40
-                    ? "bg-tertiary-fixed text-on-tertiary-fixed"
-                    : "bg-secondary-fixed text-on-secondary-fixed"
-                }`}
-              >
-                {selectedSession.riskScore >= 80
-                  ? "Critical Risk"
-                  : selectedSession.riskScore >= 40
-                  ? "High Risk"
-                  : "Low Risk"} ({selectedSession.riskScore}/100)
-              </span>
-            </div>
+          {selectedRun ? (
+            <div className="flex flex-col gap-space-md font-body-sm text-body-sm">
+              <div>
+                <span className="font-label-mono text-[10px] text-on-surface-variant uppercase tracking-wider">
+                  Active Execution
+                </span>
+                <h3 className="font-headline-sm text-headline-sm text-on-surface font-bold truncate">
+                  {selectedRun.run_id}
+                </h3>
+              </div>
 
-            {/* SVG Circular Gauge */}
-            <div className="flex items-center gap-space-md py-space-xs">
-              <div className="relative w-16 h-16 shrink-0 flex items-center justify-center">
-                <svg className="w-16 h-16 -rotate-90" viewBox="0 0 36 36">
-                  <path
-                    className="text-surface-container-highest"
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="4"
+              {/* Status & Risk Pill */}
+              <div className="p-space-sm bg-surface-container-low rounded-lg border border-surface-container flex items-center justify-between font-label-mono text-label-mono">
+                <div>
+                  <div className="text-[10px] text-on-surface-variant uppercase">Risk Assessment</div>
+                  <div className="font-bold text-on-surface">{selectedRun.risk_level} ({selectedRun.risk_score}/100)</div>
+                </div>
+                <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                  selectedRun.risk_score >= 80 ? "bg-error-container text-on-error-container" :
+                  selectedRun.risk_score >= 50 ? "bg-tertiary-fixed text-on-tertiary-fixed-variant" :
+                  "bg-secondary-container text-on-secondary-container"
+                }`}>
+                  {selectedRun.status}
+                </span>
+              </div>
+
+              {/* Policy Rule Details */}
+              <div className="flex flex-col gap-1 font-label-mono text-label-mono">
+                <span className="text-[10px] text-on-surface-variant uppercase font-semibold">
+                  Policy Evaluation
+                </span>
+                <div className="p-space-xs px-space-sm bg-surface-container-low rounded border border-surface-container text-on-surface">
+                  <div className="font-bold">{selectedRun.policy_id || "sentinel-core-policy"}</div>
+                  <div className="text-[10px] text-secondary font-semibold">Decision: {selectedRun.policy_decision || "ALLOW"}</div>
+                </div>
+              </div>
+
+              {/* Action Buttons if ticket exists */}
+              {selectedRun.approval_ticket_id ? (
+                <div className="pt-space-sm border-t border-surface-container flex flex-col gap-space-sm">
+                  <span className="font-label-mono text-[10px] text-primary uppercase font-bold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">lock</span>
+                    Dual-Custody Gated Operation
+                  </span>
+                  <input
+                    type="text"
+                    value={justificationNote}
+                    onChange={(e) => setJustificationNote(e.target.value)}
+                    placeholder="Signer notes / reason..."
+                    className="w-full bg-surface-container-low text-on-surface placeholder:text-on-surface-variant px-space-sm py-1.5 rounded font-body-sm text-body-sm border border-surface-container outline-hidden"
                   />
-                  <path
-                    className={
-                      selectedSession.riskScore >= 80
-                        ? "text-error"
-                        : selectedSession.riskScore >= 40
-                        ? "text-tertiary-container"
-                        : "text-secondary"
-                    }
-                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeDasharray={`${selectedSession.riskScore}, 100`}
-                    strokeLinecap="round"
-                    strokeWidth="4"
-                  />
-                </svg>
-                <span className="absolute font-code-md text-code-md font-bold text-on-surface">
-                  {selectedSession.riskScore}%
-                </span>
-              </div>
-
-              <div className="flex flex-col">
-                <span className="font-headline-sm text-headline-sm text-on-surface">
-                  {selectedSession.riskScore >= 40 ? "Elevated Mutation" : "Nominal Access"}
-                </span>
-                <span className="font-body-sm text-body-sm text-on-surface-variant">
-                  {selectedSession.riskScore >= 40
-                    ? "Exceeds automated threshold (>40). Dual-custody sign-off enforced."
-                    : "Within automated threshold. Read-only operation verified."}
-                </span>
-              </div>
+                  <div className="grid grid-cols-2 gap-space-xs">
+                    <button
+                      onClick={() => void handleApprovalAction("approve")}
+                      disabled={loading}
+                      className="py-1.5 bg-primary text-on-primary font-label-ui text-label-ui font-bold rounded-lg hover:bg-primary-container transition-colors shadow-xs flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">check</span>
+                      Authorize
+                    </button>
+                    <button
+                      onClick={() => void handleApprovalAction("deny")}
+                      disabled={loading}
+                      className="py-1.5 bg-surface-container-high text-on-surface font-label-ui text-label-ui font-semibold rounded-lg hover:bg-error-container hover:text-on-error-container transition-colors flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">block</span>
+                      Deny
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-space-sm bg-surface-container-low rounded-lg border border-surface-container text-[11px] font-label-mono text-on-surface-variant">
+                  No pending escalation required. Tool dispatches executed through authorized sandbox.
+                </div>
+              )}
             </div>
-
-            {/* Risk Factors Checklist */}
-            <div className="flex flex-col gap-space-xxs pt-space-xs border-t border-border">
-              <div className="flex items-center justify-between font-code-sm text-code-sm">
-                <span className="text-on-surface-variant">Schema Multi-Table Scope:</span>
-                <span className="text-on-surface font-semibold">2 Tables Affected</span>
-              </div>
-              <div className="flex items-center justify-between font-code-sm text-code-sm">
-                <span className="text-on-surface-variant">Authentication State:</span>
-                <span className="text-secondary font-semibold">Valid JWT</span>
-              </div>
-              <div className="flex items-center justify-between font-code-sm text-code-sm">
-                <span className="text-on-surface-variant">Policy Invariant:</span>
-                <span className="text-tertiary font-semibold">Triggered Gated</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Applied Policy Invariants List */}
-          <div className="flex flex-col gap-space-xs">
-            <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">
-              Enforced Policy Invariants
-            </span>
-            <div className="p-space-sm bg-surface-container-low rounded-lg flex flex-col gap-1 border border-border">
-              <div className="flex items-center justify-between">
-                <span className="font-headline-sm text-headline-sm text-on-surface">
-                  {selectedSession.policyTrigger.split(":")[0]}
-                </span>
-                <span className="font-code-sm text-code-sm text-secondary font-semibold">
-                  ACTIVE
-                </span>
-              </div>
-              <p className="font-body-sm text-body-sm text-on-surface-variant">
-                {selectedSession.policyTrigger}
-              </p>
-            </div>
-          </div>
-
-          {/* Dual-Custody Signature Decision Controls */}
-          {selectedSession.status === "awaiting" && (
-            <div className="flex flex-col gap-space-sm pt-space-xs border-t border-border">
-              <div className="flex flex-col gap-space-xxs">
-                <label className="font-headline-sm text-headline-sm text-on-surface">
-                  SecOps Justification Note
-                </label>
-                <textarea
-                  value={justificationNote}
-                  onChange={(e) => setJustificationNote(e.target.value)}
-                  placeholder="Enter operational rationale for audit trail (e.g. Approved per RFC-4091)..."
-                  className="w-full p-space-xs rounded bg-surface-container-low font-code-sm text-code-sm text-on-surface border border-border outline-none focus:bg-surface-container"
-                  rows={2}
-                />
-              </div>
-
-              {/* MFA Checkbox */}
-              <label className="flex items-center gap-space-xs cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={mfaChecked}
-                  onChange={(e) => setMfaChecked(e.target.checked)}
-                  className="w-4 h-4 accent-primary rounded cursor-pointer"
-                />
-                <span className="font-body-sm text-body-sm text-on-surface">
-                  Require SecOps Key Hardware Token (WebAuthn)
-                </span>
-              </label>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col gap-space-xs pt-space-xs">
-                <button
-                  type="button"
-                  onClick={handleAuthorizeExecution}
-                  disabled={loading}
-                  className="w-full py-space-sm px-space-md bg-primary text-on-primary hover:bg-primary-container rounded-lg font-headline-sm text-headline-sm flex items-center justify-center gap-space-xs shadow-md transition-all cursor-pointer disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-[18px]">verified_user</span>
-                  Authorize &amp; Execute Transaction
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleRejectExecution}
-                  disabled={loading}
-                  className="w-full py-space-xs px-space-md bg-surface-container-lowest text-error hover:bg-error-container hover:text-on-error-container rounded-lg font-label-md text-label-md flex items-center justify-center gap-space-xs transition-colors border border-border cursor-pointer disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-[18px]">block</span>
-                  Reject Proposal &amp; Quarantine Key
-                </button>
-              </div>
+          ) : (
+            <div className="p-space-md text-center font-label-mono text-on-surface-variant text-body-sm">
+              Select an execution session to view policy breakdown.
             </div>
           )}
-
-          {/* Recent Agent Executions Telemetry */}
-          <div className="flex flex-col gap-space-xs pt-space-xs border-t border-border">
-            <div className="flex items-center justify-between">
-              <span className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">
-                Recent Agent Executions
-              </span>
-              <Link href="/agent-runs" className="font-code-sm text-code-sm text-secondary hover:underline">
-                View All →
-              </Link>
-            </div>
-
-            <div className="flex flex-col gap-1 max-h-40 overflow-y-auto">
-              {recentExecutions.slice(0, 5).map((ex) => (
-                <div
-                  key={ex.id}
-                  className="p-1.5 rounded bg-surface-container-low border border-border flex items-center justify-between font-code-sm text-code-sm"
-                >
-                  <span className="truncate max-w-[140px] text-on-surface font-medium">
-                    {ex.tool_name}
-                  </span>
-                  <span
-                    className={`font-semibold uppercase text-[10px] ${
-                      ex.decision === "ALLOW"
-                        ? "text-secondary"
-                        : ex.decision === "BLOCK"
-                        ? "text-error"
-                        : "text-tertiary"
-                    }`}
-                  >
-                    {ex.decision}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     </div>

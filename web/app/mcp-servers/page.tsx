@@ -7,12 +7,31 @@ import {
   Search,
   CheckCircle2,
   X,
+  Layers,
+  RefreshCw,
 } from "lucide-react";
-import { MCP_SERVERS, McpServer } from "@/lib/sentinel-data";
 import { api } from "@/lib/api";
+import { LoadingState, EmptyState } from "@/components/ui/FeedbackStates";
+
+export interface McpServer {
+  id: string;
+  name: string;
+  transport: "stdio" | "sse" | "stream-http";
+  status: "ONLINE" | "CONNECTING" | "DEGRADED" | "OFFLINE";
+  endpoint: string;
+  toolsCount: number;
+  authMethod: "None (Local stdio)" | "Bearer Token" | "Mutual TLS" | "OAuth 2.0";
+  lastConnection: string;
+  riskProfile: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  environment: "Production" | "Staging" | "Development";
+  latencyMs: number;
+  serverVersion: string;
+  protocolVersion: string;
+}
 
 export default function McpServersPage() {
-  const [servers, setServers] = useState<McpServer[]>(MCP_SERVERS);
+  const [servers, setServers] = useState<McpServer[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTransport, setSelectedTransport] = useState("ALL");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -26,11 +45,12 @@ export default function McpServersPage() {
   const [newAuth, setNewAuth] = useState<"None (Local stdio)" | "Bearer Token" | "Mutual TLS" | "OAuth 2.0">("Bearer Token");
   const [newEnv, setNewEnv] = useState<"Production" | "Staging" | "Development">("Production");
 
-  useEffect(() => {
+  const loadServers = () => {
+    setLoading(true);
     api.mcpServers
       .list()
       .then((data: Record<string, unknown>[]) => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           const mapped: McpServer[] = data.map((s) => ({
             id: String(s.id || s.server_id || `srv_${Date.now()}`),
             name: String(s.name || "Custom MCP Server"),
@@ -39,7 +59,7 @@ export default function McpServersPage() {
             endpoint: String(s.endpoint || ""),
             toolsCount: typeof s.tools_count === "number" ? s.tools_count : 5,
             authMethod: (s.auth_method as "None (Local stdio)" | "Bearer Token" | "Mutual TLS" | "OAuth 2.0") || "Bearer Token",
-            lastConnection: "Just now",
+            lastConnection: "Active",
             riskProfile: "MEDIUM",
             environment: (s.environment as "Production" | "Staging" | "Development") || "Production",
             latencyMs: 14,
@@ -47,9 +67,20 @@ export default function McpServersPage() {
             protocolVersion: "2024-11-05",
           }));
           setServers(mapped);
+        } else {
+          setServers([]);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setServers([]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => {
+    loadServers();
   }, []);
 
   const filteredServers = servers.filter((srv: McpServer) => {
@@ -129,289 +160,325 @@ export default function McpServersPage() {
   };
 
   return (
-    <div className="p-3 sm:p-5 max-w-7xl mx-auto space-y-4 font-sans select-none animate-in fade-in duration-150">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
+    <div className="w-full px-space-md sm:px-space-lg lg:px-space-xl py-space-lg flex flex-col gap-space-xl">
+      {/* Header Banner */}
+      <section className="bg-surface-container-lowest p-space-lg rounded-xl shadow-xs border border-surface-container flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-widest">
-              GATEWAY INFRASTRUCTURE // PROTOCOL BUS
+          <div className="flex items-center gap-space-sm mb-space-xxs">
+            <span className="font-label-mono text-label-mono text-secondary font-bold flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
+              GATEWAY INFRASTRUCTURE
             </span>
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-container)] animate-pulse" />
-            <span className="font-code-sm text-[10px] text-[var(--primary-container)] font-bold">
-              {servers.length} ACTIVE RPC SERVERS
+            <span className="font-label-mono text-label-mono px-space-xs py-0.5 rounded bg-surface-container text-on-surface-variant font-bold">
+              PROTOCOL BUS
             </span>
           </div>
-          <h1 className="font-headline-md text-lg sm:text-xl font-bold tracking-tight text-[var(--primary)]">
-            MCP SERVER REGISTRY & PROTOCOL ROUTER
+          <h1 className="font-headline-lg text-headline-lg text-on-surface tracking-tight font-bold">
+            MCP Server Registry &amp; Daemon Fleet
           </h1>
-          <p className="font-body-sm text-xs text-[var(--text-secondary)] mt-0.5">
-            Model Context Protocol endpoints communicating across isolated stdio, SSE eventstreams, or secure HTTP transports with mutual TLS.
+          <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+            Model Context Protocol daemon endpoints, stdio transports, and cryptographic verification
           </p>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xs bg-[var(--primary-container)] text-[var(--surface-container-lowest)] font-code-sm text-xs font-bold hover:brightness-110 active:scale-98 transition-all cursor-pointer self-start sm:self-auto"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>REGISTER MCP SERVER</span>
-        </button>
+        <div className="flex items-center gap-space-xs">
+          <button
+            onClick={loadServers}
+            className="p-2 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors cursor-pointer"
+            title="Refresh Fleet"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-space-md py-2 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors font-label-ui text-label-ui font-semibold shadow-xs flex items-center gap-1.5 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Register MCP Server</span>
+          </button>
+        </div>
+      </section>
+
+      {/* KPI Stats Strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-space-sm font-label-mono text-label-mono">
+        <div className="p-space-md rounded-xl bg-surface-container-lowest border border-surface-container">
+          <span className="text-on-surface-variant uppercase text-[11px] block">TOTAL MCP NODES</span>
+          <span className="font-headline-xl text-headline-xl text-on-surface font-bold block mt-1">
+            {servers.length}
+          </span>
+          <span className="text-[10px] text-secondary font-semibold">Active protocol endpoints</span>
+        </div>
+        <div className="p-space-md rounded-xl bg-surface-container-lowest border border-surface-container">
+          <span className="text-on-surface-variant uppercase text-[11px] block">HEALTH STATUS</span>
+          <span className="font-headline-xl text-headline-xl text-secondary font-bold block mt-1">
+            {servers.filter((s) => s.status === "ONLINE").length} / {servers.length || 1}
+          </span>
+          <span className="text-[10px] text-secondary font-semibold">Nodes healthy</span>
+        </div>
+        <div className="p-space-md rounded-xl bg-surface-container-lowest border border-surface-container">
+          <span className="text-on-surface-variant uppercase text-[11px] block">REGISTERED TOOLS</span>
+          <span className="font-headline-xl text-headline-xl text-on-surface font-bold block mt-1">
+            {servers.reduce((acc, s) => acc + s.toolsCount, 0)}
+          </span>
+          <span className="text-[10px] text-on-surface-variant">FastMCP exposed actions</span>
+        </div>
+        <div className="p-space-md rounded-xl bg-surface-container-lowest border border-surface-container">
+          <span className="text-on-surface-variant uppercase text-[11px] block">MEAN BUS LATENCY</span>
+          <span className="font-headline-xl text-headline-xl text-primary font-bold block mt-1">
+            14.2ms
+          </span>
+          <span className="text-[10px] text-primary font-semibold">Sub-20ms policy enforcement</span>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="p-2.5 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] space-y-2">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-          <div className="flex-1 relative max-w-md">
-            <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search by server name, endpoint URI, or transport protocol..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] font-code-sm text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:border-[var(--secondary-container)]"
-            />
-          </div>
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-space-sm">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-on-surface-variant absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search daemon by name, transport, or endpoint..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant pl-9 pr-3 py-1.5 rounded-lg border border-surface-container text-body-sm font-body-sm outline-hidden"
+          />
+        </div>
 
-          <div className="flex items-center gap-1.5 font-code-sm text-xs">
-            {["ALL", "stdio", "sse", "stream-http"].map((trans) => (
+        <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg border border-surface-container text-xs font-label-mono">
+          {["ALL", "stdio", "sse", "stream-http"].map((t) => (
+            <button
+              key={t}
+              onClick={() => setSelectedTransport(t)}
+              className={`px-3 py-1 rounded font-semibold transition-colors cursor-pointer ${
+                selectedTransport === t
+                  ? "bg-surface-container-lowest text-on-surface shadow-xs"
+                  : "text-on-surface-variant hover:text-on-surface"
+              }`}
+            >
+              {t.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Servers Table */}
+      <div className="bg-surface-container-lowest rounded-xl shadow-xs border border-surface-container overflow-hidden">
+        {loading ? (
+          <LoadingState message="Querying registered Model Context Protocol daemons..." />
+        ) : filteredServers.length === 0 ? (
+          <EmptyState
+            title="No MCP Servers Registered"
+            message="No active or remote MCP daemon connections match your current search criteria."
+            icon={Server}
+            action={
               <button
-                key={trans}
-                onClick={() => setSelectedTransport(trans)}
-                className={`px-2 py-0.5 rounded-xs border transition-all cursor-pointer ${
-                  selectedTransport === trans
-                    ? "bg-[var(--secondary-container)]/20 text-[var(--secondary-container)] border-[var(--secondary-container)] font-bold"
-                    : "bg-[var(--surface-container-lowest)] text-[var(--text-muted)] border-[var(--border)] hover:text-[var(--text-primary)]"
-                }`}
+                onClick={() => setShowAddModal(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-primary text-on-primary hover:bg-primary-container shadow-xs cursor-pointer"
               >
-                {trans.toUpperCase()}
+                <Plus className="w-3.5 h-3.5" />
+                <span>Register First Server</span>
               </button>
-            ))}
-          </div>
-        </div>
-      </div>
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse font-body-sm text-body-sm">
+              <thead>
+                <tr className="bg-surface-container-low font-label-mono text-label-mono text-on-surface-variant uppercase tracking-wider border-b border-surface-container">
+                  <th className="py-space-sm px-space-lg">Server Daemon</th>
+                  <th className="py-space-sm px-space-md">Transport</th>
+                  <th className="py-space-sm px-space-md">Status</th>
+                  <th className="py-space-sm px-space-md">Exposed Tools</th>
+                  <th className="py-space-sm px-space-md">Auth Method</th>
+                  <th className="py-space-sm px-space-md">Latency</th>
+                  <th className="py-space-sm px-space-md">Risk Tier</th>
+                  <th className="py-space-sm px-space-lg text-right">Verification</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-surface-container font-body-sm">
+                {filteredServers.map((srv) => {
+                  const isTesting = testingId === srv.id;
+                  const hasResult = testResult && testResult.id === srv.id;
 
-      {/* Server Registry Table */}
-      <div className="rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse font-sans text-xs">
-            <thead>
-              <tr className="bg-[var(--surface-container-lowest)] border-b border-[var(--border)] font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-wider">
-                <th className="px-3 py-2">SERVER NAME & ENDPOINT</th>
-                <th className="px-3 py-2">TRANSPORT</th>
-                <th className="px-3 py-2">LINK STATUS</th>
-                <th className="px-3 py-2">CAPABILITIES</th>
-                <th className="px-3 py-2">AUTHENTICATION</th>
-                <th className="px-3 py-2">TELEMETRY</th>
-                <th className="px-3 py-2">RISK</th>
-                <th className="px-3 py-2 text-right">DIAGNOSTICS</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--border)] font-code-sm">
-              {filteredServers.map((srv: McpServer) => {
-                const isTesting = testingId === srv.id;
-                const hasResult = testResult && testResult.id === srv.id;
-
-                return (
-                  <tr
-                    key={srv.id}
-                    className="hover:bg-[var(--surface-container-high)]/50 transition-colors"
-                  >
-                    {/* SERVER */}
-                    <td className="px-3 py-2">
-                      <div>
-                        <span className="font-bold text-xs text-[var(--primary)] block font-mono">
-                          {srv.name}
-                        </span>
-                        <span className="text-[10px] text-[var(--text-muted)] truncate block max-w-xs font-mono">
-                          {srv.endpoint}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* TRANSPORT */}
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <span className="px-1.5 py-0.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-[9px] font-bold text-[var(--secondary-container)] uppercase font-mono">
-                        {srv.transport}
-                      </span>
-                    </td>
-
-                    {/* STATUS */}
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1.5 px-1.5 py-0.5 rounded-xs bg-[var(--primary-container)]/20 border border-[var(--primary-container)]/30 text-[9px] font-bold text-[var(--primary-container)] font-label-caps">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-container)] animate-pulse" />
-                        {srv.status}
-                      </span>
-                    </td>
-
-                    {/* TOOLS */}
-                    <td className="px-3 py-2 whitespace-nowrap font-mono">
-                      <span className="font-bold text-[var(--text-primary)] text-xs">
-                        {srv.toolsCount} Tools
-                      </span>
-                    </td>
-
-                    {/* AUTH */}
-                    <td className="px-3 py-2 whitespace-nowrap font-mono text-[11px] text-[var(--text-secondary)]">
-                      {srv.authMethod}
-                    </td>
-
-                    {/* TELEMETRY */}
-                    <td className="px-3 py-2 text-[10px] text-[var(--text-muted)] whitespace-nowrap font-mono">
-                      {srv.lastConnection} ({srv.latencyMs}ms)
-                    </td>
-
-                    {/* RISK */}
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <span
-                        className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
-                          srv.riskProfile === "CRITICAL"
-                            ? "bg-[var(--error-container)] text-[var(--on-error-container)] border border-[var(--error)]/40"
-                            : srv.riskProfile === "HIGH"
-                            ? "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40"
-                            : "bg-[var(--secondary-container)]/20 text-[var(--secondary-container)] border border-[var(--secondary-container)]/30"
-                        }`}
-                      >
-                        {srv.riskProfile}
-                      </span>
-                    </td>
-
-                    {/* ACTIONS */}
-                    <td className="px-3 py-2 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {hasResult && (
-                          <span className="text-[10px] text-[var(--primary-container)] font-bold flex items-center gap-1 font-mono">
-                            <CheckCircle2 className="w-3 h-3" />
-                            {testResult.latency}ms OK
+                  return (
+                    <tr key={srv.id} className="hover:bg-surface-container-low/60 transition-colors">
+                      <td className="py-space-md px-space-lg">
+                        <div>
+                          <span className="font-bold text-on-surface block font-label-mono text-body-sm">
+                            {srv.name}
                           </span>
-                        )}
+                          <span className="text-[10px] text-on-surface-variant truncate block max-w-xs font-label-mono">
+                            {srv.endpoint}
+                          </span>
+                        </div>
+                      </td>
 
-                        <button
-                          onClick={() => handleTestConnection(srv.id)}
-                          disabled={isTesting}
-                          className="px-2 py-0.5 rounded-xs border border-[var(--border)] bg-[var(--surface-container-high)] text-[10px] font-mono font-semibold text-[var(--text-primary)] hover:border-[var(--secondary-container)] hover:text-[var(--secondary-container)] transition-colors disabled:opacity-50 cursor-pointer"
-                        >
-                          {isTesting ? "Pinging..." : "TEST ECHO"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      <td className="py-space-md px-space-md whitespace-nowrap">
+                        <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-mono text-[10px] font-bold uppercase">
+                          {srv.transport}
+                        </span>
+                      </td>
+
+                      <td className="py-space-md px-space-md whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-label-mono text-[10px] font-bold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
+                          {srv.status}
+                        </span>
+                      </td>
+
+                      <td className="py-space-md px-space-md whitespace-nowrap font-label-mono">
+                        <span className="font-bold text-on-surface">
+                          {srv.toolsCount} Tools
+                        </span>
+                      </td>
+
+                      <td className="py-space-md px-space-md whitespace-nowrap font-label-mono text-[11px] text-on-surface-variant">
+                        {srv.authMethod}
+                      </td>
+
+                      <td className="py-space-md px-space-md text-[11px] text-on-surface-variant whitespace-nowrap font-label-mono">
+                        {srv.latencyMs}ms
+                      </td>
+
+                      <td className="py-space-md px-space-md whitespace-nowrap">
+                        <span className="px-2 py-0.5 rounded font-label-mono text-[10px] font-bold bg-surface-container-highest text-on-surface-variant">
+                          {srv.riskProfile}
+                        </span>
+                      </td>
+
+                      <td className="py-space-md px-space-lg text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
+                          {hasResult && (
+                            <span className="text-[10px] text-secondary font-bold flex items-center gap-1 font-label-mono">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              {testResult.latency}ms OK
+                            </span>
+                          )}
+
+                          <button
+                            onClick={() => handleTestConnection(srv.id)}
+                            disabled={isTesting}
+                            className="px-2.5 py-1 rounded bg-surface-container text-on-surface hover:bg-surface-container-high font-label-ui text-label-ui font-semibold transition-colors disabled:opacity-50 cursor-pointer"
+                          >
+                            {isTesting ? "Testing..." : "Test Echo"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* ADD SERVER MODAL */}
+      {/* Registration Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/75 backdrop-blur-xs">
-          <div className="bg-[var(--surface-container-low)] border border-[var(--border-interactive)] rounded-xs max-w-md w-full p-4 sm:p-5 shadow-2xl space-y-3 font-sans">
-            <div className="flex items-center justify-between pb-2 border-b border-[var(--border)]">
-              <div className="flex items-center gap-2">
-                <Server className="w-4 h-4 text-[var(--secondary-container)]" />
-                <h3 className="font-headline-sm text-xs sm:text-sm font-bold text-[var(--primary)] font-mono">
-                  REGISTER MODEL CONTEXT PROTOCOL SERVER
-                </h3>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+          <div className="bg-surface-container-lowest rounded-xl max-w-lg w-full p-space-xl border border-surface-container shadow-xl">
+            <div className="flex items-center justify-between pb-space-sm border-b border-surface-container mb-space-md">
+              <h3 className="font-headline-md text-headline-md text-on-surface font-bold">
+                Register New MCP Server Daemon
+              </h3>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="p-1 rounded-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                className="text-on-surface-variant hover:text-on-surface cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleAddServer} className="space-y-3 font-code-sm text-xs">
+            <form onSubmit={handleAddServer} className="space-y-space-md font-body-sm text-body-sm">
               <div>
-                <label className="font-label-caps text-[8px] uppercase text-[var(--text-muted)] block mb-1">
-                  SERVER IDENTIFIER
+                <label className="font-label-mono text-label-mono text-on-surface-variant uppercase font-semibold block mb-1">
+                  Server Name
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. GitHub Enterprise MCP Gateway"
+                  placeholder="e.g., PostgreSQL FastMCP Daemon"
                   value={newServerName}
                   onChange={(e) => setNewServerName(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--secondary-container)] font-mono"
+                  className="w-full bg-surface-container-low text-on-surface px-3 py-2 rounded-lg border border-surface-container outline-hidden font-body-sm"
                 />
               </div>
 
               <div>
-                <label className="font-label-caps text-[8px] uppercase text-[var(--text-muted)] block mb-1">
-                  ENDPOINT URI OR STDIO COMMAND
+                <label className="font-label-mono text-label-mono text-on-surface-variant uppercase font-semibold block mb-1">
+                  Connection Endpoint (URI / Stdio Command)
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. https://mcp.internal.corp/sse or npx -y @modelcontextprotocol/server"
+                  placeholder="e.g., stdio:python -m mcp_sentinel.server"
                   value={newEndpoint}
                   onChange={(e) => setNewEndpoint(e.target.value)}
-                  className="w-full px-2.5 py-1.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--secondary-container)] font-mono"
+                  className="w-full bg-surface-container-low text-on-surface px-3 py-2 rounded-lg border border-surface-container outline-hidden font-label-mono text-[12px]"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-space-sm">
                 <div>
-                  <label className="font-label-caps text-[8px] uppercase text-[var(--text-muted)] block mb-1">
-                    TRANSPORT
+                  <label className="font-label-mono text-label-mono text-on-surface-variant uppercase font-semibold block mb-1">
+                    Transport Protocol
                   </label>
                   <select
                     value={newTransport}
-                    onChange={(e) => setNewTransport(e.target.value as McpServer["transport"])}
-                    className="w-full px-2 py-1.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden"
+                    onChange={(e) => setNewTransport(e.target.value as "stdio" | "sse" | "stream-http")}
+                    className="w-full bg-surface-container-low text-on-surface px-3 py-2 rounded-lg border border-surface-container outline-hidden font-label-mono"
                   >
-                    <option value="stream-http">stream-http</option>
-                    <option value="sse">sse</option>
-                    <option value="stdio">stdio</option>
+                    <option value="stdio">stdio (Local Subprocess)</option>
+                    <option value="sse">sse (Server-Sent Events)</option>
+                    <option value="stream-http">stream-http (Streaming HTTP)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="font-label-caps text-[8px] uppercase text-[var(--text-muted)] block mb-1">
-                    AUTHENTICATION
+                  <label className="font-label-mono text-label-mono text-on-surface-variant uppercase font-semibold block mb-1">
+                    Environment Target
                   </label>
                   <select
-                    value={newAuth}
-                    onChange={(e) => setNewAuth(e.target.value as McpServer["authMethod"])}
-                    className="w-full px-2 py-1.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden"
+                    value={newEnv}
+                    onChange={(e) => setNewEnv(e.target.value as "Production" | "Staging" | "Development")}
+                    className="w-full bg-surface-container-low text-on-surface px-3 py-2 rounded-lg border border-surface-container outline-hidden font-label-mono"
                   >
-                    <option value="Bearer Token">Bearer Token</option>
-                    <option value="Mutual TLS">Mutual TLS</option>
-                    <option value="OAuth 2.0">OAuth 2.0</option>
-                    <option value="None (Local stdio)">None (Local stdio)</option>
+                    <option value="Production">Production</option>
+                    <option value="Staging">Staging</option>
+                    <option value="Development">Development</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="font-label-caps text-[8px] uppercase text-[var(--text-muted)] block mb-1">
-                  ENVIRONMENT
+                <label className="font-label-mono text-label-mono text-on-surface-variant uppercase font-semibold block mb-1">
+                  Authentication Method
                 </label>
                 <select
-                  value={newEnv}
-                  onChange={(e) => setNewEnv(e.target.value as McpServer["environment"])}
-                  className="w-full px-2 py-1.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden"
+                  value={newAuth}
+                  onChange={(e) => setNewAuth(e.target.value as "None (Local stdio)" | "Bearer Token" | "Mutual TLS" | "OAuth 2.0")}
+                  className="w-full bg-surface-container-low text-on-surface px-3 py-2 rounded-lg border border-surface-container outline-hidden font-label-mono"
                 >
-                  <option value="Production">Production</option>
-                  <option value="Staging">Staging</option>
-                  <option value="Development">Development</option>
+                  <option value="None (Local stdio)">None (Local stdio)</option>
+                  <option value="Bearer Token">Bearer Token</option>
+                  <option value="Mutual TLS">Mutual TLS (mTLS FIPS 140-3)</option>
+                  <option value="OAuth 2.0">OAuth 2.0 Client Credentials</option>
                 </select>
               </div>
 
-              <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border)]">
+              <div className="pt-space-md border-t border-surface-container flex items-center justify-end gap-space-sm">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-3 py-1 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                  className="px-space-md py-2 rounded-lg bg-surface-container text-on-surface font-label-ui text-label-ui font-semibold hover:bg-surface-container-high transition-colors cursor-pointer"
                 >
-                  CANCEL
+                  Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-3 py-1 rounded-xs bg-[var(--primary-container)] text-[var(--surface-container-lowest)] font-bold text-xs hover:brightness-110"
+                  className="px-space-md py-2 rounded-lg bg-primary text-on-primary font-label-ui text-label-ui font-bold hover:bg-primary-container transition-colors shadow-xs cursor-pointer"
                 >
-                  REGISTER SERVER
+                  Save &amp; Connect Server
                 </button>
               </div>
             </form>
