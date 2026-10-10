@@ -6,15 +6,13 @@ and external/custom MCP servers.
 
 from __future__ import annotations
 
-import json
-from datetime import datetime
 from typing import Any, Optional
+
 import asyncpg
 
 from mcp_sentinel.connectors.models import (
     ConnectorCredentials,
     IntegrationStatus,
-    ProtocolType,
 )
 from mcp_sentinel.connectors.vault import get_vault
 from mcp_sentinel.database.connection import get_db_pool

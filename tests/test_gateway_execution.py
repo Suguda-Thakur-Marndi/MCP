@@ -13,6 +13,7 @@ Validates:
 """
 
 import pytest
+
 from mcp_sentinel.connectors.models import ConnectorCredentials
 from mcp_sentinel.connectors.registry import get_connector_registry
 from mcp_sentinel.repositories.integration_repository import IntegrationRepository

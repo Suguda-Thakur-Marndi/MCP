@@ -71,6 +71,7 @@ def compute_approval_hmac(
     Binds ticket_id, action, target_id, parameter_hash, and approver_id with the server secret.
     """
     import hmac
+
     from mcp_sentinel.config.settings import get_settings
 
     key = (secret or get_settings().APPROVAL_HMAC_SECRET).encode("utf-8")

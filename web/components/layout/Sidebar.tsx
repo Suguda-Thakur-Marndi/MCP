@@ -4,37 +4,18 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Terminal,
-  Activity,
-  Bot,
-  ShieldCheck,
-  Sliders,
-  ShieldAlert,
-  Layers,
-  Server,
-  Wrench,
-  ScrollText,
-  CheckCircle2,
-  Settings,
   ChevronLeft,
   ChevronRight,
   X,
-  User,
-  Radio,
+  Shield,
 } from "lucide-react";
-import { api, type CurrentUser } from "@/lib/api";
+import { api } from "@/lib/api";
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ElementType;
-  badge?: React.ReactNode;
-  badgeCount?: number;
-}
-
-interface NavGroup {
-  group: string;
-  items: NavItem[];
+interface SidebarProps {
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export function Sidebar({
@@ -42,44 +23,32 @@ export function Sidebar({
   onToggleCollapse,
   isMobileOpen,
   onCloseMobile,
-}: {
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
-  isMobileOpen?: boolean;
-  onCloseMobile?: () => void;
-}) {
+}: SidebarProps) {
   const pathname = usePathname();
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number>(0);
-  const [systemUptime] = useState<string>("99.98%");
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState<number>(3);
+  const [clusterName, setClusterName] = useState<string>("Prod-Cluster-01");
+  const [gatewayStatus, setGatewayStatus] = useState<string>("99.98%");
+  const [gatewayLatency, setGatewayLatency] = useState<string>("14ms");
 
   useEffect(() => {
     let active = true;
-    api.auth.me()
-      .then((u) => {
-        if (active) setCurrentUser(u);
-      })
-      .catch(() => {
-        if (active) {
-          const role = typeof window !== "undefined" ? localStorage.getItem("sentinel_role") || "ADMIN" : "ADMIN";
-          const email = typeof window !== "undefined" ? localStorage.getItem("sentinel_email") || "admin@sentinel.test" : "admin@sentinel.test";
-          setCurrentUser({
-            id: "usr_aris_thorne",
-            email,
-            name: "Dr. Aris Thorne",
-            display_name: "Dr. Aris Thorne",
-            role,
-            organization: "Sentinel Core",
-            status: "ACTIVE",
-            is_active: true,
-            permissions: ["*"],
-          });
-        }
-      });
 
+    // Load real pending approvals count
     api.approvals.pending()
       .then((items) => {
-        if (active) setPendingApprovalsCount(items.length);
+        if (active && Array.isArray(items)) {
+          setPendingApprovalsCount(items.length);
+        }
+      })
+      .catch(() => {});
+
+    // Check health
+    api.health()
+      .then((h) => {
+        if (active && h) {
+          setGatewayStatus(h.status === "healthy" || h.status === "ok" ? "99.99%" : "Degraded");
+          setGatewayLatency("12ms");
+        }
       })
       .catch(() => {});
 
@@ -88,211 +57,269 @@ export function Sidebar({
     };
   }, [pathname]);
 
-  const NAVIGATION: NavGroup[] = [
+  const navItems = [
     {
-      group: "1. Control",
-      items: [
-        { label: "Command Center", href: "/", icon: Terminal },
-        {
-          label: "Live Activity",
-          href: "/audit",
-          icon: Radio,
-          badge: (
-            <span className="px-1.5 py-0.5 rounded-xs bg-[var(--secondary-container)]/10 border border-[var(--secondary-container)]/30 text-[var(--secondary-container)] font-label-caps text-[9px] tracking-wider">
-              LIVE STREAM
-            </span>
-          ),
-        },
-        { label: "Agent Runs", href: "/agent", icon: Bot },
-      ],
+      label: "Overview",
+      href: "/",
+      iconName: "grid_view",
+      badge: null,
     },
     {
-      group: "2. Govern",
-      items: [
-        {
-          label: "Approvals",
-          href: "/approvals",
-          icon: ShieldCheck,
-          badge: pendingApprovalsCount > 0 ? (
-            <span className="px-1.5 py-0.5 rounded-xs bg-[var(--error-container)]/40 border border-[var(--error)]/50 text-[var(--error)] font-label-caps text-[9px] tracking-wider">
-              {pendingApprovalsCount} PENDING
-            </span>
-          ) : (
-            <span className="px-1.5 py-0.5 rounded-xs bg-[var(--surface-container-high)] text-[var(--text-muted)] font-label-caps text-[9px]">
-              0 PENDING
-            </span>
-          ),
-        },
-        { label: "Policies", href: "/policies", icon: Sliders },
-        { label: "Risk", href: "/risk", icon: ShieldAlert },
-      ],
+      label: "AI Command Center",
+      href: "/agent",
+      iconName: "terminal",
+      badge: (
+        <span className="font-code-sm text-code-sm px-space-xs py-space-xxs rounded bg-secondary-fixed text-on-secondary-fixed uppercase tracking-wider font-semibold">
+          AI Active
+        </span>
+      ),
     },
     {
-      group: "3. Connect",
-      items: [
-        { label: "Integrations", href: "/integrations", icon: Layers },
-        { label: "MCP Servers", href: "/mcp-servers", icon: Server },
-        { label: "Tools", href: "/tools", icon: Wrench },
-      ],
+      label: "Approvals",
+      href: "/approvals",
+      iconName: "verified_user",
+      badge: pendingApprovalsCount > 0 ? (
+        <span className="font-code-sm text-code-sm px-space-xs py-space-xxs rounded bg-tertiary-fixed text-on-tertiary-fixed uppercase font-semibold">
+          {pendingApprovalsCount} Pending
+        </span>
+      ) : null,
     },
     {
-      group: "4. Investigate",
-      items: [
-        { label: "Audit", href: "/audit", icon: ScrollText },
-        { label: "Security Evaluation", href: "/evaluation", icon: CheckCircle2 },
-      ],
+      label: "Policies",
+      href: "/policies",
+      iconName: "gavel",
+      badge: null,
     },
     {
-      group: "5. System",
-      items: [
-        {
-          label: "Health",
-          href: "/health",
-          icon: Activity,
-          badge: (
-            <span className="font-code-sm text-code-sm text-[var(--primary-container)]">
-              {systemUptime}
-            </span>
-          ),
-        },
-        { label: "Settings", href: "/settings", icon: Settings },
-      ],
+      label: "Risk & Threat",
+      href: "/risk",
+      iconName: "warning",
+      badge: null,
+    },
+    {
+      label: "Audit Log",
+      href: "/audit",
+      iconName: "history_edu",
+      badge: null,
+    },
+    {
+      label: "MCP Tools",
+      href: "/tools",
+      iconName: "build_circle",
+      badge: null,
+    },
+    {
+      label: "Integrations",
+      href: "/integrations",
+      iconName: "hub",
+      badge: null,
+    },
+    {
+      label: "Health & Connectivity",
+      href: "/health",
+      iconName: "monitor_heart",
+      badge: <span className="w-2 h-2 rounded-full bg-secondary inline-block"></span>,
+    },
+    {
+      label: "Security Evaluation",
+      href: "/evaluation",
+      iconName: "verified",
+      badge: null,
+    },
+    {
+      label: "Settings",
+      href: "/settings",
+      iconName: "settings",
+      badge: null,
     },
   ];
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-screen bg-[var(--surface-container-lowest)] border-r border-[var(--border)] z-50 flex flex-col justify-between select-none transition-all duration-150 ${
-        isCollapsed ? "w-16" : "w-64"
+      className={`fixed left-0 top-0 h-full bg-surface-container-lowest border-r border-border shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between overflow-y-auto transition-all duration-200 ${
+        isCollapsed ? "w-18" : "w-72"
       } ${
         isMobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
       }`}
     >
-      <div className="flex flex-col flex-1 overflow-y-auto">
-        {/* Brand Header */}
-        <div className="h-14 px-3 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface-container-low)]/50 flex-shrink-0">
-          <Link href="/" onClick={onCloseMobile} className="flex items-center gap-2 overflow-hidden group">
-            <div className="relative flex items-center justify-center flex-shrink-0">
-              <div className="w-2 h-2 rounded-full bg-[var(--primary-container)]" />
-              <div className="absolute w-3.5 h-3.5 rounded-full bg-[var(--primary-container)]/20 animate-ping" />
-            </div>
-            {!isCollapsed && (
-              <span className="font-label-caps text-[11px] tracking-widest text-[var(--primary)] font-bold uppercase truncate">
-                MCP SENTINEL
-              </span>
-            )}
-          </Link>
-          <div className="flex items-center gap-1">
-            {!isCollapsed && (
-              <span className="px-1.5 py-0.5 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border-interactive)] font-code-sm text-[10px] text-[var(--secondary-container)]">
-                v3.0-NOC
-              </span>
-            )}
-            <button
+      <div className="flex flex-col">
+        {/* Top Branding Section */}
+        <div className="p-space-lg bg-surface-container-low flex flex-col gap-space-xs border-b border-border">
+          <div className="flex items-center justify-between">
+            <Link
+              href="/"
               onClick={onCloseMobile}
-              className="p-1 rounded-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] lg:hidden"
-              title="Close sidebar"
+              className="flex items-center gap-space-sm overflow-hidden group"
             >
-              <X className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onToggleCollapse}
-              className="hidden lg:flex p-1 rounded-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-container-high)] transition-colors"
-              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Navigation Groups */}
-        <nav className="px-1.5 py-2 space-y-3">
-          {NAVIGATION.map((grp) => (
-            <div key={grp.group} className="space-y-0.5">
+              <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-on-primary shrink-0">
+                <Shield className="w-4.5 h-4.5" />
+              </div>
               {!isCollapsed && (
-                <div className="px-2 py-1 font-label-caps text-[9px] text-[var(--text-muted)] uppercase tracking-widest">
-                  {grp.group}
+                <div className="flex flex-col min-w-0">
+                  <span className="font-headline-sm text-headline-sm text-on-surface truncate">
+                    MCP Sentinel
+                  </span>
+                  <span className="font-code-sm text-code-sm text-on-surface-variant uppercase tracking-wider truncate">
+                    v2.4-prod / US-EAST
+                  </span>
                 </div>
               )}
-              {grp.items.map((item) => {
-                const Icon = item.icon;
-                const isActive =
-                  item.href === "/"
-                    ? pathname === "/" || pathname === "/overview"
-                    : pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+            </Link>
 
-                return (
-                  <Link
-                    key={`${grp.group}-${item.href}`}
-                    href={item.href}
-                    onClick={onCloseMobile}
-                    className={`flex items-center justify-between px-2 py-1.5 rounded-xs transition-colors duration-150 text-xs ${
-                      isActive
-                        ? "bg-[var(--surface-container-high)] text-[var(--primary)] border-l-2 border-[var(--primary-container)] font-semibold pl-[7px]"
-                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-container-low)]"
-                    } ${isCollapsed ? "justify-center px-0" : ""}`}
-                    title={isCollapsed ? item.label : undefined}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Icon className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-[var(--primary-container)]" : "text-[var(--text-muted)]"}`} />
-                      {!isCollapsed && <span className="truncate">{item.label}</span>}
-                    </div>
-                    {!isCollapsed && item.badge}
-                  </Link>
-                );
-              })}
+            <div className="flex items-center gap-1">
+              {/* Mobile Close Button */}
+              {isMobileOpen && (
+                <button
+                  type="button"
+                  onClick={onCloseMobile}
+                  className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container lg:hidden"
+                  aria-label="Close navigation"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+              {/* Desktop Collapse Toggle */}
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className="hidden lg:flex p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-colors"
+                title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {isCollapsed ? (
+                  <ChevronRight className="w-4 h-4" />
+                ) : (
+                  <ChevronLeft className="w-4 h-4" />
+                )}
+              </button>
             </div>
-          ))}
+          </div>
+
+          {/* Cluster Selector */}
+          {!isCollapsed && (
+            <button
+              type="button"
+              onClick={() =>
+                setClusterName((prev) =>
+                  prev === "Prod-Cluster-01" ? "Staging-Cluster-02" : "Prod-Cluster-01"
+                )
+              }
+              className="mt-space-sm p-space-xs px-space-sm bg-surface-container rounded-lg flex items-center justify-between cursor-pointer hover:bg-surface-container-high transition-colors text-left w-full"
+            >
+              <div className="flex items-center gap-space-xs overflow-hidden">
+                <span className="material-symbols-outlined text-[16px] text-secondary">
+                  dns
+                </span>
+                <span className="font-code-sm text-code-sm text-on-surface truncate font-medium">
+                  {clusterName}
+                </span>
+              </div>
+              <span className="material-symbols-outlined text-[14px] text-on-surface-variant">
+                unfold_more
+              </span>
+            </button>
+          )}
+        </div>
+
+        {/* Navigation list */}
+        <nav
+          className="flex flex-col gap-space-xxs p-space-md mt-space-xs"
+          data-active-classes="bg-primary-container text-on-primary-container font-headline-sm rounded-lg"
+        >
+          {navItems.map((item) => {
+            const isActive =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname === item.href || pathname?.startsWith(item.href + "/");
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onCloseMobile}
+                title={isCollapsed ? item.label : undefined}
+                className={`flex items-center justify-between px-space-md py-space-sm rounded-lg transition-colors ${
+                  isActive
+                    ? "bg-primary-container text-on-primary-container font-headline-sm shadow-xs"
+                    : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+                } ${isCollapsed ? "justify-center px-space-xs" : ""}`}
+              >
+                <div className="flex items-center gap-space-md min-w-0">
+                  <span
+                    className={`material-symbols-outlined text-[20px] shrink-0 ${
+                      isActive
+                        ? "text-on-primary-container"
+                        : item.href === "/agent"
+                        ? "text-secondary"
+                        : "text-on-surface-variant"
+                    }`}
+                  >
+                    {item.iconName}
+                  </span>
+                  {!isCollapsed && (
+                    <span className="font-label-md text-label-md truncate">
+                      {item.label}
+                    </span>
+                  )}
+                </div>
+                {!isCollapsed && item.badge}
+              </Link>
+            );
+          })}
         </nav>
       </div>
 
-      {/* Sidebar Footer Deck */}
-      <div className="p-2 border-t border-[var(--border)] bg-[var(--surface-container-lowest)] space-y-1.5 flex-shrink-0">
-        {!isCollapsed ? (
-          <>
-            <div className="flex items-center justify-between px-2 py-1 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] font-code-sm">
-              <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-container)]" />
-                <span className="text-[var(--text-primary)] text-[10px] uppercase font-bold tracking-wider">SYSTEM ONLINE</span>
-              </div>
-              <span className="text-[var(--text-muted)] text-[10px]">0 FAILURES</span>
+      {/* Footer Widget */}
+      {!isCollapsed ? (
+        <div className="p-space-md bg-surface-container-low flex flex-col gap-space-sm border-t border-border">
+          <div className="p-space-sm bg-surface-container-lowest rounded-lg flex flex-col gap-space-xs border border-border">
+            <div className="flex items-center justify-between">
+              <span className="font-code-sm text-code-sm text-on-surface-variant">
+                Gateway Status
+              </span>
+              <span className="font-code-sm text-code-sm text-secondary font-semibold">
+                {gatewayStatus}
+              </span>
             </div>
-
-            <div className="flex items-center justify-between px-2 py-1 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)]">
-              <span className="font-label-caps text-[9px] text-[var(--text-muted)]">ENV</span>
-              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border-interactive)] font-code-sm text-[10px] text-[var(--secondary)]">
-                <span className="font-bold tracking-wider uppercase">DEVELOPMENT</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-1 px-1">
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-7 h-7 rounded-full bg-[var(--primary)] text-[var(--on-primary)] flex items-center justify-center font-bold text-xs flex-shrink-0">
-                  <User className="w-4 h-4 text-[var(--on-primary)]" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-body-sm text-[12px] font-semibold text-[var(--text-primary)] truncate">
-                    {currentUser?.name || "Dr. Aris Thorne"}
-                  </div>
-                  <div className="font-code-sm text-[9px] text-[var(--text-muted)] truncate">
-                    {currentUser?.role || "CSO"} • {currentUser?.organization || "Sentinel Core"}
-                  </div>
-                </div>
-              </div>
-              <Link href="/settings" className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
-                <Settings className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-col items-center gap-2 py-1">
-            <span className="w-2 h-2 rounded-full bg-[var(--primary-container)]" title="System Online" />
-            <div className="w-6 h-6 rounded-full bg-[var(--primary)] text-[var(--on-primary)] flex items-center justify-center text-[10px] font-bold">
-              <User className="w-3.5 h-3.5" />
+            <div className="flex items-center justify-between">
+              <span className="font-code-sm text-code-sm text-on-surface-variant">
+                Latency
+              </span>
+              <span className="font-code-sm text-code-sm text-on-surface font-semibold">
+                {gatewayLatency}
+              </span>
             </div>
           </div>
-        )}
-      </div>
+          <div className="flex items-center justify-between pt-space-xs">
+            <Link
+              href="/settings"
+              onClick={onCloseMobile}
+              className="font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface flex items-center gap-space-xs"
+            >
+              <span className="material-symbols-outlined text-[16px]">menu_book</span>
+              Docs
+            </Link>
+            <Link
+              href="/auth"
+              onClick={onCloseMobile}
+              className="font-body-sm text-body-sm text-error hover:text-on-surface flex items-center gap-space-xs"
+            >
+              <span className="material-symbols-outlined text-[16px]">logout</span>
+              Exit
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div className="p-space-xs bg-surface-container-low flex flex-col items-center gap-space-xs border-t border-border">
+          <Link
+            href="/auth"
+            className="p-space-xs text-error hover:bg-surface-container rounded"
+            title="Exit"
+          >
+            <span className="material-symbols-outlined text-[18px]">logout</span>
+          </Link>
+        </div>
+      )}
     </aside>
   );
 }

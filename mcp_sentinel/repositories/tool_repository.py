@@ -8,13 +8,12 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
 from typing import Any, Optional
+
 import asyncpg
 
 from mcp_sentinel.connectors.models import (
     DiscoveredTool,
-    RiskLevel,
     ToolState,
 )
 from mcp_sentinel.database.connection import get_db_pool

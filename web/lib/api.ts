@@ -43,23 +43,41 @@ async function apiFetch<T>(
     (options.method || "GET").toUpperCase()
   );
 
-  const res = await fetch(url, {
-    ...options,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(isMutation ? { "X-Requested-With": "XMLHttpRequest" } : {}),
-      ...getAuthHeaders(),
-      ...(options.headers || {}),
-    },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ message: res.statusText }));
-    throw new ApiError(res.status, body.message || res.statusText, body);
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: options.signal || controller.signal,
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        ...(isMutation ? { "X-Requested-With": "XMLHttpRequest" } : {}),
+        ...getAuthHeaders(),
+        ...(options.headers || {}),
+      },
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ message: res.statusText }));
+      throw new ApiError(res.status, body.message || res.statusText, body);
+    }
+
+    return (await res.json()) as T;
+  } catch (err: unknown) {
+    if (err instanceof ApiError) throw err;
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new ApiError(408, "Request timed out after 15 seconds.", { error: "TIMEOUT" });
+    }
+    throw new ApiError(
+      0,
+      err instanceof Error ? err.message : "Network error or backend unreachable.",
+      { error: "NETWORK_ERROR" }
+    );
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  return res.json() as Promise<T>;
 }
 
 export class ApiError extends Error {
@@ -409,7 +427,8 @@ function normalizeSecurityEval(res: unknown): SecurityEvalResult {
 // --------------------------------------------------------------------------
 export const api = {
   // Health
-  health: (): Promise<HealthStatus> => apiFetch("/health"),
+  health: (): Promise<HealthStatus> => apiFetch("/api/health"),
+  healthReady: (): Promise<HealthStatus> => apiFetch("/api/health/ready"),
 
   // Dashboard
   dashboard: {
@@ -680,5 +699,24 @@ export const api = {
           reason,
         }),
       }),
+  },
+
+  // MCP Servers
+  mcpServers: {
+    list: (): Promise<Array<Record<string, unknown>>> => apiFetch("/api/mcp-servers"),
+    register: (body: {
+      id: string;
+      name: string;
+      transport: string;
+      endpoint: string;
+      auth_method: string;
+      environment: string;
+    }): Promise<{ success: boolean; message: string; server?: unknown }> =>
+      apiFetch("/api/mcp-servers", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    test: (serverId: string): Promise<{ success: boolean; latency_ms?: number; message?: string }> =>
+      apiFetch(`/api/mcp-servers/${serverId}/test`, { method: "POST" }),
   },
 };

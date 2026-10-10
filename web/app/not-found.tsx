@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { ShieldAlert, ArrowLeft, Home, FileQuestion, Terminal } from "lucide-react";
+import { ShieldAlert, ArrowLeft, Home, Terminal } from "lucide-react";
 
 export default function NotFoundPage() {
   return (

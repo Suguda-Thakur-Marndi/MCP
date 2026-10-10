@@ -8,8 +8,8 @@ Translates governed tool calls into secure HTTP operations.
 from __future__ import annotations
 
 import time
-from datetime import datetime
 from typing import Any, Callable, Coroutine, Optional
+
 import httpx
 
 from mcp_sentinel.connectors.base import BaseConnector
@@ -21,7 +21,6 @@ from mcp_sentinel.connectors.models import (
     DiscoveredTool,
     IntegrationStatus,
     ProtocolType,
-    RiskLevel,
     ToolExecutionResult,
     ToolState,
 )

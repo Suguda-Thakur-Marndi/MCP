@@ -16,17 +16,14 @@ Validates:
 
 import datetime
 import json
+
 import pytest
-from unittest.mock import patch
-import httpx
 from starlette.testclient import TestClient
 
 from mcp_sentinel.api.app import app
 from mcp_sentinel.config.settings import get_settings
-from mcp_sentinel.connectors.github import GitHubConnector
 from mcp_sentinel.connectors.models import ConnectorCredentials, IntegrationStatus
 from mcp_sentinel.connectors.registry import get_connector_registry
-from mcp_sentinel.connectors.vault import CredentialVault, get_vault
 from mcp_sentinel.repositories.approval_repository import ApprovalRepository
 from mcp_sentinel.repositories.integration_repository import IntegrationRepository
 from mcp_sentinel.services.gateway_execution_service import (

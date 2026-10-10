@@ -3,18 +3,9 @@
 import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
-  Layers,
   Search,
-  ExternalLink,
-  Shield,
   ArrowRight,
-  CheckCircle2,
-  AlertTriangle,
   Server,
-  Lock,
-  Plus,
-  RefreshCw,
-  Key,
 } from "lucide-react";
 import { INTEGRATIONS, Integration } from "@/lib/sentinel-data";
 import { api } from "@/lib/api";
@@ -36,7 +27,7 @@ export default function IntegrationsPage() {
               if (live) {
                 return {
                   ...staticItem,
-                  status: (live.live_status || live.status) as any,
+                  status: ((live.live_status || live.status) === "CONNECTED" ? "CONNECTED" : (live.live_status || live.status) === "DISCONNECTED" ? "DISCONNECTED" : (live.live_status || live.status) === "ERROR" ? "ERROR" : "WARNING") as Integration["status"],
                   toolsCount: live.tools_count ?? staticItem.toolsCount,
                 };
               }

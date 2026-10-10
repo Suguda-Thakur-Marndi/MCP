@@ -11,6 +11,7 @@ from __future__ import annotations
 import time
 import urllib.parse
 from typing import Any, Optional
+
 import httpx
 
 from mcp_sentinel.connectors.base import BaseConnector

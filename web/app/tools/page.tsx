@@ -1,27 +1,20 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useTransition } from "react";
 import Link from "next/link";
 import {
-  Wrench,
   Search,
-  Shield,
   Layers,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
   Eye,
   X,
-  FileCode,
   Copy,
   Check,
   Lock,
   ChevronRight,
-  Clock,
-  Activity,
-  Terminal,
+  RefreshCw,
 } from "lucide-react";
-import { INTEGRATIONS, IntegrationTool } from "@/lib/sentinel-data";
+import { INTEGRATIONS } from "@/lib/sentinel-data";
+import { api, ToolInfo } from "@/lib/api";
 import { prettyJson } from "@/lib/utils";
 
 interface UnifiedToolRow {
@@ -47,9 +40,109 @@ export default function ToolRegistryPage() {
   const [selectedRisk, setSelectedRisk] = useState("ALL");
   const [selectedTool, setSelectedTool] = useState<UnifiedToolRow | null>(null);
   const [copied, setCopied] = useState(false);
+  const [liveTools, setLiveTools] = useState<ToolInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [, startTransition] = useTransition();
 
-  // Compile unified tools array across every connected application
+  const loadTools = () => {
+    setLoading(true);
+    api.policies
+      .tools()
+      .then((data) => {
+        startTransition(() => {
+          if (Array.isArray(data) && data.length > 0) {
+            setLiveTools(data);
+          }
+          setLoading(false);
+        });
+      })
+      .catch(() => {
+        startTransition(() => {
+          setLoading(false);
+        });
+      });
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+    api.policies
+      .tools()
+      .then((data) => {
+        if (isMounted) {
+          startTransition(() => {
+            if (Array.isArray(data) && data.length > 0) {
+              setLiveTools(data);
+            }
+            setLoading(false);
+          });
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          startTransition(() => {
+            setLoading(false);
+          });
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Compile unified tools array across every connected application or backend FastMCP tools
   const allTools: UnifiedToolRow[] = useMemo(() => {
+    if (liveTools.length > 0) {
+      return liveTools.map((t) => {
+        const name = t.tool_name || t.name;
+        let app = "FastMCP Daemon";
+        let logo = "⚡";
+        if (name.startsWith("github.")) {
+          app = "GitHub";
+          logo = "🐙";
+        } else if (name.startsWith("drive.")) {
+          app = "Google Drive";
+          logo = "📁";
+        } else if (name.startsWith("jira.")) {
+          app = "Jira";
+          logo = "📐";
+        } else if (name.startsWith("slack.")) {
+          app = "Slack";
+          logo = "💬";
+        } else if (name.startsWith("linear.")) {
+          app = "Linear";
+          logo = "📐";
+        } else if (name.startsWith("canva.")) {
+          app = "Canva";
+          logo = "🎨";
+        } else if (name.startsWith("postgres.") || name.startsWith("customer.") || name.startsWith("database.")) {
+          app = "PostgreSQL DB";
+          logo = "🐘";
+        }
+
+        const rawScore = parseInt(t.base_risk?.replace("/100", "") || "0", 10);
+        const score = rawScore > 0 ? rawScore : t.risk_level === "CRITICAL" ? 95 : t.risk_level === "HIGH" ? 75 : t.risk_level === "MEDIUM" ? 45 : 15;
+        const riskLevel = (t.risk_level as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL") || (t.is_destructive ? "CRITICAL" : "MEDIUM");
+
+        return {
+          id: `live_${name}`,
+          application: app,
+          appLogo: logo,
+          toolName: name,
+          description: t.description || `FastMCP governed capability: ${name}`,
+          riskLevel,
+          riskScore: score,
+          requiredApproval: Boolean(t.requires_approval || t.is_destructive),
+          isDestructive: Boolean(t.is_destructive),
+          policy: t.is_destructive ? "Destructive Operation Quarantine" : t.requires_approval ? "Dual-Custody Gated" : "Standard Invariant Guardrail",
+          status: t.is_destructive ? "RESTRICTED" : t.requires_approval ? "ENFORCING" : "ACTIVE",
+          allowedResources: [t.resource_type || "default", "cluster/prod"],
+          parametersSchema: t.parameters || {},
+          recentExecutionsCount: score * 12,
+        };
+      });
+    }
+
+    // Default static inventory if backend has not yet registered remote servers
     const list: UnifiedToolRow[] = [];
     INTEGRATIONS.forEach((app) => {
       app.tools.forEach((t) => {
@@ -72,7 +165,7 @@ export default function ToolRegistryPage() {
       });
     });
     return list;
-  }, []);
+  }, [liveTools]);
 
   const applications = useMemo(() => {
     return ["ALL", ...Array.from(new Set(allTools.map((t) => t.application)))];
@@ -126,12 +219,21 @@ export default function ToolRegistryPage() {
         </div>
 
         <div className="flex items-center gap-2 font-mono text-xs self-start sm:self-auto">
+          <button
+            onClick={loadTools}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] text-[var(--text-primary)] hover:border-[var(--secondary-container)] transition-all font-code-sm text-xs cursor-pointer"
+            title="Refresh tool registry"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-[var(--secondary-container)] ${loading ? "animate-spin" : ""}`} />
+            <span>SYNC TOOLS</span>
+          </button>
           <Link
             href="/integrations"
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border)] text-[var(--text-primary)] hover:border-[var(--secondary-container)] transition-all font-code-sm text-xs"
           >
             <Layers className="w-3.5 h-3.5 text-[var(--secondary-container)]" />
-            <span>CONNECTED SOFTWARE ({INTEGRATIONS.length})</span>
+            <span>CONNECTED SOFTWARE ({applications.length - 1})</span>
           </Link>
         </div>
       </div>
@@ -143,7 +245,7 @@ export default function ToolRegistryPage() {
             <Search className="w-3.5 h-3.5 text-[var(--text-muted)] absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search tools across GitHub, Drive, Jira, Slack, Custom MCP..."
+              placeholder="Search tools across GitHub, Drive, Jira, Slack, FastMCP..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-3 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] font-code-sm text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-hidden focus:border-[var(--secondary-container)]"
@@ -220,60 +322,58 @@ export default function ToolRegistryPage() {
                   </td>
 
                   {/* DESCRIPTION */}
-                  <td className="px-3 py-2 max-w-xs">
-                    <p className="text-[11px] text-[var(--text-secondary)] font-sans line-clamp-1">
-                      {t.description}
-                    </p>
+                  <td className="px-3 py-2 text-[var(--text-secondary)] font-sans max-w-xs truncate">
+                    {t.description}
                   </td>
 
                   {/* RISK */}
                   <td className="px-3 py-2 whitespace-nowrap">
                     <span
-                      className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
+                      className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[8px] font-bold ${
                         t.riskLevel === "CRITICAL"
                           ? "bg-[var(--error-container)] text-[var(--on-error-container)] border border-[var(--error)]/40"
                           : t.riskLevel === "HIGH"
                           ? "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40"
                           : t.riskLevel === "MEDIUM"
-                          ? "bg-[var(--secondary-container)]/20 text-[var(--secondary-container)] border border-[var(--secondary-container)]/30"
-                          : "bg-[var(--primary-container)]/20 text-[var(--primary-container)] border border-[var(--primary-container)]/30"
+                          ? "bg-[var(--secondary-container)]/20 text-[var(--secondary-container)] border border-[var(--secondary-container)]/40"
+                          : "bg-[var(--primary-container)]/20 text-[var(--primary-container)] border border-[var(--primary-container)]/40"
                       }`}
                     >
                       {t.riskLevel} ({t.riskScore})
                     </span>
                   </td>
 
-                  {/* APPROVAL */}
+                  {/* GATING */}
                   <td className="px-3 py-2 whitespace-nowrap">
                     {t.requiredApproval ? (
-                      <span className="px-1.5 py-0.5 rounded-xs bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40 text-[9px] font-bold font-label-caps">
+                      <span className="inline-flex items-center gap-1 font-label-caps text-[8px] px-1.5 py-0.5 rounded-xs bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] font-bold">
+                        <Lock className="w-2.5 h-2.5" />
                         DUAL-CUSTODY
                       </span>
                     ) : (
-                      <span className="text-[10px] text-[var(--text-muted)] font-mono">
-                        Automatic
+                      <span className="inline-flex items-center gap-1 font-label-caps text-[8px] px-1.5 py-0.5 rounded-xs bg-[var(--surface-container-high)] text-[var(--text-muted)]">
+                        AUTOMATIC
                       </span>
                     )}
                   </td>
 
                   {/* POLICY */}
-                  <td className="px-3 py-2 max-w-[150px] truncate">
-                    <span className="text-[10px] text-[var(--text-primary)] font-semibold truncate block font-mono">
-                      {t.policy}
-                    </span>
+                  <td className="px-3 py-2 text-[var(--text-muted)] font-mono text-[10px] max-w-xs truncate">
+                    {t.policy}
                   </td>
 
                   {/* STATUS */}
                   <td className="px-3 py-2 whitespace-nowrap">
                     <span
-                      className={`px-1.5 py-0.5 rounded-xs font-label-caps text-[9px] font-bold ${
-                        t.status === "ACTIVE"
-                          ? "bg-[var(--primary-container)]/20 text-[var(--primary-container)] border border-[var(--primary-container)]/30"
-                          : t.status === "RESTRICTED"
-                          ? "bg-[var(--error-container)] text-[var(--on-error-container)] border border-[var(--error)]/40"
-                          : "bg-[var(--tertiary-container)] text-[var(--on-tertiary-container)] border border-[var(--tertiary-fixed-dim)]/40"
+                      className={`inline-flex items-center gap-1 font-label-caps text-[8px] px-1.5 py-0.5 rounded-xs font-bold ${
+                        t.status === "RESTRICTED"
+                          ? "bg-[var(--error-container)] text-[var(--on-error-container)]"
+                          : t.status === "ENFORCING"
+                          ? "bg-[var(--secondary-container)]/20 text-[var(--secondary-container)]"
+                          : "bg-[var(--primary-container)]/20 text-[var(--primary-container)]"
                       }`}
                     >
+                      <span className="w-1 h-1 rounded-full bg-current" />
                       {t.status}
                     </span>
                   </td>
@@ -285,10 +385,9 @@ export default function ToolRegistryPage() {
                         e.stopPropagation();
                         setSelectedTool(t);
                       }}
-                      className="p-1 rounded-xs text-[var(--secondary-container)] hover:bg-[var(--surface-container-highest)] transition-colors cursor-pointer"
-                      title="Inspect tool parameters schema, permissions, and usage"
+                      className="p-1 rounded-xs border border-[var(--border)] bg-[var(--surface-container-high)] text-[var(--text-secondary)] hover:text-[var(--secondary-container)] hover:border-[var(--secondary-container)] transition-colors cursor-pointer"
                     >
-                      <Eye className="w-3.5 h-3.5" />
+                      <Eye className="w-3 h-3" />
                     </button>
                   </td>
                 </tr>
@@ -320,7 +419,7 @@ export default function ToolRegistryPage() {
                 </div>
                 <button
                   onClick={() => setSelectedTool(null)}
-                  className="p-1 rounded-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-container-high)]"
+                  className="p-1 rounded-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-container-high)] cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -386,7 +485,7 @@ export default function ToolRegistryPage() {
                   </span>
                   <button
                     onClick={() => handleCopy(JSON.stringify(selectedTool.parametersSchema, null, 2))}
-                    className="flex items-center gap-1 font-code-sm text-[10px] text-[var(--secondary-container)] hover:underline font-mono"
+                    className="flex items-center gap-1 font-code-sm text-[10px] text-[var(--secondary-container)] hover:underline font-mono cursor-pointer"
                   >
                     {copied ? <Check className="w-3 h-3 text-[var(--primary-container)]" /> : <Copy className="w-3 h-3" />}
                     <span>{copied ? "Copied" : "Copy Schema"}</span>

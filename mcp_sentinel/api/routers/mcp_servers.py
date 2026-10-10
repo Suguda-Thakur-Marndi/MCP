@@ -8,7 +8,8 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from mcp_sentinel.connectors.models import AuthType
@@ -67,7 +68,7 @@ async def register_mcp_server(
 
     # 2. Register dynamic connector in in-memory ConnectorRegistry
     reg = get_connector_registry()
-    connector = reg.register_custom_mcp(
+    reg.register_custom_mcp(
         server_id=body.id,
         name=body.name,
         endpoint=body.endpoint,

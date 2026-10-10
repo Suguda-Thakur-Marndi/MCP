@@ -1,26 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import Link from "next/link";
 import {
   Sliders,
-  Shield,
   Search,
-  CheckCircle2,
   Copy,
-  Terminal,
-  Lock,
-  ArrowRight,
-  Filter,
   Check,
-  AlertTriangle,
 } from "lucide-react";
 import { api, PolicyResponse, PolicyRule } from "@/lib/api";
 
 export default function PoliciesPage() {
   const [policyData, setPolicyData] = useState<PolicyResponse | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {

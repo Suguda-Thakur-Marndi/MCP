@@ -3,21 +3,11 @@
 import React, { useState, use } from "react";
 import Link from "next/link";
 import {
-  Sliders,
   ChevronLeft,
-  Shield,
-  FileCode,
   Copy,
   Check,
-  CheckCircle2,
-  AlertTriangle,
-  Lock,
-  Layers,
-  ArrowRight,
-  ExternalLink,
 } from "lucide-react";
 import { POLICIES, PolicyDefinition } from "@/lib/sentinel-data";
-import { RiskBadge } from "@/components/ui/Badges";
 
 interface PageProps {
   params: Promise<{ id: string }>;

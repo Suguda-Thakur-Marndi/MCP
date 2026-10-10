@@ -2,22 +2,15 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
-  Bell,
-  Search,
-  Volume2,
-  VolumeX,
-  Maximize2,
   Menu,
-  Activity,
   LogOut,
   ChevronDown,
   Shield,
-  ExternalLink,
+  Check,
 } from "lucide-react";
 import { api, type CurrentUser } from "@/lib/api";
-import { RoleBadge } from "../ui/Badges";
 
 interface NotificationItem {
   id: string;
@@ -39,14 +32,8 @@ export function TopBar({
   sidebarCollapsed: boolean;
   onToggleMobileMenu?: () => void;
 }) {
-  const pathname = usePathname();
+  const router = useRouter();
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [isHealthy, setIsHealthy] = useState<boolean | null>(null);
-  const [pendingCount, setPendingCount] = useState<number>(0);
-  const [activeAgentsCount, setActiveAgentsCount] = useState<number>(12);
-  const [gatewayTunnelsCount, setGatewayTunnelsCount] = useState<number>(8);
-  const [callsPerMin, setCallsPerMin] = useState<number>(142);
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [showNotifications, setShowNotifications] = useState<boolean>(false);
   const [showUserMenu, setShowUserMenu] = useState<boolean>(false);
 
@@ -57,84 +44,81 @@ export function TopBar({
     {
       id: "notif-1",
       title: "Dual-Custody Approval Required",
-      description: "DevOps Agent requested delete_repository on GitHub enterprise production repo.",
+      description: "Autonomous Agent requested pg_mutate_table on prod_customers_db.",
       category: "CRITICAL",
       time: "2m ago",
       actionHref: "/approvals",
-      actionLabel: "Review in Queue",
+      actionLabel: "Review Gate",
       read: false,
     },
     {
       id: "notif-2",
-      title: "Exfiltration Attempt Blocked",
-      description: "Agent attempted to share sensitive doc without human paired ticket.",
+      title: "Zero-Trust Invariant Blocked",
+      description: "Attempted SQL injection syntax neutralized before query execution.",
       category: "HIGH",
-      time: "8m ago",
+      time: "14m ago",
       actionHref: "/audit",
-      actionLabel: "Inspect Audit Trail",
+      actionLabel: "View Forensic Trace",
       read: false,
     },
     {
       id: "notif-3",
-      title: "MCP Gateway Heartbeat Verified",
-      description: "FastMCP daemon and 5 external SaaS bridges running with <1.5ms latency.",
+      title: "PostgreSQL Connector Healthy",
+      description: "Cluster connection pool operating with 12ms average latency.",
       category: "INFO",
-      time: "15m ago",
-      actionHref: "/mcp-servers",
-      actionLabel: "Inspect Servers",
+      time: "1h ago",
+      actionHref: "/health",
+      actionLabel: "System Status",
       read: true,
     },
   ]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
   useEffect(() => {
     let active = true;
-
-    api.health()
-      .then((h) => {
-        if (active) setIsHealthy(h.status === "healthy" || h.status === "ok");
-      })
-      .catch(() => {
-        if (active) setIsHealthy(false);
-      });
 
     api.auth.me()
       .then((u) => {
         if (active) setCurrentUser(u);
       })
-      .catch(() => {});
-
-    api.approvals.pending()
-      .then((items) => {
-        if (active) setPendingCount(items.length);
-      })
-      .catch(() => {});
-
-    api.dashboard.stats()
-      .then((stats) => {
-        if (active && stats?.metrics) {
-          if (stats.metrics.pending_approvals !== undefined) setPendingCount(stats.metrics.pending_approvals);
-          if (stats.metrics.audit_events) setCallsPerMin(Math.min(500, Math.max(120, stats.metrics.audit_events)));
+      .catch(() => {
+        if (active) {
+          const role =
+            typeof window !== "undefined"
+              ? localStorage.getItem("sentinel_role") || "ADMIN"
+              : "ADMIN";
+          const email =
+            typeof window !== "undefined"
+              ? localStorage.getItem("sentinel_email") || "admin@sentinel.test"
+              : "admin@sentinel.test";
+          setCurrentUser({
+            id: "usr_aris_thorne",
+            email,
+            name: "Dr. Aris Thorne",
+            display_name: "Dr. Aris Thorne",
+            role,
+            organization: "Sentinel Core",
+            status: "ACTIVE",
+            is_active: true,
+            permissions: ["*"],
+          });
         }
-      })
-      .catch(() => {});
+      });
 
     return () => {
       active = false;
     };
-  }, [pathname]);
+  }, []);
 
-  // Click outside listener
+  // Close popovers on click outside
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+    function handleClickOutside(event: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
-      if (userRef.current && !userRef.current.contains(e.target as Node)) {
+      if (userRef.current && !userRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
       }
-    };
+    }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -142,218 +126,225 @@ export function TopBar({
   const handleLogout = async () => {
     try {
       await api.auth.logout();
+    } catch {
+      // ignore
     } finally {
       if (typeof window !== "undefined") {
         localStorage.removeItem("sentinel_token");
-        window.location.href = "/auth";
+        localStorage.removeItem("sentinel_role");
+        localStorage.removeItem("sentinel_email");
       }
+      router.push("/auth");
     }
   };
 
-  const getBreadcrumbs = () => {
-    if (pathname === "/" || pathname === "/overview") return { section: "CONTROL", page: "COMMAND CENTER" };
-    if (pathname.startsWith("/agent")) return { section: "CONTROL", page: "AGENT RUNS" };
-    if (pathname.startsWith("/approvals")) return { section: "GOVERN", page: "APPROVAL QUEUE" };
-    if (pathname.startsWith("/policies")) return { section: "GOVERN", page: "POLICY ENGINE" };
-    if (pathname.startsWith("/risk")) return { section: "GOVERN", page: "RISK MATRIX" };
-    if (pathname.startsWith("/integrations")) return { section: "CONNECT", page: "INTEGRATIONS" };
-    if (pathname.startsWith("/mcp-servers")) return { section: "CONNECT", page: "MCP SERVERS" };
-    if (pathname.startsWith("/tools")) return { section: "CONNECT", page: "TOOLS REGISTRY" };
-    if (pathname.startsWith("/audit")) return { section: "INVESTIGATE", page: "FORENSIC AUDIT" };
-    if (pathname.startsWith("/evaluation")) return { section: "INVESTIGATE", page: "SECURITY EVALUATION" };
-    if (pathname.startsWith("/health")) return { section: "SYSTEM", page: "HEALTH TELEMETRY" };
-    if (pathname.startsWith("/settings")) return { section: "SYSTEM", page: "SETTINGS" };
-    return { section: "MCP SENTINEL", page: "CONSOLE" };
+  const markAllRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  const { section, page } = getBreadcrumbs();
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
-    } else {
-      document.exitFullscreen().catch(() => {});
-    }
-  };
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <header
-      className={`fixed top-0 right-0 h-14 bg-[var(--surface-container-lowest)]/95 backdrop-blur-md border-b border-[var(--border)] z-40 flex items-center justify-between px-3 sm:px-4 transition-all duration-150 select-none ${
-        sidebarCollapsed ? "left-16" : "left-0 lg:left-64"
+      className={`fixed top-0 right-0 h-16 bg-surface-container-lowest border-b border-border shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-md lg:px-space-xl transition-all duration-200 ${
+        sidebarCollapsed ? "left-0 lg:left-18" : "left-0 lg:left-72"
       }`}
     >
-      {/* Left: Mobile Menu Toggle & Monospace Breadcrumbs */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-        <button
-          onClick={onToggleMobileMenu}
-          className="p-1 rounded-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-container-high)] lg:hidden"
-          aria-label="Open navigation menu"
-        >
-          <Menu className="w-4 h-4" />
-        </button>
+      {/* Left Area: Mobile Trigger & Precision Pipeline Flow Crumb */}
+      <div className="flex items-center gap-space-md lg:gap-space-xl overflow-hidden">
+        {onToggleMobileMenu && (
+          <button
+            type="button"
+            onClick={onToggleMobileMenu}
+            className="p-1.5 rounded-lg text-on-surface-variant hover:text-on-surface hover:bg-surface-container lg:hidden"
+            aria-label="Open mobile menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
 
-        <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs font-mono-tnum tracking-widest uppercase">
-          <span className="text-[var(--text-muted)] font-semibold">{section}</span>
-          <span className="text-[var(--border-interactive)] font-bold">{"//"}</span>
-          <span className="text-[var(--primary)] font-bold truncate">{page}</span>
+        {/* Precision Stepper Pipeline Crumb */}
+        <div className="hidden xl:flex items-center gap-space-xs font-code-sm text-code-sm text-on-surface-variant bg-surface-container-low px-space-sm py-space-xs rounded-lg border border-border">
+          <span className="text-on-surface font-semibold">Client</span>
+          <span className="material-symbols-outlined text-[12px]">arrow_forward</span>
+          <span className="text-secondary font-semibold">MCP Gateway</span>
+          <span className="material-symbols-outlined text-[12px]">arrow_forward</span>
+          <span>Policy Engine</span>
+          <span className="material-symbols-outlined text-[12px]">arrow_forward</span>
+          <span>Risk Eval</span>
+          <span className="material-symbols-outlined text-[12px]">arrow_forward</span>
+          <span className="text-tertiary font-semibold">Human Gate</span>
+          <span className="material-symbols-outlined text-[12px]">arrow_forward</span>
+          <span>DB Exec</span>
         </div>
       </div>
 
-      {/* Center: Live Command Telemetry Strip (Desktop Widescreen) */}
-      <div className="hidden xl:flex items-center divide-x divide-[var(--border)] bg-[var(--surface-container-low)]/80 border border-[var(--border)] rounded-xs px-1 py-1 font-mono-tnum">
-        <div className="flex items-center gap-1.5 px-2.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-container)]" />
-          <span className="font-code-sm text-[11px] text-[var(--text-primary)] font-semibold">{activeAgentsCount}</span>
-          <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase">ACTIVE AGENTS</span>
-        </div>
-        <div className="flex items-center gap-1.5 px-2.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-container)]" />
-          <span className="font-code-sm text-[11px] text-[var(--text-primary)] font-semibold">{gatewayTunnelsCount}</span>
-          <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase">GATEWAY TUNNELS</span>
-        </div>
-        <div className="flex items-center gap-1.5 px-2.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-[var(--secondary-container)]" />
-          <span className="font-code-sm text-[11px] text-[var(--text-primary)] font-semibold">{callsPerMin}</span>
-          <span className="font-label-caps text-[9px] text-[var(--text-muted)] uppercase">CALLS/MIN</span>
-        </div>
-        <div className="flex items-center gap-1.5 px-2.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-[var(--error)] animate-pulse" />
-          <span className="font-code-sm text-[11px] text-[var(--error)] font-semibold">{pendingCount}</span>
-          <span className="font-label-caps text-[9px] text-[var(--error)] uppercase">HELD APPROVALS</span>
-        </div>
-      </div>
-
-      {/* Right Controls: Search, Latency, Notifications, Audio, Fullscreen, User Menu */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* Global Command Palette Trigger */}
+      {/* Right Controls */}
+      <div className="flex items-center gap-space-sm sm:gap-space-md lg:gap-space-lg">
+        {/* Quick Search Button */}
         <button
+          type="button"
           onClick={onOpenSearch}
-          className="hidden sm:flex items-center gap-2 bg-[var(--surface-container-low)] hover:bg-[var(--surface-container-high)] border border-[var(--border)] rounded-xs px-2.5 py-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors w-44 md:w-56"
+          className="flex items-center gap-space-xs px-space-md py-space-xs bg-surface-container-low border border-border rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors cursor-pointer"
         >
-          <Search className="w-3.5 h-3.5 flex-shrink-0" />
-          <span className="font-code-sm text-[11px] truncate">CMD + K to query...</span>
+          <span className="material-symbols-outlined text-[18px]">search</span>
+          <span className="font-label-md text-label-md hidden sm:inline">
+            Quick Search / Exec
+          </span>
+          <span className="font-code-sm text-code-sm px-space-xs py-space-xxs rounded bg-surface-container-high text-on-surface font-medium">
+            ⌘K
+          </span>
         </button>
 
-        {/* Latency Telemetry Badge */}
-        <div
-          className="flex items-center gap-1 px-2 py-1 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] font-code-sm text-[var(--primary-container)]"
-          title="Gateway Core Telemetry Latency P99"
-        >
-          <Activity className="w-3 h-3 text-[var(--primary-container)]" />
-          <span className="text-[10px] font-bold">1.2ms P99</span>
+        {/* Enforce & Validate Badge */}
+        <div className="hidden md:flex items-center gap-space-xs px-space-sm py-space-xxs rounded bg-secondary-fixed text-on-secondary-fixed font-code-sm text-code-sm font-semibold border border-secondary/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+          Enforce &amp; Validate
         </div>
 
-        {/* Notification Bell */}
+        {/* Notifications Button & Popover */}
         <div className="relative" ref={notifRef}>
           <button
+            type="button"
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-1.5 rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container-high)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
-            title="Notification Center"
+            className="relative flex items-center justify-center p-space-xs rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors cursor-pointer"
+            aria-label="Open notifications"
           >
-            <Bell className="w-3.5 h-3.5" />
+            <span className="material-symbols-outlined text-[20px]">notifications</span>
             {unreadCount > 0 && (
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[var(--danger)] animate-pulse" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-tertiary"></span>
             )}
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-1 w-80 sm:w-96 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border-interactive)] shadow-2xl py-2 z-50 space-y-2">
-              <div className="px-3 py-1 flex items-center justify-between border-b border-[var(--border)] pb-2">
-                <span className="font-label-caps text-[10px] text-[var(--text-primary)] font-bold">
-                  SECURITY NOTIFICATIONS
-                </span>
-                {unreadCount > 0 && (
-                  <span className="px-1.5 py-0.5 rounded-xs bg-[var(--error-container)]/40 border border-[var(--error)]/50 text-[var(--error)] font-label-caps text-[9px] font-bold">
-                    {unreadCount} UNREAD
+            <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-surface-container-lowest border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+              <div className="p-space-md bg-surface-container-low border-b border-border flex items-center justify-between">
+                <div className="flex items-center gap-space-xs">
+                  <span className="font-headline-sm text-headline-sm text-on-surface">
+                    Security Alerts
                   </span>
+                  {unreadCount > 0 && (
+                    <span className="font-code-sm text-code-sm px-space-xs py-space-xxs rounded bg-tertiary-fixed text-on-tertiary-fixed font-semibold">
+                      {unreadCount} New
+                    </span>
+                  )}
+                </div>
+                {unreadCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={markAllRead}
+                    className="font-code-sm text-code-sm text-secondary hover:underline flex items-center gap-1"
+                  >
+                    <Check className="w-3 h-3" /> Mark all read
+                  </button>
                 )}
               </div>
 
-              <div className="max-h-80 overflow-y-auto divide-y divide-[var(--border)] px-2">
+              <div className="max-h-80 overflow-y-auto divide-y divide-border">
                 {notifications.map((item) => (
-                  <div key={item.id} className="p-2 space-y-1 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-[var(--primary)] text-[11px]">{item.title}</span>
-                      <span className="font-code-sm text-[9px] text-[var(--text-muted)]">{item.time}</span>
+                  <div
+                    key={item.id}
+                    className={`p-space-md hover:bg-surface-container-low transition-colors ${
+                      item.read ? "opacity-70" : ""
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-space-xs mb-1">
+                      <span className="font-headline-sm text-headline-sm text-on-surface">
+                        {item.title}
+                      </span>
+                      <span className="font-code-sm text-code-sm text-on-surface-variant shrink-0">
+                        {item.time}
+                      </span>
                     </div>
-                    <p className="text-[11px] text-[var(--text-secondary)]">{item.description}</p>
+                    <p className="font-body-sm text-body-sm text-on-surface-variant mb-space-xs">
+                      {item.description}
+                    </p>
                     <Link
                       href={item.actionHref}
                       onClick={() => setShowNotifications(false)}
-                      className="inline-flex items-center gap-1 font-label-caps text-[9px] text-[var(--secondary-container)] hover:underline pt-0.5"
+                      className="font-label-md text-label-md text-primary font-semibold hover:underline inline-flex items-center gap-1"
                     >
-                      <span>{item.actionLabel}</span>
-                      <ExternalLink className="w-2.5 h-2.5" />
+                      {item.actionLabel} →
                     </Link>
                   </div>
                 ))}
+              </div>
+
+              <div className="p-space-xs bg-surface-container-low border-t border-border text-center">
+                <Link
+                  href="/audit"
+                  onClick={() => setShowNotifications(false)}
+                  className="font-code-sm text-code-sm text-secondary hover:underline block py-1"
+                >
+                  View complete forensic telemetry →
+                </Link>
               </div>
             </div>
           )}
         </div>
 
-        {/* Audio Toggle */}
-        <button
-          onClick={() => setSoundEnabled(!soundEnabled)}
-          className="p-1.5 rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container-high)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors hidden sm:flex"
-          title={soundEnabled ? "Mute audio cues" : "Unmute audio cues"}
-        >
-          {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-        </button>
-
-        {/* Fullscreen Toggle */}
-        <button
-          onClick={toggleFullscreen}
-          className="p-1.5 rounded-xs border border-[var(--border)] bg-[var(--surface-container-low)] hover:bg-[var(--surface-container-high)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors hidden sm:flex"
-          title="Toggle Fullscreen"
-        >
-          <Maximize2 className="w-3.5 h-3.5" />
-        </button>
-
-        {/* User Identity Menu */}
-        <div className="relative pl-1 border-l border-[var(--border)]" ref={userRef}>
+        {/* User Profile Avatar & Menu */}
+        <div className="relative" ref={userRef}>
           <button
+            type="button"
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-1.5 p-1 rounded-xs hover:bg-[var(--surface-container-high)] transition-colors"
+            className="flex items-center gap-space-xs cursor-pointer group"
+            aria-label="User profile menu"
           >
-            <div className="w-6 h-6 rounded-full bg-[var(--primary)] text-[var(--on-primary)] flex items-center justify-center text-[10px] font-bold">
-              {currentUser?.name ? currentUser.name[0].toUpperCase() : "A"}
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary shadow-xs">
+              <span className="material-symbols-outlined text-[18px]">person</span>
             </div>
-            <ChevronDown className="w-3 h-3 text-[var(--text-muted)]" />
+            <ChevronDown className="w-3.5 h-3.5 text-on-surface-variant group-hover:text-on-surface transition-colors hidden sm:block" />
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 mt-1 w-52 rounded-xs bg-[var(--surface-container-high)] border border-[var(--border-interactive)] shadow-2xl py-2 z-50 text-xs font-mono-tnum">
-              <div className="px-3 py-1.5 border-b border-[var(--border)] space-y-0.5">
-                <p className="font-bold text-[var(--text-primary)]">{currentUser?.name || "Dr. Aris Thorne"}</p>
-                <p className="text-[10px] text-[var(--text-muted)] truncate">{currentUser?.email || "admin@sentinel.test"}</p>
-                <div className="pt-1">
-                  <RoleBadge role={currentUser?.role || "ADMIN"} />
+            <div className="absolute right-0 top-full mt-2 w-64 bg-surface-container-lowest border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+              <div className="p-space-md bg-surface-container-low border-b border-border">
+                <div className="font-headline-sm text-headline-sm text-on-surface truncate">
+                  {currentUser?.name || "Dr. Aris Thorne"}
+                </div>
+                <div className="font-code-sm text-code-sm text-on-surface-variant truncate">
+                  {currentUser?.email || "admin@sentinel.test"}
+                </div>
+                <div className="mt-space-xs flex items-center gap-space-xs">
+                  <span className="font-code-sm text-code-sm px-space-xs py-space-xxs rounded bg-secondary-fixed text-on-secondary-fixed font-semibold uppercase">
+                    {currentUser?.role || "ADMIN"}
+                  </span>
+                  <span className="font-code-sm text-code-sm text-on-surface-variant">
+                    {currentUser?.organization || "Sentinel SOC"}
+                  </span>
                 </div>
               </div>
-              <div className="py-1">
+
+              <div className="p-space-xs flex flex-col">
                 <Link
                   href="/settings"
                   onClick={() => setShowUserMenu(false)}
-                  className="block px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-container-low)]"
+                  className="px-space-md py-space-sm rounded-lg text-on-surface hover:bg-surface-container transition-colors font-label-md text-label-md flex items-center gap-space-xs"
                 >
-                  Platform Settings
+                  <Shield className="w-4 h-4 text-secondary" />
+                  Security Settings
                 </Link>
                 <Link
-                  href="/evaluation"
+                  href="/health"
                   onClick={() => setShowUserMenu(false)}
-                  className="block px-3 py-1.5 text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-container-low)]"
+                  className="px-space-md py-space-sm rounded-lg text-on-surface hover:bg-surface-container transition-colors font-label-md text-label-md flex items-center gap-space-xs"
                 >
-                  Security Evaluation
+                  <span className="material-symbols-outlined text-[16px] text-tertiary">
+                    monitor_heart
+                  </span>
+                  Gateway Connectivity
                 </Link>
               </div>
-              <div className="pt-1 border-t border-[var(--border)]">
+
+              <div className="p-space-xs bg-surface-container-low border-t border-border">
                 <button
+                  type="button"
                   onClick={handleLogout}
-                  className="w-full text-left px-3 py-1.5 flex items-center gap-1.5 text-xs text-[var(--danger)] hover:bg-[var(--surface-container-low)]"
+                  className="w-full px-space-md py-space-sm rounded-lg text-error hover:bg-error-container hover:text-on-error-container transition-colors font-label-md text-label-md flex items-center gap-space-xs text-left"
                 >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Sign Out</span>
+                  <LogOut className="w-4 h-4" />
+                  Sign Out of Console
                 </button>
               </div>
             </div>

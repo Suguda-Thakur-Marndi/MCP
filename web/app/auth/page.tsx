@@ -8,15 +8,9 @@ import {
   Lock,
   ArrowRight,
   AlertTriangle,
-  CheckCircle2,
-  KeyRound,
-  User,
   Users,
-  Mail,
-  Terminal,
 } from "lucide-react";
 import { api, type CurrentUser } from "@/lib/api";
-import { RoleBadge } from "@/components/ui/Badges";
 
 const TEST_IDENTITIES = [
   {
@@ -101,6 +95,7 @@ function AuthContent() {
 
   const handleGoogleLogin = () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
     window.location.href = `${apiUrl}/api/auth/google/authorize?next=/`;
   };
 

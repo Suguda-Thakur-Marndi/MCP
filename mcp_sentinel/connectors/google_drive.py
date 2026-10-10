@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import time
 from typing import Any, Optional
+
 import httpx
 
 from mcp_sentinel.connectors.base import BaseConnector
@@ -158,7 +159,7 @@ class GoogleDriveConnector(BaseConnector):
 
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
                 resp = await client.get(f"{self.endpoint}/about?fields=user,storageQuota", headers=self._get_headers())
-            
+
             latency = int((time.perf_counter() - start) * 1000)
             if resp.status_code == 200:
                 data = resp.json()

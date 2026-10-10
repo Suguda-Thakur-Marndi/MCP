@@ -1,21 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Link from "next/link";
 import {
-  Activity,
-  Server,
-  Database,
-  Bot,
-  Layers,
   RefreshCw,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Shield,
-  Clock,
-  ArrowRight,
-  Terminal,
 } from "lucide-react";
 import { SYSTEM_TOPOLOGY, SystemComponent } from "@/lib/sentinel-data";
 import { api } from "@/lib/api";
@@ -51,7 +38,24 @@ export default function SystemHealthPage() {
   };
 
   useEffect(() => {
-    runHealthProbe();
+    let isMounted = true;
+    api.health()
+      .then((liveHealth) => {
+        if (isMounted) {
+          setComponents((prev) =>
+            prev.map((c) => ({
+              ...c,
+              lastCheck: "Just now",
+              status: liveHealth ? "ONLINE" : c.status,
+            }))
+          );
+          setLastCheckTime(new Date().toLocaleTimeString());
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const totalErrors = components.reduce((acc, c) => acc + c.errors, 0);

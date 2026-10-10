@@ -7,8 +7,7 @@ into the unified BaseConnector lifecycle interface.
 from __future__ import annotations
 
 import time
-from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from mcp_sentinel.connectors.base import BaseConnector
 from mcp_sentinel.connectors.models import (
@@ -24,21 +23,21 @@ from mcp_sentinel.connectors.models import (
     ToolState,
 )
 from mcp_sentinel.database.connection import get_db_pool
+from mcp_sentinel.services.audit_service import AuditService
 from mcp_sentinel.services.customer_service import CustomerService
 from mcp_sentinel.services.order_service import OrderService
-from mcp_sentinel.services.audit_service import AuditService
+from mcp_sentinel.tools.audit_tools import handle_append_customer_audit_note
 from mcp_sentinel.tools.customer_tools import (
-    handle_query_customer_records,
-    handle_get_customer,
-    handle_update_customer,
     handle_delete_customer,
+    handle_get_customer,
     handle_purge_inactive_customer_data,
+    handle_query_customer_records,
+    handle_update_customer,
 )
 from mcp_sentinel.tools.order_tools import (
-    handle_get_order,
     handle_get_customer_orders,
+    handle_get_order,
 )
-from mcp_sentinel.tools.audit_tools import handle_append_customer_audit_note
 
 
 class LocalMcpConnector(BaseConnector):
@@ -221,7 +220,7 @@ class LocalMcpConnector(BaseConnector):
         try:
             pool = await get_db_pool()
             async with pool.acquire() as conn:
-                val = await conn.fetchval("SELECT 1")
+                await conn.fetchval("SELECT 1")
             latency = int((time.perf_counter() - start) * 1000)
             return ConnectionTestResult(
                 success=True,

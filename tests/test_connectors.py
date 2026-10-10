@@ -9,18 +9,16 @@ Validates:
 """
 
 import pytest
+
 from mcp_sentinel.connectors.canva import CanvaConnector
 from mcp_sentinel.connectors.github import GitHubConnector
 from mcp_sentinel.connectors.google_drive import GoogleDriveConnector
-from mcp_sentinel.connectors.local_mcp import LocalMcpConnector
 from mcp_sentinel.connectors.models import (
     AuthType,
-    ConnectorCredentials,
     IntegrationStatus,
     RiskLevel,
-    ToolState,
 )
-from mcp_sentinel.connectors.registry import ConnectorRegistry, get_connector_registry
+from mcp_sentinel.connectors.registry import get_connector_registry
 from mcp_sentinel.connectors.slack import SlackConnector
 from mcp_sentinel.connectors.vault import CredentialVault, get_vault
 

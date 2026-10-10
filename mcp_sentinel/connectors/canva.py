@@ -9,19 +9,17 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import os
 import secrets
 import time
 from typing import Any, Optional
+
 import httpx
 
 from mcp_sentinel.connectors.models import (
     AuthType,
     ConnectionTestResult,
     ConnectorCredentials,
-    ConnectorHealth,
     DiscoveredTool,
-    IntegrationStatus,
     RiskLevel,
     ToolExecutionResult,
     ToolState,
@@ -252,7 +250,7 @@ class CanvaConnector(RemoteMcpConnector):
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
                 resp = await client.get(self.endpoint, headers=self._get_headers())
             latency = int((time.perf_counter() - start) * 1000)
-            
+
             # Canva remote MCP endpoint returns HTTP 200/405/404 when live
             is_live = resp.status_code in (200, 400, 404, 405)
             msg = "Canva remote MCP server reachable at mcp.canva.com" if is_live else f"Canva endpoint returned HTTP {resp.status_code}"

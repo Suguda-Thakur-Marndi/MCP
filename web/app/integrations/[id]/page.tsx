@@ -1,15 +1,12 @@
 "use client";
 
-import React, { use, useState, useEffect } from "react";
+import React, { use, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   ChevronLeft,
-  Layers,
   Shield,
   Key,
-  Lock,
   Wrench,
-  Activity,
   CheckCircle2,
   AlertTriangle,
   ExternalLink,
@@ -19,29 +16,86 @@ import {
   RefreshCw,
   Play,
   XCircle,
-  Clock,
-  Sparkles,
-  GitPullRequest,
-  Trash2,
 } from "lucide-react";
 import { INTEGRATIONS, Integration } from "@/lib/sentinel-data";
-import { api } from "@/lib/api";
+import { api, ToolExecutionResponse } from "@/lib/api";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+}
+
+export interface ExtendedIntegrationTool {
+  id?: string;
+  tool_id?: string;
+  name?: string;
+  tool_name?: string;
+  description?: string;
+  desc?: string;
+  riskLevel?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  risk_level?: string;
+  riskScore?: number;
+  requiresApproval?: boolean;
+  approval_required?: boolean;
+  isDestructive?: boolean;
+  is_destructive?: boolean;
+  destructive?: boolean;
+  allowedResources?: string[];
+  policy?: string;
+  policy_id?: string;
+  parametersSchema?: Record<string, unknown>;
+  recentExecutionsCount?: number;
+  state?: string;
+}
+
+export interface LiveIntegrationState {
+  id: string;
+  name: string;
+  category: "Design" | "Source Control" | "Communication" | "Cloud Storage" | "Knowledgebase" | "Project Management" | "Custom Protocol";
+  logo: string;
+  status: "CONNECTED" | "DEGRADED" | "DISCONNECTED";
+  authType: "OAuth 2.0" | "OAuth App" | "Bot Token" | "Service Account" | "Internal Token" | "mTLS / Secret";
+  connectionEndpoint?: string;
+  connection_endpoint?: string;
+  toolsCount?: number;
+  tools_count?: number;
+  lastActivity?: string;
+  last_activity?: string;
+  riskLevel?: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  risk_level?: string;
+  permissions?: string[];
+  scopes?: string[];
+  description: string;
+  activePolicies?: string[];
+  tools: ExtendedIntegrationTool[];
+  live_status?: string;
+  authenticated_user?: { login?: string; [key: string]: unknown };
+  masked_token?: string;
+}
+
+export interface TestResultData {
+  success?: boolean;
+  message?: string;
+  latency_ms?: number;
+  server_version?: string;
+  details?: {
+    username?: string;
+    rate_limit_remaining?: number | string;
+    authenticated?: boolean;
+    login?: string;
+  };
 }
 
 export default function IntegrationDetailPage({ params }: PageProps) {
   const resolvedParams = use(params);
   const integrationId = resolvedParams.id;
 
-  const staticIntegration: Integration | undefined =
+  const staticIntegration: Integration =
     INTEGRATIONS.find((i) => i.id === integrationId) || INTEGRATIONS[0];
 
-  const [integration, setIntegration] = useState<any>(staticIntegration);
-  const [tools, setTools] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [testResult, setTestResult] = useState<any>(null);
+  const [integration, setIntegration] = useState<LiveIntegrationState>(staticIntegration);
+  const [tools, setTools] = useState<ExtendedIntegrationTool[]>(staticIntegration.tools);
+  const [, setLoading] = useState(false);
+  const [testResult, setTestResult] = useState<TestResultData | null>(null);
   const [testing, setTesting] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
@@ -55,30 +109,30 @@ export default function IntegrationDetailPage({ params }: PageProps) {
   // Governed Action Playground State
   const [selectedTool, setSelectedTool] = useState("github.merge_pull_request");
   const [repoParam, setRepoParam] = useState("octocat/sentinel-demo");
-  const [ownerParam, setOwnerParam] = useState("octocat");
   const [numberParam, setNumberParam] = useState(42);
+  const ownerParam = repoParam.includes("/") ? repoParam.split("/")[0] : "octocat";
   const [runLoading, setRunLoading] = useState(false);
-  const [executionResult, setExecutionResult] = useState<any>(null);
+  const [executionResult, setExecutionResult] = useState<ToolExecutionResponse | null>(null);
   const [pendingTicketId, setPendingTicketId] = useState<string | null>(null);
   const [approvalActionLoading, setApprovalActionLoading] = useState(false);
 
-  const fetchLiveStatus = async () => {
+  const fetchLiveStatus = useCallback(async (showSpinner = false) => {
     try {
-      setLoading(true);
+      if (showSpinner) setLoading(true);
       if (integrationId === "github") {
         const statusData = await api.integrations.status("github").catch(() => null);
         const toolsData = await api.integrations.tools("github").catch(() => []);
         if (statusData) {
-          setIntegration((prev: any) => ({
+          setIntegration((prev) => ({
             ...prev,
             ...statusData,
-            status: statusData.status,
+            status: (statusData.status as LiveIntegrationState["status"]) || prev.status,
             toolsCount: toolsData.length || statusData.tools_count || 10,
-            permissions: statusData.scopes?.length ? statusData.scopes : prev.permissions,
+            permissions: statusData.scopes?.length ? statusData.scopes : prev.permissions || [],
           }));
         }
         if (toolsData && toolsData.length > 0) {
-          setTools(toolsData);
+          setTools(toolsData as unknown as ExtendedIntegrationTool[]);
         } else {
           setTools(staticIntegration.tools);
         }
@@ -86,14 +140,14 @@ export default function IntegrationDetailPage({ params }: PageProps) {
         const liveDetail = await api.integrations.get(integrationId).catch(() => null);
         const toolsData = await api.integrations.tools(integrationId).catch(() => []);
         if (liveDetail) {
-          setIntegration((prev: any) => ({
+          setIntegration((prev) => ({
             ...prev,
             ...liveDetail,
-            status: liveDetail.status,
+            status: (liveDetail.status as LiveIntegrationState["status"]) || prev.status,
           }));
         }
         if (toolsData && toolsData.length > 0) {
-          setTools(toolsData);
+          setTools(toolsData as unknown as ExtendedIntegrationTool[]);
         } else {
           setTools(staticIntegration.tools);
         }
@@ -103,23 +157,26 @@ export default function IntegrationDetailPage({ params }: PageProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [integrationId, staticIntegration]);
 
   useEffect(() => {
-    fetchLiveStatus();
-  }, [integrationId]);
+    const timer = setTimeout(() => {
+      void fetchLiveStatus(false);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [fetchLiveStatus]);
 
   const handleTestConnection = async () => {
     try {
       setTesting(true);
       setTestResult(null);
       const res = await api.integrations.test(integrationId);
-      setTestResult(res);
-      await fetchLiveStatus();
-    } catch (err: any) {
+      setTestResult(res as unknown as TestResultData);
+      await fetchLiveStatus(false);
+    } catch (err: unknown) {
       setTestResult({
         success: false,
-        message: err.message || "Failed to test connection",
+        message: err instanceof Error ? err.message : "Failed to test connection",
       });
     } finally {
       setTesting(false);
@@ -134,9 +191,9 @@ export default function IntegrationDetailPage({ params }: PageProps) {
       setDisconnecting(true);
       await api.integrations.disconnect(integrationId);
       setTestResult(null);
-      await fetchLiveStatus();
-    } catch (err: any) {
-      alert(`Disconnect failed: ${err.message}`);
+      await fetchLiveStatus(false);
+    } catch (err: unknown) {
+      alert(`Disconnect failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setDisconnecting(false);
     }
@@ -155,9 +212,9 @@ export default function IntegrationDetailPage({ params }: PageProps) {
       setConnectMessage("Successfully connected!");
       setConnectToken("");
       setShowConnectModal(false);
-      await fetchLiveStatus();
-    } catch (err: any) {
-      setConnectMessage(`Connection failed: ${err.message}`);
+      await fetchLiveStatus(false);
+    } catch (err: unknown) {
+      setConnectMessage(`Connection failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setConnecting(false);
     }
@@ -172,8 +229,8 @@ export default function IntegrationDetailPage({ params }: PageProps) {
           window.location.href = data.authorization_url;
         }
       }
-    } catch (err: any) {
-      alert(`OAuth initialization failed: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`OAuth initialization failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setOauthLoading(false);
     }
@@ -216,11 +273,11 @@ export default function IntegrationDetailPage({ params }: PageProps) {
       if (res.status === "PENDING_APPROVAL" && res.approval_ticket_id) {
         setPendingTicketId(res.approval_ticket_id);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setExecutionResult({
         success: false,
         status: "FAILED",
-        error: err.message,
+        error: err instanceof Error ? err.message : String(err),
       });
     } finally {
       setRunLoading(false);
@@ -233,7 +290,6 @@ export default function IntegrationDetailPage({ params }: PageProps) {
       setApprovalActionLoading(true);
       await api.approvals.approve(pendingTicketId, "Approved via Sentinel Integrations console");
 
-      // Re-execute with approval ticket to complete stage 6-9
       let params: Record<string, unknown> = {};
       if (selectedTool === "github.merge_pull_request") {
         params = {
@@ -260,8 +316,8 @@ export default function IntegrationDetailPage({ params }: PageProps) {
       );
       setExecutionResult(postApprovalRes);
       setPendingTicketId(null);
-    } catch (err: any) {
-      alert(`Approval execution failed: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Approval execution failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setApprovalActionLoading(false);
     }
@@ -279,8 +335,8 @@ export default function IntegrationDetailPage({ params }: PageProps) {
         stages_completed: ["1. Identity Verified", "2. Integration Authorized", "3. Tool Registry Validated", "4. Policy Evaluated", "5. Risk Assessed", "6. Human Rejected -> Gated Closed"],
       });
       setPendingTicketId(null);
-    } catch (err: any) {
-      alert(`Rejection failed: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Rejection failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setApprovalActionLoading(false);
     }
@@ -589,14 +645,28 @@ export default function IntegrationDetailPage({ params }: PageProps) {
             />
           </div>
 
-          <div>
-            <label className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block mb-1">
-              CALLING AGENT
-            </label>
-            <div className="px-2.5 py-1.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-[var(--text-secondary)] font-mono truncate">
-              sentinel-agent-v1
+          {selectedTool === "github.merge_pull_request" ? (
+            <div>
+              <label className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block mb-1">
+                PULL REQUEST #
+              </label>
+              <input
+                type="number"
+                value={numberParam}
+                onChange={(e) => setNumberParam(Number(e.target.value))}
+                className="w-full px-2.5 py-1.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-hidden focus:border-[var(--secondary-container)] font-mono"
+              />
             </div>
-          </div>
+          ) : (
+            <div>
+              <label className="font-label-caps text-[8px] text-[var(--text-muted)] uppercase block mb-1">
+                CALLING AGENT
+              </label>
+              <div className="px-2.5 py-1.5 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-[var(--text-secondary)] font-mono truncate">
+                sentinel-agent-v1
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2 text-xs font-code-sm border-t border-[var(--border)]">
@@ -674,7 +744,7 @@ export default function IntegrationDetailPage({ params }: PageProps) {
             </div>
 
             {/* Stages completed */}
-            {executionResult.stages_completed && (
+            {Array.isArray(executionResult.stages_completed) && executionResult.stages_completed.length > 0 ? (
               <div className="space-y-1 pt-1 border-t border-[var(--border)] text-[10px]">
                 <span className="text-[9px] text-[var(--text-muted)] uppercase block font-mono">
                   Gateway Pipeline Execution Stages:
@@ -690,10 +760,10 @@ export default function IntegrationDetailPage({ params }: PageProps) {
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* Pending Approval Actions */}
-            {pendingTicketId && (
+            {pendingTicketId ? (
               <div className="p-2.5 rounded-xs border border-[var(--tertiary-fixed-dim)]/40 bg-[var(--surface-container-low)] flex items-center justify-between gap-3 mt-1">
                 <div className="space-y-0.5">
                   <div className="font-bold text-[var(--tertiary-fixed-dim)] flex items-center gap-1.5 font-mono">
@@ -721,17 +791,17 @@ export default function IntegrationDetailPage({ params }: PageProps) {
                   </button>
                 </div>
               </div>
-            )}
+            ) : null}
 
-            {executionResult.error && !pendingTicketId && (
+            {executionResult.error && !pendingTicketId ? (
               <p className="text-xs text-[var(--error)] pt-1 font-mono">{executionResult.error}</p>
-            )}
+            ) : null}
 
-            {executionResult.data && (
+            {executionResult.data ? (
               <pre className="p-2 rounded-xs bg-[var(--surface-container-low)] border border-[var(--border)] text-[10px] font-mono text-[var(--text-primary)] overflow-x-auto max-h-40">
                 {JSON.stringify(executionResult.data, null, 2)}
               </pre>
-            )}
+            ) : null}
           </div>
         )}
       </div>

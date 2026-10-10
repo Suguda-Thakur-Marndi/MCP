@@ -20,6 +20,8 @@ router = APIRouter(tags=["Health"])
 
 @router.get("/health/live", summary="Service Liveness Probe")
 @router.get("/health", summary="Legacy Service Liveness Probe")
+@router.get("/api/health/live", summary="API Liveness Probe")
+@router.get("/api/health", summary="API Service Liveness Probe")
 async def liveness_probe() -> dict[str, Any]:
     """
     Liveness probe: Indicates that the FastAPI server process is running and accepting connections.
@@ -30,6 +32,8 @@ async def liveness_probe() -> dict[str, Any]:
 
 @router.get("/health/ready", summary="Service Readiness Probe")
 @router.get("/ready", summary="Legacy Service Readiness Probe")
+@router.get("/api/health/ready", summary="API Readiness Probe")
+@router.get("/api/ready", summary="API Readiness Probe Alias")
 async def readiness_probe(response: Response) -> dict[str, Any]:
     """
     Readiness probe: Deep check verifying that dependencies needed to serve traffic are operational.

@@ -16,18 +16,15 @@ NO external software may bypass this security layer.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 import time
 import uuid
 from typing import Any, Optional
+
 from pydantic import BaseModel, Field
 
 from mcp_sentinel.connectors.models import (
-    RiskLevel,
     ToolExecutionResult,
-    ToolState,
 )
 from mcp_sentinel.connectors.registry import ConnectorRegistry, get_connector_registry
 from mcp_sentinel.repositories.approval_repository import ApprovalRepository
@@ -36,7 +33,6 @@ from mcp_sentinel.repositories.integration_repository import IntegrationReposito
 from mcp_sentinel.repositories.tool_repository import ToolRepository
 from mcp_sentinel.schemas.approval import ApprovalRequestCreate
 from mcp_sentinel.security.audit_logger import (
-    APPROVAL_REQUIRED,
     TOOL_EXECUTED,
     log_security_event,
 )
@@ -204,8 +200,8 @@ class GatewayExecutionService:
         # Stage 4: Policy evaluation
         # ---------------------------------------------------------------------
         policy_id = tool_record.get("policy_id", "sentinel-core-policy")
-        policy = await self.tool_repo.get_policy(policy_id)
-        
+        await self.tool_repo.get_policy(policy_id)
+
         # Hardcoded deny rules (e.g. repository deletion policy)
         if req.tool_id == "github.delete_repository" and req.user_role not in ("ADMIN", "APPROVER"):
             return GatewayExecuteResponse(
@@ -260,13 +256,10 @@ class GatewayExecutionService:
         # Stage 6: Approval decision
         # ---------------------------------------------------------------------
         requires_approval = tool_record.get("approval_required", False) or risk_level in ("HIGH", "CRITICAL")
-        
+
         if requires_approval:
             if not req.approval_ticket_id:
                 # Create pending approval request and pause execution
-                param_str = json.dumps(req.parameters, sort_keys=True)
-                param_hash = hashlib.sha256(param_str.encode("utf-8")).hexdigest()
-                
                 approval_req = ApprovalRequestCreate(
                     request_id=req_id,
                     action=f"execute_{req.tool_id}",

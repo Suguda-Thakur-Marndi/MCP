@@ -8,25 +8,23 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from mcp_sentinel.config.settings import get_settings
 from mcp_sentinel.connectors.canva import CanvaConnector
 from mcp_sentinel.connectors.github import GitHubConnector
 from mcp_sentinel.connectors.models import (
-    AuthType,
     ConnectorCredentials,
     IntegrationStatus,
 )
-from mcp_sentinel.connectors.registry import ConnectorRegistry, get_connector_registry
-from mcp_sentinel.connectors.vault import CredentialVault, get_vault
+from mcp_sentinel.connectors.registry import get_connector_registry
+from mcp_sentinel.connectors.vault import CredentialVault
 from mcp_sentinel.repositories.integration_repository import IntegrationRepository
 from mcp_sentinel.repositories.tool_repository import ToolRepository
 from mcp_sentinel.security.audit_logger import log_security_event
-from mcp_sentinel.security.auth.dependencies import get_current_user
-from mcp_sentinel.security.auth.models import AuthUser
 from mcp_sentinel.services.tool_registry_service import ToolRegistryService
 
 logger = logging.getLogger(__name__)
@@ -244,7 +242,7 @@ async def connect_github(
         )
 
     # Test the connection with GitHub
-    connected = await connector.authenticate(credentials)
+    await connector.authenticate(credentials)
     test_res = await connector.test_connection()
     if not test_res.success:
         await connector.disconnect()

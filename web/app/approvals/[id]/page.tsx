@@ -9,19 +9,8 @@ import {
   XCircle,
   AlertTriangle,
   Lock,
-  Copy,
-  Check,
-  FileCheck,
-  Layers,
-  Bot,
-  Wrench,
-  Clock,
-  ArrowRight,
-  Database,
   ExternalLink,
 } from "lucide-react";
-import { RiskBadge, DecisionBadge } from "@/components/ui/Badges";
-import { prettyJson } from "@/lib/utils";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -34,7 +23,6 @@ export default function ApprovalDetailPage({ params }: PageProps) {
   const [decisionState, setDecisionState] = useState<"PENDING" | "APPROVED" | "REJECTED">("PENDING");
   const [decisionNotes, setDecisionNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // Mock / Synthesized target approval data matching ticket
   const isPurge = ticketId.toLowerCase().includes("purge") || ticketId.toLowerCase().includes("repo");
@@ -65,14 +53,6 @@ export default function ApprovalDetailPage({ params }: PageProps) {
       setDecisionState("REJECTED");
       setIsProcessing(false);
     }, 600);
-  };
-
-  const handleCopy = (text: string) => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
   };
 
   return (

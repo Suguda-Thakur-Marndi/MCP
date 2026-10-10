@@ -7,8 +7,8 @@ Handles initialization, tool discovery, input schema inspection, and execution.
 from __future__ import annotations
 
 import time
-from datetime import datetime
 from typing import Any, Optional
+
 import httpx
 
 from mcp_sentinel.connectors.base import BaseConnector

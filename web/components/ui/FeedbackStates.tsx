@@ -10,10 +10,8 @@ import {
   RefreshCw,
   Layers,
   CheckCircle2,
-  Server,
   ArrowRight,
   ShieldAlert,
-  HelpCircle,
 } from "lucide-react";
 
 export function LoadingState({

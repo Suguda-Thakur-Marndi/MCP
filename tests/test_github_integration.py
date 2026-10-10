@@ -14,35 +14,28 @@ Verifies:
 11. Audit Logging Immutability & Secret Redaction
 """
 
-import asyncio
-import hashlib
 import json
-import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
+
 import httpx
+import pytest
 from starlette.testclient import TestClient
 
 from mcp_sentinel.api.app import app
 from mcp_sentinel.config.settings import get_settings
 from mcp_sentinel.connectors.github import GitHubConnector
 from mcp_sentinel.connectors.models import (
-    AuthType,
     ConnectorCredentials,
-    IntegrationStatus,
     RiskLevel,
-    ToolExecutionResult,
 )
 from mcp_sentinel.connectors.registry import get_connector_registry
-from mcp_sentinel.connectors.vault import CredentialVault, get_vault
+from mcp_sentinel.connectors.vault import get_vault
 from mcp_sentinel.repositories.approval_repository import ApprovalRepository
-from mcp_sentinel.repositories.audit_repository import AuditRepository
 from mcp_sentinel.repositories.integration_repository import IntegrationRepository
-from mcp_sentinel.repositories.tool_repository import ToolRepository
 from mcp_sentinel.services.gateway_execution_service import (
-    GatewayExecutionService,
     GatewayExecuteRequest,
+    GatewayExecutionService,
 )
-from mcp_sentinel.services.tool_registry_service import ToolRegistryService
 
 
 @pytest.fixture(scope="module")

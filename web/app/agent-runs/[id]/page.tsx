@@ -2,23 +2,12 @@
 
 import React, { useState, use } from "react";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import {
-  Bot,
   ChevronLeft,
-  Shield,
-  Layers,
-  Clock,
-  Terminal,
   FileCode,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
   Copy,
   Check,
   ExternalLink,
-  ChevronDown,
-  ChevronUp,
 } from "lucide-react";
 import { AGENT_RUNS, AgentRun } from "@/lib/sentinel-data";
 import { prettyJson } from "@/lib/utils";
@@ -33,7 +22,6 @@ export default function AgentRunDetailPage({ params }: PageProps) {
 
   const run: AgentRun | undefined = AGENT_RUNS.find((r) => r.id === runId) || AGENT_RUNS[0];
 
-  const [expandedSection, setExpandedSection] = useState<string | null>("payload");
   const [copied, setCopied] = useState(false);
 
   const handleCopy = (text: string) => {

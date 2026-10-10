@@ -28,6 +28,8 @@ eval_results.json
 verification_evidence.json
 scratch/
 *.log
+*.zip
+*.tar.gz
 
 # IDE and OS files
 .vscode/

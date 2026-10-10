@@ -1,24 +1,14 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   Bot,
-  Filter,
-  Eye,
   ArrowRight,
-  Shield,
-  Clock,
-  Layers,
   Search,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
-  Hourglass,
-  ChevronRight,
-  Terminal,
 } from "lucide-react";
 import { AGENT_RUNS, AgentRun } from "@/lib/sentinel-data";
+import { api, AgentExecutionRecord } from "@/lib/api";
 
 export default function AgentRunsPage() {
   const [selectedAgent, setSelectedAgent] = useState<string>("ALL");
@@ -26,29 +16,73 @@ export default function AgentRunsPage() {
   const [selectedRisk, setSelectedRisk] = useState<string>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [liveRuns, setLiveRuns] = useState<AgentExecutionRecord[]>([]);
+
+  useEffect(() => {
+    api.agent.executions(50).then((runs) => {
+      if (Array.isArray(runs) && runs.length > 0) {
+        setLiveRuns(runs);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const allRuns: AgentRun[] = useMemo(() => {
+    if (liveRuns.length > 0) {
+      return liveRuns.map((r) => {
+        const t = r.tool_name || "tool.inspect";
+        const app = t.includes(".") ? t.split(".")[0].toUpperCase() : "MCP";
+        const score = typeof r.risk_score === "number" ? r.risk_score : 15;
+        const riskLevel: AgentRun["riskLevel"] = score >= 80 ? "CRITICAL" : score >= 60 ? "HIGH" : score >= 30 ? "MEDIUM" : "LOW";
+        const state: AgentRun["executionState"] = r.decision === "DENY" ? "BLOCKED" : r.decision === "REQUIRE_APPROVAL" ? "PENDING_APPROVAL" : "COMPLETED";
+        const approval: AgentRun["approvalState"] = r.decision === "REQUIRE_APPROVAL" ? "PENDING" : "NOT_REQUIRED";
+        return {
+          id: String(r.id || r.request_id),
+          agentName: r.actor_id || "Sentinel Autopilot",
+          agentId: r.actor_id || "agent-sentinel-01",
+          model: "claude-3-7-sonnet",
+          environment: "Production" as const,
+          application: app,
+          toolName: t,
+          executionState: state,
+          riskLevel,
+          riskScore: score,
+          approvalState: approval,
+          startedAt: r.created_at || "Just now",
+          durationMs: 42,
+          userPrompt: String(r.details?.prompt || r.details?.message || `Automated tool invocation: ${t}`),
+          reasoning: "Autonomous planner determined tool execution step.",
+          toolDiscovery: [t],
+          payload: (r.details?.parameters as Record<string, unknown>) || {},
+          policyEvaluated: r.decision === "DENY" ? "Invariant Policy Drop" : "Standard Allow Rule",
+          auditEventId: String(r.id || `evt_${t}`),
+        };
+      });
+    }
+    return AGENT_RUNS;
+  }, [liveRuns]);
 
   const filteredRuns = useMemo(() => {
-    return AGENT_RUNS.filter((run) => {
+    return allRuns.filter((run) => {
       if (selectedAgent !== "ALL" && run.agentName !== selectedAgent) return false;
       if (selectedIntegration !== "ALL" && run.application !== selectedIntegration) return false;
       if (selectedRisk !== "ALL" && run.riskLevel !== selectedRisk) return false;
       if (selectedStatus !== "ALL" && run.executionState !== selectedStatus) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const matches =
+        return (
           run.id.toLowerCase().includes(q) ||
           run.agentName.toLowerCase().includes(q) ||
           run.application.toLowerCase().includes(q) ||
           run.toolName.toLowerCase().includes(q) ||
-          run.userPrompt.toLowerCase().includes(q);
-        if (!matches) return false;
+          run.userPrompt.toLowerCase().includes(q)
+        );
       }
       return true;
     });
-  }, [selectedAgent, selectedIntegration, selectedRisk, selectedStatus, searchQuery]);
+  }, [allRuns, selectedAgent, selectedIntegration, selectedRisk, selectedStatus, searchQuery]);
 
-  const uniqueAgents = Array.from(new Set(AGENT_RUNS.map((r) => r.agentName)));
-  const uniqueIntegrations = Array.from(new Set(AGENT_RUNS.map((r) => r.application)));
+  const uniqueAgents = Array.from(new Set(allRuns.map((r) => r.agentName)));
+  const uniqueIntegrations = Array.from(new Set(allRuns.map((r) => r.application)));
 
   return (
     <div className="p-3 sm:p-5 max-w-7xl mx-auto space-y-4 font-sans select-none animate-in fade-in duration-150">
@@ -147,6 +181,18 @@ export default function AgentRunsPage() {
               {uniqueIntegrations.map((app) => (
                 <option key={app} value={app}>{app}</option>
               ))}
+            </select>
+
+            <select
+              value={selectedRisk}
+              onChange={(e) => setSelectedRisk(e.target.value)}
+              className="px-2 py-1 rounded-xs bg-[var(--surface-container-lowest)] border border-[var(--border)] text-xs text-[var(--text-primary)] focus:outline-hidden"
+            >
+              <option value="ALL">All Risk Tiers</option>
+              <option value="CRITICAL">CRITICAL</option>
+              <option value="HIGH">HIGH</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="LOW">LOW</option>
             </select>
 
             <select

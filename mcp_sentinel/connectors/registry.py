@@ -20,11 +20,9 @@ from mcp_sentinel.connectors.models import (
     ConnectorHealth,
     DiscoveredTool,
     IntegrationStatus,
-    ProtocolType,
     ToolExecutionResult,
 )
 from mcp_sentinel.connectors.remote_mcp import RemoteMcpConnector
-from mcp_sentinel.connectors.rest_api import RestApiConnector
 from mcp_sentinel.connectors.slack import SlackConnector
 
 logger = logging.getLogger(__name__)
@@ -128,7 +126,7 @@ class ConnectorRegistry:
         Tool ID format: '{integration_id}.{tool_name}' or matching registered tool.
         """
         integration_id = tool_id.split(".", 1)[0] if "." in tool_id else None
-        
+
         # Check if matched by prefix
         if integration_id and integration_id in self._connectors:
             return await self._connectors[integration_id].execute_tool(tool_id, parameters)

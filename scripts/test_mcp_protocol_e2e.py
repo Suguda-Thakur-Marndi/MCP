@@ -20,17 +20,16 @@ import asyncio
 import os
 import pathlib
 import sys
-import uuid
 
 ROOT_DIR = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-from mcp_sentinel.database.connection import get_db_pool
-from mcp_sentinel.repositories.approval_repository import ApprovalRepository
-from mcp_sentinel.repositories.customer_repository import CustomerRepository
-from mcp_sentinel.security.auth.models import UserRoleEnum
+from mcp import ClientSession, StdioServerParameters  # noqa: E402
+from mcp.client.stdio import stdio_client  # noqa: E402
+
+from mcp_sentinel.database.connection import get_db_pool  # noqa: E402
+from mcp_sentinel.repositories.approval_repository import ApprovalRepository  # noqa: E402
+from mcp_sentinel.repositories.customer_repository import CustomerRepository  # noqa: E402
 
 
 async def main():

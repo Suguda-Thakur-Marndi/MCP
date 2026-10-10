@@ -1,9 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
 import {
-  Settings,
   User,
   Building,
   Key,
@@ -17,15 +15,10 @@ import {
   EyeOff,
   Copy,
   Check,
-  CheckCircle2,
-  AlertTriangle,
-  RefreshCw,
   Sun,
-  Moon,
   Monitor,
 } from "lucide-react";
 import { useTheme } from "@/components/layout/ThemeProvider";
-import { RoleBadge } from "@/components/ui/Badges";
 
 type SettingsSection =
   | "account"

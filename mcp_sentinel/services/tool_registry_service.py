@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Optional
 
-from mcp_sentinel.connectors.models import DiscoveredTool, ToolState
+from mcp_sentinel.connectors.models import ToolState
 from mcp_sentinel.connectors.registry import ConnectorRegistry, get_connector_registry
 from mcp_sentinel.repositories.tool_repository import ToolRepository
 

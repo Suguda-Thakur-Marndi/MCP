@@ -6,17 +6,12 @@ import {
   XCircle,
   Play,
   RefreshCw,
-  ShieldAlert,
   Search,
   Eye,
   X,
   Copy,
   Check,
   Target,
-  Terminal,
-  Activity,
-  Zap,
-  Filter,
 } from "lucide-react";
 import { api, SecurityEvalResult, SecurityEvalScenario } from "@/lib/api";
 import { prettyJson } from "@/lib/utils";

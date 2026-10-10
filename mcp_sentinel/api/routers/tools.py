@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
 from mcp_sentinel.repositories.tool_repository import ToolRepository
 from mcp_sentinel.security.auth.dependencies import get_current_user
 from mcp_sentinel.security.auth.models import AuthUser
+from mcp_sentinel.security.risk.factors import TRUSTED_TOOL_REGISTRY
 from mcp_sentinel.services.gateway_execution_service import (
     GatewayExecuteRequest,
     GatewayExecuteResponse,
@@ -59,8 +61,6 @@ class ExecuteToolBody(BaseModel):
     agent_id: Optional[str] = "sentinel-agent-v1"
     agent_name: Optional[str] = "Sentinel Core Agent"
 
-
-from mcp_sentinel.security.risk.factors import TRUSTED_TOOL_REGISTRY
 
 @router.get("", summary="List all registered tools")
 async def list_tools(

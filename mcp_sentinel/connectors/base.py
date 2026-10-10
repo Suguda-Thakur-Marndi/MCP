@@ -7,7 +7,6 @@ inherits from BaseConnector and implements the 10 standard lifecycle methods.
 from __future__ import annotations
 
 import abc
-import time
 from datetime import datetime
 from typing import Any, Optional
 

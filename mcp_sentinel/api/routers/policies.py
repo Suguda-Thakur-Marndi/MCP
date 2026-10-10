@@ -10,7 +10,6 @@ from fastapi import APIRouter, Depends
 from mcp_sentinel.security.auth.dependencies import get_current_user_optional
 from mcp_sentinel.security.auth.models import AuthUser
 from mcp_sentinel.security.policy.engine import get_policy_engine
-from mcp_sentinel.security.risk.factors import TRUSTED_TOOL_REGISTRY
 
 router = APIRouter(prefix="/api/policies", tags=["Policies"])
 

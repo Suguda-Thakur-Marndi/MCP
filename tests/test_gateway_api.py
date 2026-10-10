@@ -12,8 +12,8 @@ Validates HTTP endpoints:
 - POST /api/mcp-servers
 """
 
-import pytest
 from fastapi.testclient import TestClient
+
 from mcp_sentinel.api.app import app
 
 client = TestClient(app)

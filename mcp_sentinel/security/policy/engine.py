@@ -7,6 +7,7 @@ and security audit logging.
 from typing import Any, Optional
 
 from mcp_sentinel.config.settings import Settings, get_settings
+from mcp_sentinel.schemas.common import HIGH_IMPACT_CUSTOMER_STATUSES
 from mcp_sentinel.security.audit_logger import POLICY_DECISION, log_security_event
 from mcp_sentinel.security.auth.context import get_current_user_context
 from mcp_sentinel.security.auth.models import AuthUser, UserRoleEnum
@@ -20,7 +21,6 @@ from mcp_sentinel.security.decisions.models import (
 from mcp_sentinel.security.policy.defaults import get_default_policy
 from mcp_sentinel.security.policy.evaluator import RuleEvaluator
 from mcp_sentinel.security.policy.models import PolicyContext, PolicyDefinition
-from mcp_sentinel.schemas.common import HIGH_IMPACT_CUSTOMER_STATUSES
 from mcp_sentinel.security.risk.engine import RiskEngine
 from mcp_sentinel.security.risk.factors import get_tool_profile
 from mcp_sentinel.security.risk.models import DataSensitivityEnum, RiskExplanation
