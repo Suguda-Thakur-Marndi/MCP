@@ -72,8 +72,8 @@ async def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-    # 3. Dev / Test Header Shortcut (Strictly fallback when no session token is present and ENABLE_TEST_AUTH is True)
-    if settings.ENABLE_TEST_AUTH and (x_test_role or x_test_email):
+    # 3. Dev / Test Header Shortcut (Strictly fallback when no session token is present, ENABLE_TEST_AUTH is True, and NOT in production)
+    if settings.ENABLE_TEST_AUTH and settings.APP_ENV != "production" and (x_test_role or x_test_email):
         role_str = (x_test_role or "OPERATOR").upper()
         role = (
             UserRoleEnum[role_str]

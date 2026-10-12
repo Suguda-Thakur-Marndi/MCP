@@ -142,6 +142,24 @@ class Settings(BaseSettings):
         le=120.0,
         description="Per-tool call execution timeout in seconds.",
     )
+    AGENT_EXECUTION_TIMEOUT_SECONDS: float = Field(
+        default=60.0,
+        ge=5.0,
+        le=300.0,
+        description="Upper bound timeout for single agent reasoning turn in seconds.",
+    )
+    MAX_CONCURRENT_TOOL_EXECUTIONS: int = Field(
+        default=20,
+        ge=1,
+        le=100,
+        description="Maximum concurrent tool executions in Gateway to prevent resource exhaustion.",
+    )
+    MAX_CONCURRENT_AGENT_RUNS: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Maximum concurrent AI agent reasoning runs.",
+    )
     MCP_SERVER_URL: str | None = Field(
         default=None,
         description="Optional URL for remote MCP server transport. None defaults to in-process.",

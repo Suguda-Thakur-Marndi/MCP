@@ -134,7 +134,7 @@ async def exchange_google_authorization_code(code: str, redirect_uri: str) -> di
     settings = get_settings()
 
     # Controlled test fixture support for automated environments without live Google credentials
-    if settings.ENABLE_TEST_AUTH and code.startswith("mock-code:"):
+    if settings.ENABLE_TEST_AUTH and settings.APP_ENV != "production" and code.startswith("mock-code:"):
         parts = code.split(":")
         email = parts[1] if len(parts) > 1 else "test.user@sentinel.test"
         role = parts[2] if len(parts) > 2 else "OPERATOR"
@@ -184,7 +184,7 @@ async def verify_google_id_token(id_token: str, expected_nonce: Optional[str] = 
         raise AuthorizationDeniedError("Missing Google ID token.")
 
     # 1. Test/Dev Mock Mode
-    if settings.ENABLE_TEST_AUTH and (
+    if settings.ENABLE_TEST_AUTH and settings.APP_ENV != "production" and (
         clean_token.startswith("test-token:")
         or clean_token.startswith("mock-google-token:")
         or (

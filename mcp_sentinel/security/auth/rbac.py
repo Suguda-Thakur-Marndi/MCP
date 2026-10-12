@@ -21,6 +21,19 @@ PERM_VIEW_POLICIES = "policies:view"
 PERM_MANAGE_POLICIES = "policies:manage"
 PERM_VIEW_DASHBOARD = "dashboard:view"
 
+# Integration & Multi-Software Permissions
+PERM_VIEW_INTEGRATIONS = "integrations:view"
+PERM_MANAGE_INTEGRATIONS = "integrations:manage"
+
+# Tool Registry & Gateway Execution Permissions
+PERM_VIEW_TOOLS = "tools:view"
+PERM_MANAGE_TOOLS = "tools:manage"
+PERM_EXECUTE_TOOLS = "tools:execute"
+
+# MCP Server Management Permissions
+PERM_VIEW_MCP_SERVERS = "mcp_servers:view"
+PERM_MANAGE_MCP_SERVERS = "mcp_servers:manage"
+
 # Granular Resource Permissions
 PERM_CUSTOMER_READ = "customer:read"
 PERM_CUSTOMER_WRITE = "customer:write"
@@ -46,6 +59,13 @@ ROLE_PERMISSIONS: dict[UserRoleEnum, set[str]] = {
         PERM_CUSTOMER_PURGE,
         PERM_ORDER_READ,
         PERM_ADMIN_MANAGE_USERS,
+        PERM_VIEW_INTEGRATIONS,
+        PERM_MANAGE_INTEGRATIONS,
+        PERM_VIEW_TOOLS,
+        PERM_MANAGE_TOOLS,
+        PERM_EXECUTE_TOOLS,
+        PERM_VIEW_MCP_SERVERS,
+        PERM_MANAGE_MCP_SERVERS,
     },
     UserRoleEnum.APPROVER: {
         PERM_CHAT_AGENT,
@@ -57,6 +77,10 @@ ROLE_PERMISSIONS: dict[UserRoleEnum, set[str]] = {
         PERM_VIEW_DASHBOARD,
         PERM_CUSTOMER_READ,
         PERM_ORDER_READ,
+        PERM_VIEW_INTEGRATIONS,
+        PERM_VIEW_TOOLS,
+        PERM_EXECUTE_TOOLS,
+        PERM_VIEW_MCP_SERVERS,
     },
     UserRoleEnum.SECURITY_ANALYST: {
         PERM_CHAT_AGENT,
@@ -68,6 +92,9 @@ ROLE_PERMISSIONS: dict[UserRoleEnum, set[str]] = {
         PERM_VIEW_DASHBOARD,
         PERM_CUSTOMER_READ,
         PERM_ORDER_READ,
+        PERM_VIEW_INTEGRATIONS,
+        PERM_VIEW_TOOLS,
+        PERM_VIEW_MCP_SERVERS,
     },
     UserRoleEnum.OPERATOR: {
         PERM_CHAT_AGENT,
@@ -77,6 +104,10 @@ ROLE_PERMISSIONS: dict[UserRoleEnum, set[str]] = {
         PERM_CUSTOMER_READ,
         PERM_CUSTOMER_WRITE,
         PERM_ORDER_READ,
+        PERM_VIEW_INTEGRATIONS,
+        PERM_VIEW_TOOLS,
+        PERM_EXECUTE_TOOLS,
+        PERM_VIEW_MCP_SERVERS,
     },
     UserRoleEnum.VIEWER: {
         PERM_VIEW_AUDIT,
@@ -85,6 +116,9 @@ ROLE_PERMISSIONS: dict[UserRoleEnum, set[str]] = {
         PERM_VIEW_DASHBOARD,
         PERM_CUSTOMER_READ,
         PERM_ORDER_READ,
+        PERM_VIEW_INTEGRATIONS,
+        PERM_VIEW_TOOLS,
+        PERM_VIEW_MCP_SERVERS,
     },
 }
 
