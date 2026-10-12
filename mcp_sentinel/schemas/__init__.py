@@ -1,7 +1,18 @@
 """
-Schemas package for MCP-Sentinel Phase 2.
+Schemas package for MCP-Sentinel.
+Contains strongly typed Pydantic request and response models across all domains.
 """
 
+from mcp_sentinel.schemas.approval import (
+    ApprovalDecisionInput,
+    ApprovalExecutionRequest,
+    ApprovalFilter,
+    ApprovalRequestCreate,
+    ApprovalResponse,
+    ApprovalStatusEnum,
+    compute_approval_hmac,
+    compute_parameter_hash,
+)
 from mcp_sentinel.schemas.audit import (
     AppendCustomerAuditNoteInput,
     AuditEventRecord,
@@ -27,6 +38,12 @@ from mcp_sentinel.schemas.order import (
 
 __all__ = [
     "AppendCustomerAuditNoteInput",
+    "ApprovalDecisionInput",
+    "ApprovalExecutionRequest",
+    "ApprovalFilter",
+    "ApprovalRequestCreate",
+    "ApprovalResponse",
+    "ApprovalStatusEnum",
     "AuditEventRecord",
     "CustomerFilter",
     "CustomerStatusEnum",
@@ -39,5 +56,7 @@ __all__ = [
     "QueryCustomerRecordsInput",
     "SortOrderEnum",
     "UpdateCustomerInput",
+    "compute_approval_hmac",
+    "compute_parameter_hash",
     "parse_customer_id",
 ]

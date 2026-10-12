@@ -31,6 +31,7 @@ from mcp_sentinel.connectors.models import (
 from mcp_sentinel.connectors.registry import ConnectorRegistry, get_connector_registry
 from mcp_sentinel.repositories.approval_repository import ApprovalRepository
 from mcp_sentinel.repositories.audit_repository import AuditRepository
+from mcp_sentinel.repositories.idempotency_repository import IdempotencyRepository
 from mcp_sentinel.repositories.integration_repository import IntegrationRepository
 from mcp_sentinel.repositories.tool_repository import ToolRepository
 from mcp_sentinel.schemas.approval import ApprovalRequestCreate
@@ -87,30 +88,67 @@ class GatewayExecutionService:
         approval_repo: Optional[ApprovalRepository] = None,
         audit_repo: Optional[AuditRepository] = None,
         connector_registry: Optional[ConnectorRegistry] = None,
+        idempotency_repo: Optional[IdempotencyRepository] = None,
     ) -> None:
         self.integration_repo = integration_repo or IntegrationRepository()
         self.tool_repo = tool_repo or ToolRepository()
         self.approval_repo = approval_repo or ApprovalRepository()
         self.audit_repo = audit_repo or AuditRepository()
         self.connector_registry = connector_registry or get_connector_registry()
+        self.idempotency_repo = idempotency_repo or IdempotencyRepository()
         self._settings = get_settings()
         self._idempotency_cache: dict[str, GatewayExecuteResponse] = {}
         self._idempotency_locks: dict[str, asyncio.Lock] = {}
         self._concurrency_semaphore = asyncio.Semaphore(self._settings.MAX_CONCURRENT_TOOL_EXECUTIONS)
 
     async def execute(self, req: GatewayExecuteRequest) -> GatewayExecuteResponse:
-        """Entrypoint for executing a governed tool with idempotency protection."""
+        """Entrypoint for executing a governed tool with durable L1/L2 idempotency protection."""
         if req.idempotency_key:
+            # 1. L1 in-memory cache check
             if req.idempotency_key in self._idempotency_cache:
-                logger.info("Returning cached response for idempotency key %s", req.idempotency_key)
+                logger.info("Returning L1 cached response for idempotency key %s", req.idempotency_key)
                 return self._idempotency_cache[req.idempotency_key]
+
+            # 2. L2 database durable cache check (survives restarts and cross-worker execution)
+            db_cached = None
+            try:
+                db_cached = await self.idempotency_repo.get_response(req.idempotency_key)
+            except Exception as e:
+                logger.warning("Idempotency L2 lookup error for key %s: %s", req.idempotency_key, e)
+
+            if db_cached:
+                logger.info("Returning L2 database cached response for idempotency key %s", req.idempotency_key)
+                resp = GatewayExecuteResponse(**db_cached)
+                self._idempotency_cache[req.idempotency_key] = resp
+                return resp
 
             lock = self._idempotency_locks.setdefault(req.idempotency_key, asyncio.Lock())
             async with lock:
                 if req.idempotency_key in self._idempotency_cache:
                     return self._idempotency_cache[req.idempotency_key]
+                try:
+                    db_cached = await self.idempotency_repo.get_response(req.idempotency_key)
+                except Exception as e:
+                    logger.warning("Idempotency L2 lookup error for key %s: %s", req.idempotency_key, e)
+
+                if db_cached:
+                    resp = GatewayExecuteResponse(**db_cached)
+                    self._idempotency_cache[req.idempotency_key] = resp
+                    return resp
+
                 response = await self._execute_governed(req)
                 self._idempotency_cache[req.idempotency_key] = response
+                # Persist durably to PostgreSQL L2
+                try:
+                    await self.idempotency_repo.save_response(
+                        idempotency_key=req.idempotency_key,
+                        tool_id=req.tool_id,
+                        user_id=req.user_id or "anonymous",
+                        response_payload=response.model_dump(),
+                    )
+                except Exception as e:
+                    logger.warning("Idempotency L2 save error for key %s: %s", req.idempotency_key, e)
+
                 return response
 
         return await self._execute_governed(req)

@@ -186,7 +186,7 @@ def create_app() -> FastAPI:
             exc.safe_message,
             exc.internal_details,
         )
-        status_code = status.HTTP_400_BAD_REQUEST
+        status_code = getattr(exc, "http_status_code", status.HTTP_400_BAD_REQUEST)
         if isinstance(exc, (AuthorizationDeniedError, PolicyViolationError, ApprovalRequiredError)):
             status_code = status.HTTP_403_FORBIDDEN
         elif isinstance(exc, SecurityViolationError):
@@ -200,6 +200,7 @@ def create_app() -> FastAPI:
                 "status": "error",
                 "error_type": exc.__class__.__name__,
                 "message": exc.safe_message,
+                "detail": exc.safe_message,
                 "request_id": get_request_id(),
             },
             headers={"X-Request-ID": get_request_id(), "X-Trace-ID": get_trace_id()},
@@ -218,6 +219,7 @@ def create_app() -> FastAPI:
                 "status": "error",
                 "error_type": "ValidationError",
                 "message": "Invalid request payload format.",
+                "detail": "Invalid request payload format.",
                 "details": sanitized_errors,
                 "request_id": get_request_id(),
             },
@@ -226,12 +228,14 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):
+        detail_msg = exc.detail if isinstance(exc.detail, str) else str(exc.detail)
         return JSONResponse(
             status_code=exc.status_code,
             content={
                 "status": "error",
                 "error_type": "HTTPException",
-                "message": exc.detail,
+                "message": detail_msg,
+                "detail": detail_msg,
                 "request_id": get_request_id(),
             },
             headers={"X-Request-ID": get_request_id(), "X-Trace-ID": get_trace_id()},
@@ -241,12 +245,14 @@ def create_app() -> FastAPI:
     async def unhandled_exception_handler(request: Request, exc: Exception):
         logger.error("Unhandled server exception: %s", str(exc), exc_info=True)
         # Safe message: NEVER expose Python stack traces or internal paths to client
+        safe_msg = "An unexpected internal server error occurred. Please contact the security team."
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={
                 "status": "error",
                 "error_type": "InternalServerError",
-                "message": "An unexpected internal server error occurred. Please contact the security team.",
+                "message": safe_msg,
+                "detail": safe_msg,
                 "request_id": get_request_id(),
             },
             headers={"X-Request-ID": get_request_id(), "X-Trace-ID": get_trace_id()},

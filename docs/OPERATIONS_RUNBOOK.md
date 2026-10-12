@@ -1,7 +1,7 @@
 # MCP-Sentinel Operations & Incident Runbook
 
 > **Target Audience:** DevOps, SRE, On-Call Engineers, and System Operators  
-> **Status:** Production-Ready  
+> **Status:** Production-Ready (Phase 16 Operational Alignment)  
 > **Scope:** Operational procedures, forward-compatible rollbacks, database backup/recovery, and incident response for MCP-Sentinel.
 
 ---
@@ -52,22 +52,22 @@ MCP-Sentinel utilizes `mcp_sentinel.config.secrets.SecretProvider`:
 - **Production:** `AWSSecretsManagerProvider` using AWS IAM execution role (no hardcoded credentials).
 
 ### 3.2 Startup Validation Rules (Fail-Closed)
-In `APP_ENV=production`, the application refuses to boot if:
+In `APP_ENV=production`, the application refuses to boot (`validate_production_startup`) if:
 - `ENABLE_TEST_AUTH` is `true`.
 - `JWT_SECRET_KEY` is under 32 characters or matches known CI defaults.
 - `CORS_ALLOWED_ORIGINS` contains wildcard (`*`) when credentials are permitted.
-- `COOKIE_SECURE` is `false`.
+- `SESSION_COOKIE_SECURE` is `false`.
 
 ---
 
 ## 4. Operational Health & Telemetry Verification
 
-### 4.1 Real-Time Health Probes
+### 4.1 Real-Time Health Probes (LOCALLY TESTED & VERIFIED)
 
 ```bash
 # 1. Liveness (process health - no dependency lock)
 curl -s http://localhost:8000/health/live
-# Expected: {"status":"live","timestamp":1726470000.0} (HTTP 200)
+# Expected: {"status":"live","timestamp":<EPOCH_TIMESTAMP>} (HTTP 200)
 
 # 2. Readiness (DB connection + connection pool + MCP checks)
 curl -s http://localhost:8000/health/ready
@@ -80,7 +80,7 @@ curl -s http://localhost:8000/health/ready
 # }
 
 # 3. Prometheus Metrics Scraping
-curl -s http://localhost:8000/metrics | grep mcp_
+curl -s http://localhost:8000/metrics | grep -E "sentinel_|mcp_"
 ```
 
 ---
@@ -91,6 +91,7 @@ curl -s http://localhost:8000/metrics | grep mcp_
 > Never execute automatic destructive database rollbacks (e.g. `DROP TABLE`, `DROP COLUMN`) during an emergency rollback. Downward migrations can destroy production customer records or security audit history.
 
 ### 5.1 Application Rollback (Zero Data Loss)
+*Note: The following AWS commands represent documented procedures for production environments with AWS CLI configured. Never run production rollback commands without formal change approval.*
 
 If a newly deployed container image exhibits regressions:
 
@@ -98,15 +99,15 @@ If a newly deployed container image exhibits regressions:
    ```bash
    # Revert to previous task definition revision in ECS
    aws ecs update-service \
-     --cluster mcp-sentinel-cluster \
-     --service mcp-sentinel-api \
-     --task-definition mcp-sentinel-api:PREVIOUS_REVISION_NUMBER
+     --cluster <ECS_CLUSTER_NAME> \
+     --service <ECS_SERVICE_NAME> \
+     --task-definition <TASK_DEFINITION_FAMILY>:<PREVIOUS_REVISION_NUMBER>
    ```
 2. **Verify Process Stabilization:**
    ```bash
    aws ecs wait services-stable \
-     --cluster mcp-sentinel-cluster \
-     --services mcp-sentinel-api
+     --cluster <ECS_CLUSTER_NAME> \
+     --services <ECS_SERVICE_NAME>
    ```
 3. **Verify Health:**
    Check ALB target group health: all targets must return HTTP 200 on `/health/live`.
@@ -129,14 +130,19 @@ If a migration fails during deployment:
 
 ### 6.1 Recovery Objectives & Storage Architecture
 
-| Metric | Target | Verification Method |
+> [!NOTE]
+> Recovery time and point objectives below are **architecture design targets** grounded in AWS RDS Multi-AZ capability, rather than empirical cross-region drill results (full cross-region drill deferred per Phase 14 risk register).
+
+| Metric | Target | Status / Verification Method |
 |---|---|---|
-| **RPO (Recovery Point Objective)** | **< 15 minutes** (Continuous WAL: < 5 seconds) | AWS RDS Point-in-Time Recovery log archiving |
-| **RTO (Recovery Time Objective)** | **< 30 minutes** | Automated script provisioning from target snapshot |
-| **Backup Retention Period** | **35 days continuous** | Automated snapshots + immutable S3 Glacier archival |
-| **Audit Log Retention** | **7 years immutable** | Append-only database triggers + WORM S3 export |
+| **RPO (Recovery Point Objective)** | **< 15 minutes** (Continuous WAL: < 5 seconds) | Design Target: AWS RDS Point-in-Time Recovery log archiving |
+| **RTO (Recovery Time Objective)** | **< 30 minutes** | Design Target: Automated script provisioning from target snapshot |
+| **Backup Retention Period** | **35 days continuous** | Design Target: Automated RDS snapshots |
+| **Audit Log Immutability** | **Append-Only Enforced** | **VERIFIED IMPLEMENTATION**: Database trigger `enforce_audit_events_append_only` (Migration 009) |
+| **Audit WORM Retention (7 yr)** | **Long-Term Storage Target** | Design Target: Requires external AWS S3 Object Lock bucket provisioning |
 
 ### 6.2 RDS Automated & Manual Snapshots
+*Note: AWS CLI commands below require appropriate IAM permissions and production access.*
 
 1. **Automated Backups:**
    - RDS Multi-AZ instances maintain 35-day Point-In-Time Recovery (PITR) with continuous WAL archiving.
@@ -146,22 +152,23 @@ If a migration fails during deployment:
 2. **Pre-Deployment Manual Snapshot (Mandatory for Major Changes):**
    ```bash
    aws rds create-db-snapshot \
-     --db-instance-identifier mcp-sentinel-prod-db \
-     --db-snapshot-identifier "mcp-sentinel-pre-deploy-$(date +%Y%m%d%H%M)"
+     --db-instance-identifier <RDS_INSTANCE_IDENTIFIER> \
+     --db-snapshot-identifier "<RDS_INSTANCE_IDENTIFIER>-pre-deploy-$(date +%Y%m%d%H%M)"
    ```
 
 ### 6.3 Database Restore Playbook
+*Note: Documented disaster-recovery procedure. Never execute database restore or instance teardown without explicit Authorization from Security and SRE Leadership.*
 
 If data corruption, accidental truncation, or catastrophic failure occurs:
 
 1. **Point-in-Time Recovery to New Instance:**
    ```bash
    aws rds restore-db-instance-to-point-in-time \
-     --source-db-instance-identifier mcp-sentinel-prod-db \
-     --target-db-instance-identifier mcp-sentinel-recovered-db \
-     --restore-time "2026-10-12T16:00:00Z" \
-     --db-subnet-group-name mcp-sentinel-db-subnet-group \
-     --vpc-security-group-ids sg-0123456789abcdef0
+     --source-db-instance-identifier <SOURCE_RDS_INSTANCE_IDENTIFIER> \
+     --target-db-instance-identifier <TARGET_RECOVERED_INSTANCE_IDENTIFIER> \
+     --restore-time "<TARGET_RESTORE_TIMESTAMP_UTC>" \
+     --db-subnet-group-name <DB_SUBNET_GROUP_NAME> \
+     --vpc-security-group-ids <VPC_SECURITY_GROUP_ID>
    ```
 2. **Verify Data Integrity & Approval Invariants:**
    Connect via bastion or internal utility to verify table rows and state transitions:
@@ -169,26 +176,27 @@ If data corruption, accidental truncation, or catastrophic failure occurs:
    SELECT count(*) FROM customers;
    SELECT count(*) FROM audit_events;
    SELECT status, count(*) FROM approval_requests GROUP BY status;
+   SELECT count(*) FROM idempotency_records WHERE expires_at > NOW();
    ```
 3. **Database Connectivity Interruption Recovery:**
    - When PostgreSQL is temporarily unavailable, the connection pool (`asyncpg`) attempts automatic reconnects with exponential backoff up to `DB_POOL_TIMEOUT_SECONDS`.
    - The `/health/ready` probe flips to HTTP 503, preventing traffic routing by ALB to unhealthy nodes.
    - In-flight requests fail closed safely with structured error messages; no uncommitted tool execution occurs.
 4. **Cutover:**
-   Update secret `mcp-sentinel/production/database-url` in AWS Secrets Manager to point to `mcp-sentinel-recovered-db`. Restart ECS tasks.
+   Update secret `<SECRETS_PREFIX>/database-url` in AWS Secrets Manager to point to `<TARGET_RECOVERED_INSTANCE_IDENTIFIER>`. Restart ECS tasks.
 
 ### 6.4 Concurrency & Approval State Transition Protection
 
 Under high concurrent request volumes:
-- Single-use consumption of approval tickets is strictly guaranteed by atomic PostgreSQL transaction isolation:
+- **Single-Use Approval Consumption**: Guaranteed by atomic PostgreSQL transaction isolation:
   ```sql
-  UPDATE approval_requests 
-  SET status = 'CONSUMED', consumed_at = NOW(), consumed_by = $1
-  WHERE ticket_id = $2 AND status = 'APPROVED'
-  RETURNING ticket_id;
+  SELECT * FROM approval_requests WHERE ticket_id = $1 FOR UPDATE;
+  -- If APPROVED: atomically updates to EXECUTING -> COMPLETED
   ```
-- Any simultaneous duplicate submission fails with zero matches, blocking execution before connector invocation.
-- All approval state transitions (`PENDING` -> `APPROVED` / `DENIED` -> `CONSUMED`) are logged into the append-only `audit_events` table with immutable SHA-256 integrity digests.
+- **Durable L1/L2 Idempotency**:
+  - **L1 In-Memory Cache**: Immediate in-process deduplication and concurrent submission mutex locking via `asyncio.Lock`.
+  - **L2 PostgreSQL Storage**: Persisted in `idempotency_records` table, surviving worker restarts and sharing state across multi-worker deployments.
+- **Append-Only Audit Enforced**: All approval state transitions (`PENDING` -> `APPROVED` / `DENIED` -> `COMPLETED`) are logged into the append-only `audit_events` table with immutable SHA-256 integrity digests.
 
 ---
 
@@ -218,11 +226,13 @@ Under high concurrent request volumes:
      WHERE state != 'idle' 
      ORDER BY duration DESC;
      ```
-  2. Terminate rogue long-running read queries if blocking transactions:
+  2. Cancel rogue long-running read query (safe cancel without dropping connection):
      ```sql
      SELECT pg_cancel_backend(PID);
      ```
-  3. Adjust pool ceiling (`DB_POOL_MAX_SIZE`) in Secrets Manager and cycle container tasks.
+     > [!CAUTION]
+     > Do NOT use `pg_terminate_backend` unless a query is actively deadlocked and `pg_cancel_backend` has failed. Terminating a backend drops the database socket and can cause connection pool instability.
+  3. Adjust pool ceiling (`DB_POOL_MAX_SIZE`) in environment / Secrets Manager and cycle container tasks.
 
 ### Incident 3: Foundation Model Latency / Error Spike (`sentinel_model_latency_seconds > 5.0`)
 - **Condition:** Alert `FoundationModelLatencyHigh` or `sentinel_model_requests_total` failure rate > 5%.
@@ -241,23 +251,23 @@ Under high concurrent request volumes:
 - **Action:**
   1. Inspect container logs with correlation ID:
      ```bash
-     docker logs mcp-sentinel-api --tail 100 | grep -E "mcp|connector"
+     docker logs <CONTAINER_NAME> --tail 100 | grep -E "mcp|connector"
      ```
-  2. The system automatically fails closed: requests requiring tools fail safely with HTTP 503 instead of bypassing security gates.
+  2. The system automatically fails closed: requests requiring tools fail safely with HTTP 503 / 502 instead of bypassing security gates.
   3. Cycle the container task to restart the subagent worker pool.
 
 ---
 
-## 8. Verification & Operational Commands Reference
+## 8. Operational Commands Reference & Classification
 
-| Operation | Command / Endpoint | Status |
-|-----------|--------------------|--------|
-| **Liveness Probe** | `GET /health/live` | **TESTED** |
-| **Readiness Probe** | `GET /health/ready` | **TESTED** |
-| **Prometheus Metrics** | `GET /metrics` | **TESTED** |
-| **DB Schema Check** | `python scripts/init_db.py` | **TESTED** |
-| **Synthetic DB Seeding** | `python scripts/seed_database.py` | **TESTED** |
-| **Pytest Full Suite** | `python -m pytest tests/` | **TESTED** |
-| **Security Evaluation** | `python scripts/run_security_evaluation.py` | **TESTED** |
-| **ECS Task Cycle** | `aws ecs update-service --force-new-deployment` | *PRODUCTION DOCUMENTED* |
-| **RDS Point-in-Time Restore**| `aws rds restore-db-instance-to-point-in-time` | *PRODUCTION DOCUMENTED* |
+| Operation | Command / Endpoint | Classification | Verified In Test Suite |
+|-----------|--------------------|----------------|------------------------|
+| **Liveness Probe** | `GET /health/live` | **Locally Tested** | `tests/test_phase9_observability.py` |
+| **Readiness Probe** | `GET /health/ready` | **Locally Tested** | `tests/test_phase9_observability.py` |
+| **Prometheus Metrics** | `GET /metrics` | **Locally Tested** | `tests/test_phase9_observability.py` |
+| **DB Schema Migration** | `python scripts/init_db.py` | **Locally Tested** | CI Workflow + Local |
+| **Synthetic DB Seeding** | `python scripts/seed_database.py` | **Locally Tested** | CI Workflow + Local |
+| **Full Pytest Suite** | `python -m pytest tests/` | **Locally Tested** | 478/478 Passed |
+| **Security Evaluation** | `python scripts/run_security_evaluation.py` | **Locally Tested** | Automated attack suite |
+| **ECS Task Rollback** | `aws ecs update-service --task-definition ...` | *Cloud Documented Procedure* | Requires AWS ECS access |
+| **RDS Point-in-Time Restore**| `aws rds restore-db-instance-to-point-in-time` | *Cloud Documented Procedure* | Requires AWS RDS access |

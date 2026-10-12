@@ -129,6 +129,14 @@ async def main() -> None:
             await target_conn.execute(signature_sql)
             print("[+] Migration 010 applied successfully.")
 
+        # 11. Durable Idempotency Records Schema
+        idempotency_path = base_dir / "migrations" / "011_durable_idempotency.sql"
+        if idempotency_path.exists():
+            print(f"[*] Applying migration: {idempotency_path.name}...")
+            idempotency_sql = idempotency_path.read_text(encoding="utf-8")
+            await target_conn.execute(idempotency_sql)
+            print("[+] Migration 011 applied successfully.")
+
         # 5. Seed Data
         seed_path = base_dir / "seed" / "seed_synthetic_data.sql"
         print(f"[*] Applying seed data: {seed_path.name}...")

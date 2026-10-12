@@ -23,9 +23,6 @@ from mcp_sentinel.connectors.models import (
     ToolState,
 )
 from mcp_sentinel.database.connection import get_db_pool
-from mcp_sentinel.services.audit_service import AuditService
-from mcp_sentinel.services.customer_service import CustomerService
-from mcp_sentinel.services.order_service import OrderService
 from mcp_sentinel.tools.audit_tools import handle_append_customer_audit_note
 from mcp_sentinel.tools.customer_tools import (
     handle_delete_customer,
@@ -251,6 +248,10 @@ class LocalMcpConnector(BaseConnector):
     ) -> ToolExecutionResult:
         start = time.perf_counter()
         pool = await get_db_pool()
+        from mcp_sentinel.services.audit_service import AuditService
+        from mcp_sentinel.services.customer_service import CustomerService
+        from mcp_sentinel.services.order_service import OrderService
+
         customer_service = CustomerService(pool)
         order_service = OrderService(pool)
         audit_service = AuditService(pool)

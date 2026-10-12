@@ -77,7 +77,14 @@ async function apiFetch<T>(
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({ message: res.statusText }));
-      throw new ApiError(res.status, body.message || res.statusText, body);
+      const errorMsg =
+        (typeof body.message === "string" && body.message) ||
+        (typeof body.detail === "string" && body.detail) ||
+        (Array.isArray(body.detail) &&
+          body.detail.map((d: { msg?: string }) => d?.msg).filter(Boolean).join("; ")) ||
+        res.statusText ||
+        "Request failed";
+      throw new ApiError(res.status, errorMsg, body);
     }
 
     return (await res.json()) as T;
@@ -99,11 +106,19 @@ async function apiFetch<T>(
 export class ApiError extends Error {
   status: number;
   body: unknown;
+  errorType?: string;
+  requestId?: string;
+
   constructor(status: number, message: string, body: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.body = body;
+    if (typeof body === "object" && body !== null) {
+      const b = body as Record<string, unknown>;
+      if (typeof b.error_type === "string") this.errorType = b.error_type;
+      if (typeof b.request_id === "string") this.requestId = b.request_id;
+    }
   }
 
   get isUnauthorized(): boolean {
@@ -120,6 +135,18 @@ export class ApiError extends Error {
 
   get isNotFound(): boolean {
     return this.status === 404;
+  }
+
+  get isRateLimited(): boolean {
+    return this.status === 429;
+  }
+
+  get isTimeout(): boolean {
+    return this.status === 408 || this.status === 504;
+  }
+
+  get isServerError(): boolean {
+    return this.status >= 500;
   }
 }
 
