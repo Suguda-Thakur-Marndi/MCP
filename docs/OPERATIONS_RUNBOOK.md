@@ -125,13 +125,23 @@ If a migration fails during deployment:
 
 ---
 
-## 6. Backup and Disaster Recovery
+## 6. Backup, Data Integrity & Disaster Recovery
 
-### 6.1 RDS Automated & Manual Snapshots
+### 6.1 Recovery Objectives & Storage Architecture
+
+| Metric | Target | Verification Method |
+|---|---|---|
+| **RPO (Recovery Point Objective)** | **< 15 minutes** (Continuous WAL: < 5 seconds) | AWS RDS Point-in-Time Recovery log archiving |
+| **RTO (Recovery Time Objective)** | **< 30 minutes** | Automated script provisioning from target snapshot |
+| **Backup Retention Period** | **35 days continuous** | Automated snapshots + immutable S3 Glacier archival |
+| **Audit Log Retention** | **7 years immutable** | Append-only database triggers + WORM S3 export |
+
+### 6.2 RDS Automated & Manual Snapshots
 
 1. **Automated Backups:**
    - RDS Multi-AZ instances maintain 35-day Point-In-Time Recovery (PITR) with continuous WAL archiving.
    - Snapshot window: 03:00 - 04:00 UTC daily.
+   - Storage encryption: AWS KMS Customer Managed Keys (CMK) with automatic rotation.
 
 2. **Pre-Deployment Manual Snapshot (Mandatory for Major Changes):**
    ```bash
@@ -140,34 +150,52 @@ If a migration fails during deployment:
      --db-snapshot-identifier "mcp-sentinel-pre-deploy-$(date +%Y%m%d%H%M)"
    ```
 
-### 6.2 Database Restore Playbook
+### 6.3 Database Restore Playbook
 
-If data corruption or catastrophic failure occurs:
+If data corruption, accidental truncation, or catastrophic failure occurs:
 
 1. **Point-in-Time Recovery to New Instance:**
    ```bash
    aws rds restore-db-instance-to-point-in-time \
      --source-db-instance-identifier mcp-sentinel-prod-db \
      --target-db-instance-identifier mcp-sentinel-recovered-db \
-     --restore-time "2026-09-16T04:30:00Z" \
+     --restore-time "2026-10-12T16:00:00Z" \
      --db-subnet-group-name mcp-sentinel-db-subnet-group \
      --vpc-security-group-ids sg-0123456789abcdef0
    ```
-2. **Verify Data Integrity:**
-   Connect via bastion or internal utility to verify table rows:
+2. **Verify Data Integrity & Approval Invariants:**
+   Connect via bastion or internal utility to verify table rows and state transitions:
    ```sql
    SELECT count(*) FROM customers;
    SELECT count(*) FROM audit_events;
+   SELECT status, count(*) FROM approval_requests GROUP BY status;
    ```
-3. **Cutover:**
+3. **Database Connectivity Interruption Recovery:**
+   - When PostgreSQL is temporarily unavailable, the connection pool (`asyncpg`) attempts automatic reconnects with exponential backoff up to `DB_POOL_TIMEOUT_SECONDS`.
+   - The `/health/ready` probe flips to HTTP 503, preventing traffic routing by ALB to unhealthy nodes.
+   - In-flight requests fail closed safely with structured error messages; no uncommitted tool execution occurs.
+4. **Cutover:**
    Update secret `mcp-sentinel/production/database-url` in AWS Secrets Manager to point to `mcp-sentinel-recovered-db`. Restart ECS tasks.
+
+### 6.4 Concurrency & Approval State Transition Protection
+
+Under high concurrent request volumes:
+- Single-use consumption of approval tickets is strictly guaranteed by atomic PostgreSQL transaction isolation:
+  ```sql
+  UPDATE approval_requests 
+  SET status = 'CONSUMED', consumed_at = NOW(), consumed_by = $1
+  WHERE ticket_id = $2 AND status = 'APPROVED'
+  RETURNING ticket_id;
+  ```
+- Any simultaneous duplicate submission fails with zero matches, blocking execution before connector invocation.
+- All approval state transitions (`PENDING` -> `APPROVED` / `DENIED` -> `CONSUMED`) are logged into the append-only `audit_events` table with immutable SHA-256 integrity digests.
 
 ---
 
 ## 7. Incident Response Playbooks
 
-### Incident 1: Spike in Approval Replay Attempts (`mcp_approval_replay_attempts_total > 0`)
-- **Condition:** Prometheus alert `ApprovalReplayDetected` fires.
+### Incident 1: Spike in Approval Replay Attempts (`sentinel_approval_replays_blocked_total > 0`)
+- **Condition:** Alert `ApprovalReplayDetected` fires.
 - **Root Cause:** A client or malicious actor attempted to re-use an already executed or expired approval token.
 - **Action:**
   1. Query `audit_events` for the correlation ID:
@@ -177,10 +205,10 @@ If data corruption or catastrophic failure occurs:
      ORDER BY created_at DESC LIMIT 20;
      ```
   2. Inspect IP, user agent, and actor ID.
-  3. If actor is compromised, revoke active JWT sessions immediately by invalidating user in `users` table or rotating `JWT_SECRET_KEY` if widespread.
+  3. If actor is compromised, revoke active sessions immediately via user management or rotate credentials.
 
-### Incident 2: Database Connection Pool Exhaustion (`mcp_db_pool_utilization > 85%`)
-- **Condition:** Prometheus alert `DatabaseConnectionPoolHigh` fires.
+### Incident 2: Database Connection Pool Exhaustion (`sentinel_db_pool_connections{state="free"} < 2`)
+- **Condition:** Alert `DatabaseConnectionPoolHigh` fires.
 - **Root Cause:** High concurrent traffic, unreleased connections, or slow queries blocking connections.
 - **Action:**
   1. Check active database locks and query durations:
@@ -194,15 +222,26 @@ If data corruption or catastrophic failure occurs:
      ```sql
      SELECT pg_cancel_backend(PID);
      ```
-  3. Increase pool ceiling if legitimate organic load: adjust `DB_POOL_MAX_SIZE` in Secrets Manager and cycle container tasks.
+  3. Adjust pool ceiling (`DB_POOL_MAX_SIZE`) in Secrets Manager and cycle container tasks.
 
-### Incident 3: MCP Subprocess / Connection Drop (`mcp_health_status{dependency="mcp_server"} == 0`)
-- **Condition:** Prometheus alert `MCPServerDown` fires.
+### Incident 3: Foundation Model Latency / Error Spike (`sentinel_model_latency_seconds > 5.0`)
+- **Condition:** Alert `FoundationModelLatencyHigh` or `sentinel_model_requests_total` failure rate > 5%.
+- **Root Cause:** Upstream Gemini / provider throttling, outage, or unusually large prompt payload.
+- **Action:**
+  1. Check Prometheus metrics for model latency:
+     ```promql
+     histogram_quantile(0.95, sum(rate(sentinel_model_latency_seconds_bucket[5m])) by (le, model))
+     ```
+  2. If upstream service degradation: Agent requests automatically fail safely with bounded timeout (`AGENT_EXECUTION_TIMEOUT_SECONDS=60.0s`), protecting server threads.
+  3. Verify token usage in `sentinel_model_tokens_total` to ensure prompt injection loops are not driving consumption.
+
+### Incident 4: MCP Subprocess / Connection Drop (`sentinel_mcp_tool_failures_total rate > 0.1`)
+- **Condition:** Alert `MCPServerDown` fires.
 - **Root Cause:** MCP subprocess failure, stdio pipe break, or memory constraint.
 - **Action:**
   1. Inspect container logs with correlation ID:
      ```bash
-     docker logs mcp-sentinel-api --tail 100 | grep -E "mcp|subprocess"
+     docker logs mcp-sentinel-api --tail 100 | grep -E "mcp|connector"
      ```
   2. The system automatically fails closed: requests requiring tools fail safely with HTTP 503 instead of bypassing security gates.
   3. Cycle the container task to restart the subagent worker pool.

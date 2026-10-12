@@ -138,13 +138,13 @@ class Settings(BaseSettings):
     )
     TOOL_TIMEOUT_SECONDS: float = Field(
         default=15.0,
-        ge=1.0,
+        ge=0.01,
         le=120.0,
         description="Per-tool call execution timeout in seconds.",
     )
     AGENT_EXECUTION_TIMEOUT_SECONDS: float = Field(
         default=60.0,
-        ge=5.0,
+        ge=0.01,
         le=300.0,
         description="Upper bound timeout for single agent reasoning turn in seconds.",
     )

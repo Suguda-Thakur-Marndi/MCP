@@ -4,6 +4,7 @@ Implements the core reasoning loop, dynamic tool invocation,
 and loop protection safety controls.
 """
 
+import time
 from typing import Any, Optional
 
 from langgraph.graph import END, START, StateGraph
@@ -13,6 +14,7 @@ from mcp_sentinel.agent.prompts import AGENT_SYSTEM_PROMPT
 from mcp_sentinel.agent.providers.base import AgentMessage, LLMProvider
 from mcp_sentinel.agent.state import AgentState
 from mcp_sentinel.config.settings import Settings, get_settings
+from mcp_sentinel.observability.metrics import record_model_invocation
 from mcp_sentinel.security.audit_logger import (
     LOOP_LIMIT_EXCEEDED,
     log_security_event,
@@ -48,10 +50,29 @@ def create_agent_graph(
             tools = await mcp_client.discover_tools()
 
         # Call the LLM provider
+        start_llm = time.perf_counter()
         response = await provider.generate_response(
             messages=state["messages"],
             tools=tools,
             system_instruction=AGENT_SYSTEM_PROMPT,
+        )
+        llm_duration = time.perf_counter() - start_llm
+
+        # Record Foundation Model Observability metrics
+        model_name = getattr(provider, "_model_name", cfg.GEMINI_MODEL)
+        prompt_tokens = 0
+        completion_tokens = 0
+        if response.usage:
+            prompt_tokens = response.usage.get("prompt_token_count") or 0
+            completion_tokens = response.usage.get("candidates_token_count") or 0
+        # Estimated cost for Gemini 2.5 Flash ($0.075 / 1M prompt, $0.30 / 1M candidates)
+        est_cost = (prompt_tokens * 0.000000075) + (completion_tokens * 0.00000030)
+        record_model_invocation(
+            model=model_name,
+            duration_seconds=llm_duration,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            estimated_cost_usd=est_cost,
         )
 
         new_iterations = current_iterations + 1

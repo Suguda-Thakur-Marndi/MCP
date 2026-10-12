@@ -16,6 +16,7 @@ NO external software may bypass this security layer.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 import uuid
@@ -23,6 +24,7 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
+from mcp_sentinel.config.settings import get_settings
 from mcp_sentinel.connectors.models import (
     ToolExecutionResult,
 )
@@ -35,6 +37,7 @@ from mcp_sentinel.schemas.approval import ApprovalRequestCreate
 from mcp_sentinel.security.audit_logger import (
     TOOL_EXECUTED,
     log_security_event,
+    scrub_dict_secrets,
 )
 from mcp_sentinel.security.correlation import get_request_id
 
@@ -52,6 +55,7 @@ class GatewayExecuteRequest(BaseModel):
     run_id: Optional[str] = None
     approval_ticket_id: Optional[str] = None
     reason: Optional[str] = None
+    idempotency_key: Optional[str] = None
 
 
 class GatewayExecuteResponse(BaseModel):
@@ -89,8 +93,33 @@ class GatewayExecutionService:
         self.approval_repo = approval_repo or ApprovalRepository()
         self.audit_repo = audit_repo or AuditRepository()
         self.connector_registry = connector_registry or get_connector_registry()
+        self._settings = get_settings()
+        self._idempotency_cache: dict[str, GatewayExecuteResponse] = {}
+        self._idempotency_locks: dict[str, asyncio.Lock] = {}
+        self._concurrency_semaphore = asyncio.Semaphore(self._settings.MAX_CONCURRENT_TOOL_EXECUTIONS)
 
     async def execute(self, req: GatewayExecuteRequest) -> GatewayExecuteResponse:
+        """Entrypoint for executing a governed tool with idempotency protection."""
+        if req.idempotency_key:
+            if req.idempotency_key in self._idempotency_cache:
+                logger.info("Returning cached response for idempotency key %s", req.idempotency_key)
+                return self._idempotency_cache[req.idempotency_key]
+
+            lock = self._idempotency_locks.setdefault(req.idempotency_key, asyncio.Lock())
+            async with lock:
+                if req.idempotency_key in self._idempotency_cache:
+                    return self._idempotency_cache[req.idempotency_key]
+                response = await self._execute_governed(req)
+                self._idempotency_cache[req.idempotency_key] = response
+                return response
+
+        return await self._execute_governed(req)
+
+    async def _execute_governed(self, req: GatewayExecuteRequest) -> GatewayExecuteResponse:
+        async with self._concurrency_semaphore:
+            return await self._execute_pipeline(req)
+
+    async def _execute_pipeline(self, req: GatewayExecuteRequest) -> GatewayExecuteResponse:
         start_time = time.perf_counter()
         stages_completed: list[str] = []
         run_id = req.run_id or f"run_{uuid.uuid4().hex[:12]}"
@@ -194,6 +223,58 @@ class GatewayExecutionService:
                 error=f"Tool '{req.tool_id}' is not enabled or not found in registry",
                 stages_completed=stages_completed,
             )
+
+        # Validate parameters against tool input_schema
+        input_schema = tool_record.get("input_schema")
+        if isinstance(input_schema, dict):
+            required_params = input_schema.get("required", [])
+            if isinstance(required_params, list):
+                for param in required_params:
+                    if param not in req.parameters or req.parameters[param] is None:
+                        return GatewayExecuteResponse(
+                            success=False,
+                            status="BLOCKED",
+                            tool_id=req.tool_id,
+                            integration_id=integration_id,
+                            run_id=run_id,
+                            risk_level="HIGH",
+                            risk_score=85,
+                            error=f"Schema validation error: Missing required parameter '{param}'",
+                            stages_completed=stages_completed,
+                        )
+            properties = input_schema.get("properties", {})
+            if isinstance(properties, dict):
+                type_map = {
+                    "string": str,
+                    "number": (int, float),
+                    "integer": int,
+                    "boolean": bool,
+                    "array": list,
+                    "object": dict,
+                }
+                for prop_name, prop_spec in properties.items():
+                    if prop_name in req.parameters and req.parameters[prop_name] is not None:
+                        val = req.parameters[prop_name]
+                        expected_type_str = prop_spec.get("type") if isinstance(prop_spec, dict) else None
+                        if expected_type_str in type_map:
+                            expected_type = type_map[expected_type_str]
+                            if expected_type_str in ("number", "integer") and isinstance(val, bool):
+                                valid = False
+                            else:
+                                valid = isinstance(val, expected_type)
+                            if not valid:
+                                return GatewayExecuteResponse(
+                                    success=False,
+                                    status="BLOCKED",
+                                    tool_id=req.tool_id,
+                                    integration_id=integration_id,
+                                    run_id=run_id,
+                                    risk_level="HIGH",
+                                    risk_score=85,
+                                    error=f"Schema validation error: Parameter '{prop_name}' must be of type {expected_type_str}",
+                                    stages_completed=stages_completed,
+                                )
+
         stages_completed.append("3. Tool Registry Validated")
 
         # ---------------------------------------------------------------------
@@ -346,17 +427,45 @@ class GatewayExecutionService:
         )
 
         # ---------------------------------------------------------------------
-        # Stage 7: Execution via Connector
+        # Stage 7: Execution via Connector (with bounded timeout)
         # ---------------------------------------------------------------------
-        exec_result: ToolExecutionResult = await self.connector_registry.execute_tool(
-            req.tool_id,
-            req.parameters,
-        )
-        stages_completed.append("7. Connector Executed")
+        timeout_seconds = self._settings.TOOL_TIMEOUT_SECONDS
+        try:
+            exec_result: ToolExecutionResult = await asyncio.wait_for(
+                self.connector_registry.execute_tool(
+                    req.tool_id,
+                    req.parameters,
+                ),
+                timeout=timeout_seconds,
+            )
+            stages_completed.append("7. Connector Executed")
+        except asyncio.TimeoutError:
+            logger.warning("Tool execution timed out after %ss for %s", timeout_seconds, req.tool_id)
+            exec_result = ToolExecutionResult(
+                success=False,
+                status="FAILED",
+                tool_id=req.tool_id,
+                integration_id=integration_id,
+                error=f"Tool execution timed out after {timeout_seconds} seconds",
+            )
+            stages_completed.append("7. Connector Execution Timed Out")
+        except Exception as exc:
+            logger.exception("Unexpected error executing tool %s: %s", req.tool_id, exc)
+            exec_result = ToolExecutionResult(
+                success=False,
+                status="FAILED",
+                tool_id=req.tool_id,
+                integration_id=integration_id,
+                error=f"Tool execution failed: {str(exc)}",
+            )
+            stages_completed.append("7. Connector Execution Failed")
 
         # ---------------------------------------------------------------------
         # Stage 8: Result validation & sanitization
         # ---------------------------------------------------------------------
+        sanitized_data = scrub_dict_secrets(exec_result.data) if exec_result.data is not None else None
+        sanitized_parameters = scrub_dict_secrets(req.parameters)
+
         if exec_result.success:
             await self.tool_repo.record_tool_usage(req.tool_id)
             stages_completed.append("8. Result Validated & Sanitized")
@@ -373,10 +482,10 @@ class GatewayExecutionService:
         exec_id = await self.tool_repo.record_tool_execution(
             run_id=run_id,
             tool_id=req.tool_id,
-            parameters=req.parameters,
+            parameters=sanitized_parameters,
             status=final_status,
             latency_ms=total_latency,
-            result=exec_result.data if exec_result.success else None,
+            result=sanitized_data if exec_result.success else None,
             error_message=exec_result.error,
             ticket_id=req.approval_ticket_id,
         )
@@ -438,7 +547,7 @@ class GatewayExecutionService:
             execution_id=exec_id,
             risk_level=risk_level,
             risk_score=risk_score,
-            data=exec_result.data,
+            data=sanitized_data,
             error=exec_result.error,
             latency_ms=total_latency,
             stages_completed=stages_completed,

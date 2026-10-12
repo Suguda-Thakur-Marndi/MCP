@@ -25,6 +25,13 @@ from mcp_sentinel.connectors.vault import CredentialVault
 from mcp_sentinel.repositories.integration_repository import IntegrationRepository
 from mcp_sentinel.repositories.tool_repository import ToolRepository
 from mcp_sentinel.security.audit_logger import log_security_event
+from mcp_sentinel.security.auth.dependencies import require_permission
+from mcp_sentinel.security.auth.models import AuthUser
+from mcp_sentinel.security.auth.rbac import (
+    PERM_MANAGE_INTEGRATIONS,
+    PERM_VIEW_INTEGRATIONS,
+    PERM_VIEW_TOOLS,
+)
 from mcp_sentinel.services.tool_registry_service import ToolRegistryService
 
 logger = logging.getLogger(__name__)
@@ -74,6 +81,7 @@ class CanvaOAuthCallbackRequest(BaseModel):
 @router.get("", summary="List all integrations")
 async def list_integrations(
     repo: IntegrationRepository = Depends(get_integration_repo),
+    current_user: AuthUser = Depends(require_permission(PERM_VIEW_INTEGRATIONS)),
 ) -> list[dict[str, Any]]:
     integrations = await repo.list_integrations()
     reg = get_connector_registry()
@@ -94,6 +102,7 @@ async def list_integrations(
 async def get_canva_oauth_url(
     client_id: str = Query(..., description="Canva Developer Client ID"),
     redirect_uri: str = Query(..., description="Redirect URI configured in Canva app"),
+    current_user: AuthUser = Depends(require_permission(PERM_MANAGE_INTEGRATIONS)),
 ) -> CanvaOAuthUrlResponse:
     import secrets
     verifier, challenge = CanvaConnector.generate_pkce_pair()
@@ -115,6 +124,7 @@ async def get_canva_oauth_url(
 async def complete_canva_oauth(
     body: CanvaOAuthCallbackRequest,
     repo: IntegrationRepository = Depends(get_integration_repo),
+    current_user: AuthUser = Depends(require_permission(PERM_MANAGE_INTEGRATIONS)),
 ) -> dict[str, Any]:
     try:
         credentials = await CanvaConnector.exchange_code(
@@ -169,6 +179,7 @@ class GitHubOAuthUrlResponse(BaseModel):
 async def get_github_oauth_url(
     redirect_uri: Optional[str] = None,
     scopes: Optional[str] = None,
+    current_user: AuthUser = Depends(require_permission(PERM_MANAGE_INTEGRATIONS)),
 ) -> GitHubOAuthUrlResponse:
     import secrets
     settings = get_settings()
@@ -201,6 +212,7 @@ async def connect_github(
     body: GitHubConnectRequest,
     repo: IntegrationRepository = Depends(get_integration_repo),
     tool_svc: ToolRegistryService = Depends(get_tool_registry_service),
+    current_user: AuthUser = Depends(require_permission(PERM_MANAGE_INTEGRATIONS)),
 ) -> dict[str, Any]:
     settings = get_settings()
     reg = get_connector_registry()
@@ -347,6 +359,7 @@ async def github_oauth_callback(
 @router.post("/github/disconnect", summary="Disconnect GitHub and revoke stored credentials")
 async def disconnect_github(
     repo: IntegrationRepository = Depends(get_integration_repo),
+    current_user: AuthUser = Depends(require_permission(PERM_MANAGE_INTEGRATIONS)),
 ) -> dict[str, Any]:
     reg = get_connector_registry()
     connector = reg.get_connector("github")
@@ -374,6 +387,7 @@ async def disconnect_github(
 async def get_github_status(
     repo: IntegrationRepository = Depends(get_integration_repo),
     tool_repo: ToolRepository = Depends(lambda: ToolRepository()),
+    current_user: AuthUser = Depends(require_permission(PERM_VIEW_INTEGRATIONS)),
 ) -> dict[str, Any]:
     integration = await repo.get_integration("github")
     if not integration:
@@ -421,6 +435,7 @@ async def get_github_status(
 @router.post("/github/test", summary="Test live connection to GitHub API")
 async def test_github_connection(
     repo: IntegrationRepository = Depends(get_integration_repo),
+    current_user: AuthUser = Depends(require_permission(PERM_MANAGE_INTEGRATIONS)),
 ) -> dict[str, Any]:
     reg = get_connector_registry()
     connector = reg.get_connector("github")
@@ -446,6 +461,7 @@ async def test_github_connection(
 async def get_integration(
     integration_id: str,
     repo: IntegrationRepository = Depends(get_integration_repo),
+    current_user: AuthUser = Depends(require_permission(PERM_VIEW_INTEGRATIONS)),
 ) -> dict[str, Any]:
     integration = await repo.get_integration(integration_id)
     if not integration:
@@ -474,6 +490,7 @@ async def connect_integration(
     body: ConnectRequest,
     repo: IntegrationRepository = Depends(get_integration_repo),
     tool_svc: ToolRegistryService = Depends(get_tool_registry_service),
+    current_user: AuthUser = Depends(require_permission(PERM_MANAGE_INTEGRATIONS)),
 ) -> dict[str, Any]:
     integration = await repo.get_integration(integration_id)
     if not integration:
@@ -519,6 +536,7 @@ async def connect_integration(
 async def disconnect_integration(
     integration_id: str,
     repo: IntegrationRepository = Depends(get_integration_repo),
+    current_user: AuthUser = Depends(require_permission(PERM_MANAGE_INTEGRATIONS)),
 ) -> dict[str, Any]:
     integration = await repo.get_integration(integration_id)
     if not integration:
@@ -544,6 +562,7 @@ async def disconnect_integration(
 async def test_integration_connection(
     integration_id: str,
     repo: IntegrationRepository = Depends(get_integration_repo),
+    current_user: AuthUser = Depends(require_permission(PERM_MANAGE_INTEGRATIONS)),
 ) -> dict[str, Any]:
     integration = await repo.get_integration(integration_id)
     if not integration:
@@ -575,5 +594,6 @@ async def test_integration_connection(
 async def get_integration_tools(
     integration_id: str,
     tool_repo: ToolRepository = Depends(lambda: ToolRepository()),
+    current_user: AuthUser = Depends(require_permission(PERM_VIEW_TOOLS)),
 ) -> list[dict[str, Any]]:
     return await tool_repo.list_tools(integration_id=integration_id)

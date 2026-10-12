@@ -40,7 +40,13 @@ from mcp_sentinel.services.gateway_execution_service import (
 
 @pytest.fixture(scope="module")
 def client():
-    return TestClient(app)
+    return TestClient(
+        app,
+        headers={
+            "X-Test-User-Role": "ADMIN",
+            "X-Test-User-Email": "admin@sentinel.internal",
+        },
+    )
 
 
 @pytest.fixture(scope="module")

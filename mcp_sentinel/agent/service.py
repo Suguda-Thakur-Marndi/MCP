@@ -3,6 +3,8 @@ Agent Service Orchestrator for MCP-Sentinel.
 Coordinates conversation turns, correlation context, and graph execution.
 """
 
+import asyncio
+import logging
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -15,6 +17,8 @@ from mcp_sentinel.agent.state import AgentState
 from mcp_sentinel.config.settings import Settings, get_settings
 from mcp_sentinel.security.correlation import clear_request_id, set_request_id
 
+logger = logging.getLogger(__name__)
+
 
 @dataclass
 class AgentResponse:
@@ -24,7 +28,7 @@ class AgentResponse:
     conversation_id: str
     agent_id: str
     response: str
-    status: str  # "completed", "approval_required", "max_iterations_reached", "error"
+    status: str  # "completed", "approval_required", "max_iterations_reached", "error", "timeout"
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
     iteration_count: int = 0
 
@@ -44,7 +48,7 @@ class AgentService:
     """
     High-level service interface for running AI agent workflows.
     Ensures end-to-end request correlation, proper resource lifecycle,
-    and safe structured output formatting.
+    bounded execution timeouts, concurrency limits, and safe structured output formatting.
     """
 
     def __init__(
@@ -61,6 +65,7 @@ class AgentService:
             mcp_client=self._mcp_client,
             settings=self._settings,
         )
+        self._concurrency_semaphore = asyncio.Semaphore(self._settings.MAX_CONCURRENT_AGENT_RUNS)
 
     async def run_chat(
         self,
@@ -72,6 +77,7 @@ class AgentService:
         """
         Executes a single conversational request through the LangGraph agent workflow.
         Binds request_id and authenticated human security principal context.
+        Bounded by timeout and concurrency controls.
         """
         from mcp_sentinel.security.auth.context import (
             clear_current_user_context,
@@ -85,34 +91,52 @@ class AgentService:
             set_current_user_context(user)
 
         try:
-            initial_state: AgentState = {
-                "messages": [AgentMessage(role="user", content=message)],
-                "tool_calls": [],
-                "tool_results": [],
-                "request_id": rid,
-                "conversation_id": cid,
-                "iteration_count": 0,
-                "status": "running",
-                "final_response": None,
-            }
+            async with self._concurrency_semaphore:
+                initial_state: AgentState = {
+                    "messages": [AgentMessage(role="user", content=message)],
+                    "tool_calls": [],
+                    "tool_results": [],
+                    "request_id": rid,
+                    "conversation_id": cid,
+                    "iteration_count": 0,
+                    "status": "running",
+                    "final_response": None,
+                }
 
-            final_state = await self._graph.ainvoke(initial_state)
+                timeout_sec = self._settings.AGENT_EXECUTION_TIMEOUT_SECONDS
+                try:
+                    final_state = await asyncio.wait_for(
+                        self._graph.ainvoke(initial_state),
+                        timeout=timeout_sec,
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("Agent run timed out after %ss for request %s", timeout_sec, rid)
+                    return AgentResponse(
+                        request_id=rid,
+                        conversation_id=cid,
+                        agent_id=self._settings.AGENT_ID,
+                        response=f"Execution timed out after {timeout_sec}s. Operation was bounded to protect system resources.",
+                        status="timeout",
+                        tool_calls=[],
+                        iteration_count=0,
+                    )
 
-            final_text = (
-                final_state.get("final_response")
-                or (final_state["messages"][-1].content if final_state.get("messages") else "")
-                or "No response produced."
-            )
+                final_text = (
+                    final_state.get("final_response")
+                    or (final_state["messages"][-1].content if final_state.get("messages") else "")
+                    or "No response produced."
+                )
 
-            return AgentResponse(
-                request_id=rid,
-                conversation_id=cid,
-                agent_id=self._settings.AGENT_ID,
-                response=final_text,
-                status=final_state.get("status", "completed"),
-                tool_calls=final_state.get("tool_results", []),
-                iteration_count=final_state.get("iteration_count", 0),
-            )
+                return AgentResponse(
+                    request_id=rid,
+                    conversation_id=cid,
+                    agent_id=self._settings.AGENT_ID,
+                    response=final_text,
+                    status=final_state.get("status", "completed"),
+                    tool_calls=final_state.get("tool_results", []),
+                    iteration_count=final_state.get("iteration_count", 0),
+                )
         finally:
             clear_request_id()
             clear_current_user_context()
+

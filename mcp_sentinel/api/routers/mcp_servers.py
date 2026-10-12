@@ -15,8 +15,9 @@ from pydantic import BaseModel, Field
 from mcp_sentinel.connectors.models import AuthType
 from mcp_sentinel.connectors.registry import get_connector_registry
 from mcp_sentinel.repositories.integration_repository import IntegrationRepository
-from mcp_sentinel.security.auth.dependencies import require_roles
+from mcp_sentinel.security.auth.dependencies import require_permission, require_roles
 from mcp_sentinel.security.auth.models import AuthUser, UserRoleEnum
+from mcp_sentinel.security.auth.rbac import PERM_MANAGE_MCP_SERVERS, PERM_VIEW_MCP_SERVERS
 from mcp_sentinel.services.tool_registry_service import ToolRegistryService
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ class RegisterMcpServerRequest(BaseModel):
 @router.get("", summary="List registered MCP servers")
 async def list_mcp_servers(
     repo: IntegrationRepository = Depends(get_integration_repo),
+    current_user: AuthUser = Depends(require_permission(PERM_VIEW_MCP_SERVERS)),
 ) -> list[dict[str, Any]]:
     return await repo.list_mcp_servers()
 
@@ -91,6 +93,7 @@ async def register_mcp_server(
 async def test_mcp_server(
     server_id: str,
     repo: IntegrationRepository = Depends(get_integration_repo),
+    current_user: AuthUser = Depends(require_permission(PERM_MANAGE_MCP_SERVERS)),
 ) -> dict[str, Any]:
     reg = get_connector_registry()
     connector = reg.get_connector(server_id)

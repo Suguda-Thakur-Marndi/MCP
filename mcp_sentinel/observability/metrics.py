@@ -197,6 +197,20 @@ class SentinelMetrics:
             "sentinel_authorization_denials_total", "Total RBAC/ABAC authorization denials"
         )
 
+        # Model Provider & Operational Cost Metrics
+        self.registry.register_counter(
+            "sentinel_model_requests_total", "Total requests sent to foundation model providers"
+        )
+        self.registry.register_histogram(
+            "sentinel_model_latency_seconds", "Foundation model provider latency in seconds"
+        )
+        self.registry.register_counter(
+            "sentinel_model_tokens_total", "Total prompt and completion tokens processed"
+        )
+        self.registry.register_counter(
+            "sentinel_model_estimated_cost_usd", "Estimated foundational model operational cost in USD"
+        )
+
         # Database metrics
         self.registry.register_counter(
             "sentinel_db_queries_total", "Total database operations executed"
@@ -232,6 +246,33 @@ class SentinelMetrics:
     def record_agent_invocation(self, status: str, duration_seconds: float) -> None:
         self.registry.inc_counter("sentinel_agent_invocations_total", {"status": status})
         self.registry.observe_histogram("sentinel_agent_duration_seconds", duration_seconds)
+
+    def record_model_invocation(
+        self,
+        model: str,
+        duration_seconds: float,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        estimated_cost_usd: float = 0.0,
+    ) -> None:
+        """
+        Records latency, token consumption, and estimated operational cost
+        for foundational model provider calls (e.g. Gemini, OpenAI, Claude).
+        """
+        self.registry.inc_counter("sentinel_model_requests_total", {"model": model})
+        self.registry.observe_histogram("sentinel_model_latency_seconds", duration_seconds, {"model": model})
+        if prompt_tokens > 0:
+            self.registry.inc_counter(
+                "sentinel_model_tokens_total", {"model": model, "type": "prompt"}, value=float(prompt_tokens)
+            )
+        if completion_tokens > 0:
+            self.registry.inc_counter(
+                "sentinel_model_tokens_total", {"model": model, "type": "completion"}, value=float(completion_tokens)
+            )
+        if estimated_cost_usd > 0.0:
+            self.registry.inc_counter(
+                "sentinel_model_estimated_cost_usd", {"model": model}, value=estimated_cost_usd
+            )
 
     def record_agent_tool_call(self, tool_name: str, status: str) -> None:
         self.registry.inc_counter(
@@ -330,6 +371,22 @@ def record_approval_event(status: str) -> None:
 
 def record_approval_replay() -> None:
     get_metrics().record_approval_replay()
+
+
+def record_model_invocation(
+    model: str,
+    duration_seconds: float,
+    prompt_tokens: int = 0,
+    completion_tokens: int = 0,
+    estimated_cost_usd: float = 0.0,
+) -> None:
+    get_metrics().record_model_invocation(
+        model=model,
+        duration_seconds=duration_seconds,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        estimated_cost_usd=estimated_cost_usd,
+    )
 
 
 def record_rate_limit_exceeded(endpoint: str) -> None:

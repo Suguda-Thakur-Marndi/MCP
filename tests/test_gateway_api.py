@@ -25,7 +25,7 @@ AUTH_HEADERS = {
 
 
 def test_get_integrations():
-    resp = client.get("/api/integrations")
+    resp = client.get("/api/integrations", headers=AUTH_HEADERS)
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data, list)
@@ -37,8 +37,16 @@ def test_get_integrations():
     assert "custom_mcp" in int_ids
 
 
+def test_unauthenticated_requests_blocked():
+    """Verify sensitive endpoints strictly reject unauthenticated callers."""
+    assert client.get("/api/integrations").status_code == 401
+    assert client.get("/api/integrations/canva").status_code == 401
+    assert client.post("/api/tools/sync").status_code == 401
+    assert client.get("/api/mcp-servers").status_code == 401
+
+
 def test_get_canva_detail():
-    resp = client.get("/api/integrations/canva")
+    resp = client.get("/api/integrations/canva", headers=AUTH_HEADERS)
     assert resp.status_code == 200
     data = resp.json()
     assert data["id"] == "canva"
@@ -54,6 +62,7 @@ def test_canva_pkce_oauth_url():
             "client_id": "test_client_id_123",
             "redirect_uri": "http://localhost:3000/callback",
         },
+        headers=AUTH_HEADERS,
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -64,7 +73,7 @@ def test_canva_pkce_oauth_url():
 
 
 def test_test_canva_connection():
-    resp = client.post("/api/integrations/canva/test")
+    resp = client.post("/api/integrations/canva/test", headers=AUTH_HEADERS)
     assert resp.status_code == 200
     data = resp.json()
     assert "success" in data
@@ -85,7 +94,7 @@ def test_get_tools_list():
 
 
 def test_tool_sync():
-    resp = client.post("/api/tools/sync")
+    resp = client.post("/api/tools/sync", headers=AUTH_HEADERS)
     assert resp.status_code == 200
     data = resp.json()
     assert data["success"] is True
@@ -120,7 +129,7 @@ def test_execute_high_risk_tool_gates_for_approval():
 
 
 def test_mcp_servers_list():
-    resp = client.get("/api/mcp-servers")
+    resp = client.get("/api/mcp-servers", headers=AUTH_HEADERS)
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data, list)

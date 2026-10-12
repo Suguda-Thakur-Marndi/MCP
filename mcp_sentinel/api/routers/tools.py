@@ -13,8 +13,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
 from mcp_sentinel.repositories.tool_repository import ToolRepository
-from mcp_sentinel.security.auth.dependencies import get_current_user
+from mcp_sentinel.security.auth.dependencies import require_permission
 from mcp_sentinel.security.auth.models import AuthUser
+from mcp_sentinel.security.auth.rbac import (
+    PERM_EXECUTE_TOOLS,
+    PERM_MANAGE_TOOLS,
+)
 from mcp_sentinel.security.risk.factors import TRUSTED_TOOL_REGISTRY
 from mcp_sentinel.services.gateway_execution_service import (
     GatewayExecuteRequest,
@@ -60,6 +64,10 @@ class ExecuteToolBody(BaseModel):
     reason: Optional[str] = None
     agent_id: Optional[str] = "sentinel-agent-v1"
     agent_name: Optional[str] = "Sentinel Core Agent"
+    idempotency_key: Optional[str] = Field(
+        default=None,
+        description="Optional client idempotency key to prevent duplicate execution of sensitive operations.",
+    )
 
 
 @router.get("", summary="List all registered tools")
@@ -121,6 +129,7 @@ async def list_tools(
 @router.post("/sync", summary="Discover and sync tools from all active connectors")
 async def sync_tools(
     service: ToolRegistryService = Depends(get_tool_service),
+    current_user: AuthUser = Depends(require_permission(PERM_MANAGE_TOOLS)),
 ) -> dict[str, Any]:
     synced = await service.sync_all_tools()
     return {
@@ -149,10 +158,10 @@ async def execute_tool(
     tool_id: str,
     body: ExecuteToolBody,
     gw_service: GatewayExecutionService = Depends(get_gateway_service),
-    current_user: Optional[AuthUser] = Depends(get_current_user),
+    current_user: AuthUser = Depends(require_permission(PERM_EXECUTE_TOOLS)),
 ) -> GatewayExecuteResponse:
-    user_id = current_user.id if current_user else "operator@sentinel.internal"
-    user_role = current_user.role.value if current_user else "OPERATOR"
+    user_id = current_user.id
+    user_role = current_user.role.value
 
     req = GatewayExecuteRequest(
         tool_id=tool_id,
@@ -163,6 +172,7 @@ async def execute_tool(
         agent_name=body.agent_name or "Sentinel Core Agent",
         approval_ticket_id=body.approval_ticket_id,
         reason=body.reason,
+        idempotency_key=body.idempotency_key,
     )
 
     response = await gw_service.execute(req)
