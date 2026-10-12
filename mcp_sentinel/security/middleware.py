@@ -52,23 +52,21 @@ class SecurityGate:
         profile = get_tool_profile(tool_name)
         target_id = str(raw_args.get("customer_id") or raw_args.get("inactivity_days") or "")
 
-        is_high_impact_update = (
-            tool_name == "update_customer"
-            and str(raw_args.get("status") or "").lower() in ("suspended", "closed", "banned")
-        )
+        is_high_impact_update = tool_name == "update_customer" and str(
+            raw_args.get("status") or ""
+        ).lower() in ("suspended", "closed", "banned")
         is_approval_needed = bool(profile and profile.destructive) or is_high_impact_update
 
         # Non-destructively verify server approval if a ticket was provided
         is_server_approved = False
         ticket_id = raw_args.get("approval_ticket")
-        if (
-            ticket_id
-            and isinstance(ticket_id, str)
-            and ticket_id.strip()
-            and is_approval_needed
-        ):
+        if ticket_id and isinstance(ticket_id, str) and ticket_id.strip() and is_approval_needed:
             repo = approval_repo or ApprovalRepository()
-            action = "update_customer" if is_high_impact_update else ("DELETE_CUSTOMER" if tool_name == "delete_customer" else "PURGE")
+            action = (
+                "update_customer"
+                if is_high_impact_update
+                else ("DELETE_CUSTOMER" if tool_name == "delete_customer" else "PURGE")
+            )
             try:
                 is_server_approved = await repo.check_validity(
                     ticket_id=ticket_id,
@@ -99,10 +97,7 @@ class SecurityGate:
             ticket_id = None
             expires_at = None
             ticket_param = raw_args.get("approval_ticket")
-            if (
-                is_approval_needed
-                and (not ticket_param or not str(ticket_param).strip())
-            ):
+            if is_approval_needed and (not ticket_param or not str(ticket_param).strip()):
                 try:
                     repo = approval_repo or ApprovalRepository()
                     clean_params = {k: v for k, v in raw_args.items() if k != "approval_ticket"}

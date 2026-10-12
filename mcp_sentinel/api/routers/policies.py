@@ -18,7 +18,9 @@ router = APIRouter(prefix="/api/policies", tags=["Policies"])
     "",
     summary="Get active security policy definitions and rules",
 )
-async def get_policies(current_user: Optional[AuthUser] = Depends(get_current_user_optional)) -> dict[str, Any]:
+async def get_policies(
+    current_user: Optional[AuthUser] = Depends(get_current_user_optional),
+) -> dict[str, Any]:
     engine = get_policy_engine()
     policy = engine._policy
 
@@ -53,6 +55,7 @@ async def get_policy_rule(
     current_user: Optional[AuthUser] = Depends(get_current_user_optional),
 ) -> dict[str, Any]:
     from fastapi import HTTPException, status
+
     engine = get_policy_engine()
     policy = engine._policy
 

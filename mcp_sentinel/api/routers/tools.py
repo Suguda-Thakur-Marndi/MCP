@@ -59,6 +59,7 @@ def get_gateway_service() -> GatewayExecutionService:
 
 class ExecuteToolBody(BaseModel):
     """Execution request body submitted by client or AI agent."""
+
     parameters: dict[str, Any] = Field(default_factory=dict)
     approval_ticket_id: Optional[str] = None
     reason: Optional[str] = None
@@ -74,7 +75,9 @@ class ExecuteToolBody(BaseModel):
 async def list_tools(
     request: Request,
     integration_id: Optional[str] = Query(None, description="Filter by integration ID"),
-    risk_level: Optional[str] = Query(None, description="Filter by risk level (LOW, MEDIUM, HIGH, CRITICAL)"),
+    risk_level: Optional[str] = Query(
+        None, description="Filter by risk level (LOW, MEDIUM, HIGH, CRITICAL)"
+    ),
     enabled_only: bool = Query(False, description="Filter to enabled tools only"),
     repo: ToolRepository = Depends(get_tool_repo),
 ) -> Any:
@@ -153,7 +156,9 @@ async def get_tool(
     return tool
 
 
-@router.post("/{tool_id:path}/execute", summary="Execute tool through 9-stage Gateway Security Pipeline")
+@router.post(
+    "/{tool_id:path}/execute", summary="Execute tool through 9-stage Gateway Security Pipeline"
+)
 async def execute_tool(
     tool_id: str,
     body: ExecuteToolBody,

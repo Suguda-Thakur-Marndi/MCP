@@ -329,10 +329,14 @@ async def test_secrets_are_not_logged():
     repo = IntegrationRepository()
     pool = await repo._get_pool()
     async with pool.acquire() as conn:
-        rows = await conn.fetch("SELECT details, tool_name FROM audit_events ORDER BY created_at DESC LIMIT 50")
+        rows = await conn.fetch(
+            "SELECT details, tool_name FROM audit_events ORDER BY created_at DESC LIMIT 50"
+        )
         for r in rows:
             details_str = json.dumps(r["details"]) if r["details"] else ""
-            assert client_secret not in details_str, f"Found client secret in audit event for tool {r['tool_name']}"
+            assert client_secret not in details_str, (
+                f"Found client secret in audit event for tool {r['tool_name']}"
+            )
 
 
 # =============================================================================

@@ -893,8 +893,14 @@ async def test_mcp_surface_has_no_approval_or_decision_tools():
     assert "purge_inactive_customer_data" in tool_names
 
     # Verify no approval or decision tools exist over MCP
-    prohibited_keywords = ["approve", "decision", "decide", "reject", "cancel_approval", "sign_ticket"]
+    prohibited_keywords = [
+        "approve",
+        "decision",
+        "decide",
+        "reject",
+        "cancel_approval",
+        "sign_ticket",
+    ]
     for t_name in tool_names:
         for kw in prohibited_keywords:
             assert kw not in t_name, f"Forbidden approval tool '{t_name}' exposed on MCP surface!"
-

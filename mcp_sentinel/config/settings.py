@@ -4,6 +4,7 @@ Adheres to Security Rule #5: Never store secrets in source code.
 Uses Pydantic Settings for strongly-typed, environment-driven configuration.
 """
 
+import os
 import urllib.parse
 from typing import Any, Literal, Optional
 
@@ -18,7 +19,7 @@ class Settings(BaseSettings):
     """
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=os.environ.get("ENV_FILE", ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
         case_sensitive=False,
@@ -437,7 +438,7 @@ class Settings(BaseSettings):
         Prevents starting the production API with default secrets, test auth,
         wildcard CORS, or insecure cookie configurations.
         """
-        if self.APP_ENV == "production":
+        if self.APP_ENV in ("production", "staging"):
             insecure_jwt_defaults = {
                 "sentinel-production-jwt-secret-key-change-me-32chars",
                 "change-me-in-production-min-32-chars",
@@ -450,22 +451,22 @@ class Settings(BaseSettings):
                 or len(self.JWT_SECRET_KEY) < 32
             ):
                 raise ValueError(
-                    "Production configuration failure: JWT_SECRET_KEY must be a strong, non-default string of at least 32 characters."
+                    f"{self.APP_ENV.capitalize()} configuration failure: JWT_SECRET_KEY must be a strong, non-default string of at least 32 characters."
                 )
 
             if "*" in self.ALLOWED_CORS_ORIGINS:
                 raise ValueError(
-                    "Production configuration failure: Wildcard origin '*' is forbidden in ALLOWED_CORS_ORIGINS when credentials are enabled."
+                    f"{self.APP_ENV.capitalize()} configuration failure: Wildcard origin '*' is forbidden in ALLOWED_CORS_ORIGINS when credentials are enabled."
                 )
 
-            if not self.SESSION_COOKIE_SECURE:
+            if self.APP_ENV == "production" and not self.SESSION_COOKIE_SECURE:
                 raise ValueError(
                     "Production configuration failure: SESSION_COOKIE_SECURE must be True in production."
                 )
 
             if self.ENABLE_TEST_AUTH:
                 raise ValueError(
-                    "Production configuration failure: ENABLE_TEST_AUTH must be False in production."
+                    f"{self.APP_ENV.capitalize()} configuration failure: ENABLE_TEST_AUTH must be False in {self.APP_ENV}."
                 )
 
     def get_public_config(self) -> dict[str, Any]:

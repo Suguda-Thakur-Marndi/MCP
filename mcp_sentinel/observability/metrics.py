@@ -208,7 +208,8 @@ class SentinelMetrics:
             "sentinel_model_tokens_total", "Total prompt and completion tokens processed"
         )
         self.registry.register_counter(
-            "sentinel_model_estimated_cost_usd", "Estimated foundational model operational cost in USD"
+            "sentinel_model_estimated_cost_usd",
+            "Estimated foundational model operational cost in USD",
         )
 
         # Database metrics
@@ -260,14 +261,20 @@ class SentinelMetrics:
         for foundational model provider calls (e.g. Gemini, OpenAI, Claude).
         """
         self.registry.inc_counter("sentinel_model_requests_total", {"model": model})
-        self.registry.observe_histogram("sentinel_model_latency_seconds", duration_seconds, {"model": model})
+        self.registry.observe_histogram(
+            "sentinel_model_latency_seconds", duration_seconds, {"model": model}
+        )
         if prompt_tokens > 0:
             self.registry.inc_counter(
-                "sentinel_model_tokens_total", {"model": model, "type": "prompt"}, value=float(prompt_tokens)
+                "sentinel_model_tokens_total",
+                {"model": model, "type": "prompt"},
+                value=float(prompt_tokens),
             )
         if completion_tokens > 0:
             self.registry.inc_counter(
-                "sentinel_model_tokens_total", {"model": model, "type": "completion"}, value=float(completion_tokens)
+                "sentinel_model_tokens_total",
+                {"model": model, "type": "completion"},
+                value=float(completion_tokens),
             )
         if estimated_cost_usd > 0.0:
             self.registry.inc_counter(

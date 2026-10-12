@@ -61,7 +61,10 @@ class SlackConnector(BaseConnector):
                 "type": "object",
                 "required": ["channel_id"],
                 "properties": {
-                    "channel_id": {"type": "string", "description": "Slack channel ID (e.g. C12345)"},
+                    "channel_id": {
+                        "type": "string",
+                        "description": "Slack channel ID (e.g. C12345)",
+                    },
                     "limit": {"type": "integer", "default": 30, "maximum": 100},
                 },
             },
@@ -138,7 +141,9 @@ class SlackConnector(BaseConnector):
     async def test_connection(self) -> ConnectionTestResult:
         start = time.perf_counter()
         try:
-            has_token = self._credentials and (self._credentials.access_token or self._credentials.api_key)
+            has_token = self._credentials and (
+                self._credentials.access_token or self._credentials.api_key
+            )
             if not has_token:
                 return ConnectionTestResult(
                     success=False,
@@ -205,7 +210,9 @@ class SlackConnector(BaseConnector):
         parameters: dict[str, Any],
     ) -> ToolExecutionResult:
         start = time.perf_counter()
-        if not self._credentials or not (self._credentials.access_token or self._credentials.api_key):
+        if not self._credentials or not (
+            self._credentials.access_token or self._credentials.api_key
+        ):
             return ToolExecutionResult(
                 success=False,
                 error="Slack connector is not authenticated. Please provide token.",

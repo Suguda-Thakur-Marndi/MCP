@@ -70,7 +70,9 @@ class RestApiConnector(BaseConnector):
         }
         if self._credentials:
             if self._credentials.access_token:
-                headers["Authorization"] = f"{self._credentials.token_type} {self._credentials.access_token}"
+                headers["Authorization"] = (
+                    f"{self._credentials.token_type} {self._credentials.access_token}"
+                )
             elif self._credentials.api_key:
                 headers["Authorization"] = f"Bearer {self._credentials.api_key}"
         return headers

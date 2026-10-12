@@ -80,7 +80,9 @@ class IdempotencyRepository:
         try:
             pool = await self._get_pool()
             payload_json = json.dumps(response_payload)
-            expires_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=ttl_seconds)
+            expires_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
+                seconds=ttl_seconds
+            )
 
             async with pool.acquire() as conn:
                 await conn.execute(

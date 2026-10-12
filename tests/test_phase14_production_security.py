@@ -46,6 +46,7 @@ client = TestClient(app)
 # 1. STRICT PRODUCTION AUTHENTICATION & CONFIGURATION FAIL-SAFE
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_production_mode_rejects_test_bypass_headers():
     """Verify that development/test authentication bypass headers are strictly rejected in production."""
@@ -62,7 +63,10 @@ async def test_production_mode_rejects_test_bypass_headers():
                 x_test_email="admin@sentinel.internal",
             )
         assert exc_info.value.status_code == 401
-        assert "Development test headers are strictly prohibited in production" in exc_info.value.detail
+        assert (
+            "Development test headers are strictly prohibited in production"
+            in exc_info.value.detail
+        )
 
 
 @pytest.mark.asyncio
@@ -74,7 +78,11 @@ async def test_production_mode_rejects_mock_oidc_tokens():
         # Test token verification rejection
         with pytest.raises((HTTPException, AuthorizationDeniedError)) as exc_verify:
             await verify_google_id_token("mock_google_id_token_123")
-        err_msg = str(getattr(exc_verify.value, "detail", "") or getattr(exc_verify.value, "safe_message", "") or str(exc_verify.value))
+        err_msg = str(
+            getattr(exc_verify.value, "detail", "")
+            or getattr(exc_verify.value, "safe_message", "")
+            or str(exc_verify.value)
+        )
         assert "prohibited in production" in err_msg or "validation failed" in err_msg.lower()
 
         # Test auth code exchange rejection
@@ -83,13 +91,18 @@ async def test_production_mode_rejects_mock_oidc_tokens():
                 "mock_google_auth_code_123",
                 redirect_uri="https://app.sentinel.internal/callback",
             )
-        err_msg_ex = str(getattr(exc_exchange.value, "detail", "") or getattr(exc_exchange.value, "safe_message", "") or str(exc_exchange.value))
+        err_msg_ex = str(
+            getattr(exc_exchange.value, "detail", "")
+            or getattr(exc_exchange.value, "safe_message", "")
+            or str(exc_exchange.value)
+        )
         assert "prohibited in production" in err_msg_ex or "failed" in err_msg_ex.lower()
 
 
 # =============================================================================
 # 2. RBAC & LEAST-PRIVILEGE AUTHORIZATION ENFORCEMENT
 # =============================================================================
+
 
 def test_unauthenticated_requests_strictly_blocked():
     """Verify that unauthenticated callers cannot access sensitive endpoints."""
@@ -139,6 +152,7 @@ def test_viewer_role_cannot_perform_privileged_operations():
 # 3. STAGE 3 TOOL ARGUMENT SCHEMA VALIDATION
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_stage3_schema_validation_blocks_missing_required_params():
     """Verify that Gateway blocks execution when required schema fields are missing."""
@@ -160,9 +174,14 @@ async def test_stage3_schema_validation_blocks_missing_required_params():
         },
     }
 
-    with patch.object(gw.tool_repo, "get_tool", return_value=mock_tool), \
-         patch.object(gw.integration_repo, "get_integration", return_value={"name": "Test", "is_enabled": True, "status": "CONNECTED"}):
-
+    with (
+        patch.object(gw.tool_repo, "get_tool", return_value=mock_tool),
+        patch.object(
+            gw.integration_repo,
+            "get_integration",
+            return_value={"name": "Test", "is_enabled": True, "status": "CONNECTED"},
+        ),
+    ):
         req = GatewayExecuteRequest(
             tool_id="test.tool",
             parameters={"mandatory_param": "valid_value"},
@@ -195,9 +214,14 @@ async def test_stage3_schema_validation_blocks_wrong_parameter_types():
         },
     }
 
-    with patch.object(gw.tool_repo, "get_tool", return_value=mock_tool), \
-         patch.object(gw.integration_repo, "get_integration", return_value={"name": "Test", "is_enabled": True, "status": "CONNECTED"}):
-
+    with (
+        patch.object(gw.tool_repo, "get_tool", return_value=mock_tool),
+        patch.object(
+            gw.integration_repo,
+            "get_integration",
+            return_value={"name": "Test", "is_enabled": True, "status": "CONNECTED"},
+        ),
+    ):
         req = GatewayExecuteRequest(
             tool_id="test.typed_tool",
             parameters={"count": "not_an_int"},
@@ -213,6 +237,7 @@ async def test_stage3_schema_validation_blocks_wrong_parameter_types():
 # =============================================================================
 # 4. IDEMPOTENCY KEY DEDUPLICATION
 # =============================================================================
+
 
 @pytest.mark.asyncio
 async def test_idempotency_key_prevents_duplicate_execution():
@@ -241,14 +266,21 @@ async def test_idempotency_key_prevents_duplicate_execution():
         "input_schema": {},
     }
 
-    with patch.object(gw.tool_repo, "get_tool", return_value=mock_tool), \
-         patch.object(gw.integration_repo, "get_integration", return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"}), \
-         patch.object(gw.tool_repo, "record_risk_decision", return_value="risk_123"), \
-         patch.object(gw.connector_registry, "execute_tool", side_effect=mock_execute), \
-         patch.object(gw.tool_repo, "record_tool_execution", return_value="exec_123"), \
-         patch.object(gw.audit_repo, "record_audit_event", return_value="audit_123"):
+    with (
+        patch.object(gw.tool_repo, "get_tool", return_value=mock_tool),
+        patch.object(
+            gw.integration_repo,
+            "get_integration",
+            return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"},
+        ),
+        patch.object(gw.tool_repo, "record_risk_decision", return_value="risk_123"),
+        patch.object(gw.connector_registry, "execute_tool", side_effect=mock_execute),
+        patch.object(gw.tool_repo, "record_tool_execution", return_value="exec_123"),
+        patch.object(gw.audit_repo, "record_audit_event", return_value="audit_123"),
+    ):
+        import uuid
 
-        key = "idem-key-unique-7890"
+        key = f"idem-key-unique-{uuid.uuid4().hex}"
 
         req1 = GatewayExecuteRequest(
             tool_id="custom_mcp.query_customer_records",
@@ -280,6 +312,7 @@ async def test_idempotency_key_prevents_duplicate_execution():
 # 5. BOUNDED EXECUTION TIMEOUTS & RESILIENCE
 # =============================================================================
 
+
 @pytest.mark.asyncio
 async def test_tool_execution_timeout_bounded_cancellation():
     """Verify that hanging tool execution times out safely within configured threshold."""
@@ -299,13 +332,18 @@ async def test_tool_execution_timeout_bounded_cancellation():
         "input_schema": {},
     }
 
-    with patch.object(gw.tool_repo, "get_tool", return_value=mock_tool), \
-         patch.object(gw.integration_repo, "get_integration", return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"}), \
-         patch.object(gw.tool_repo, "record_risk_decision", return_value="risk_123"), \
-         patch.object(gw.connector_registry, "execute_tool", side_effect=hanging_tool), \
-         patch.object(gw.tool_repo, "record_tool_execution", return_value="exec_123"), \
-         patch.object(gw.audit_repo, "record_audit_event", return_value="audit_123"):
-
+    with (
+        patch.object(gw.tool_repo, "get_tool", return_value=mock_tool),
+        patch.object(
+            gw.integration_repo,
+            "get_integration",
+            return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"},
+        ),
+        patch.object(gw.tool_repo, "record_risk_decision", return_value="risk_123"),
+        patch.object(gw.connector_registry, "execute_tool", side_effect=hanging_tool),
+        patch.object(gw.tool_repo, "record_tool_execution", return_value="exec_123"),
+        patch.object(gw.audit_repo, "record_audit_event", return_value="audit_123"),
+    ):
         req = GatewayExecuteRequest(
             tool_id="custom_mcp.query_customer_records",
             parameters={},
@@ -339,6 +377,7 @@ async def test_agent_execution_timeout_bounded_cancellation():
 # 6. OBSERVABILITY: FOUNDATION MODEL METRICS & COST TRACKING
 # =============================================================================
 
+
 def test_model_observability_metrics_recorded_and_exposed():
     """Verify foundation model latency, token counts, and operational costs are tracked."""
     reset_metrics_for_testing()
@@ -366,6 +405,7 @@ def test_model_observability_metrics_recorded_and_exposed():
 # =============================================================================
 # 7. ZERO SECRET LEAKAGE: DATA SANITIZATION
 # =============================================================================
+
 
 def test_zero_secret_leakage_in_sanitization():
     """Verify that credentials, tokens, AWS keys, and connection strings are scrubbed."""

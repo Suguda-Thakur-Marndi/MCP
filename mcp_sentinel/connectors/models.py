@@ -54,6 +54,7 @@ class ConnectorCredentials(BaseModel):
     Decrypted in-memory credentials for authenticating a connector.
     Never serialized or returned across the API.
     """
+
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
     api_key: Optional[str] = None
@@ -66,6 +67,7 @@ class ConnectorCredentials(BaseModel):
 
 class ConnectionTestResult(BaseModel):
     """Result of an integration connection test."""
+
     success: bool
     latency_ms: int
     message: str
@@ -76,6 +78,7 @@ class ConnectionTestResult(BaseModel):
 
 class DiscoveredTool(BaseModel):
     """A tool discovered from an external software system or MCP server."""
+
     tool_id: str
     integration_id: str
     name: str
@@ -92,6 +95,7 @@ class DiscoveredTool(BaseModel):
 
 class ToolExecutionResult(BaseModel):
     """Result of an executed tool call on external software."""
+
     success: bool
     data: Optional[Any] = None
     error: Optional[str] = None
@@ -103,6 +107,7 @@ class ToolExecutionResult(BaseModel):
 
 class ConnectorHealth(BaseModel):
     """Health check outcome for a connector."""
+
     status: IntegrationStatus
     latency_ms: int
     last_check: datetime = Field(default_factory=datetime.utcnow)

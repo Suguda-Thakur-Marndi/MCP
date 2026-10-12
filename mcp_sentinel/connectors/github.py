@@ -58,7 +58,11 @@ class GitHubConnector(BaseConnector):
             "schema": {
                 "type": "object",
                 "properties": {
-                    "visibility": {"type": "string", "enum": ["all", "public", "private"], "default": "all"},
+                    "visibility": {
+                        "type": "string",
+                        "enum": ["all", "public", "private"],
+                        "default": "all",
+                    },
                     "limit": {"type": "integer", "default": 30, "maximum": 100},
                 },
             },
@@ -90,7 +94,11 @@ class GitHubConnector(BaseConnector):
                 "properties": {
                     "owner": {"type": "string", "description": "Repository owner"},
                     "repo": {"type": "string", "description": "Repository name"},
-                    "state": {"type": "string", "enum": ["open", "closed", "all"], "default": "open"},
+                    "state": {
+                        "type": "string",
+                        "enum": ["open", "closed", "all"],
+                        "default": "open",
+                    },
                     "limit": {"type": "integer", "default": 30, "maximum": 100},
                 },
             },
@@ -163,7 +171,11 @@ class GitHubConnector(BaseConnector):
                     "repo": {"type": "string"},
                     "pull_number": {"type": "integer"},
                     "commit_title": {"type": "string"},
-                    "merge_method": {"type": "string", "enum": ["merge", "squash", "rebase"], "default": "merge"},
+                    "merge_method": {
+                        "type": "string",
+                        "enum": ["merge", "squash", "rebase"],
+                        "default": "merge",
+                    },
                 },
             },
         },
@@ -181,7 +193,10 @@ class GitHubConnector(BaseConnector):
                     "repo": {"type": "string"},
                     "path": {"type": "string"},
                     "message": {"type": "string"},
-                    "sha": {"type": "string", "description": "The blob SHA of the file being deleted"},
+                    "sha": {
+                        "type": "string",
+                        "description": "The blob SHA of the file being deleted",
+                    },
                     "branch": {"type": "string", "default": "main"},
                 },
             },
@@ -268,7 +283,9 @@ class GitHubConnector(BaseConnector):
 
         data = resp.json()
         if "error" in data:
-            raise RuntimeError(f"GitHub OAuth error: {data.get('error_description') or data.get('error')}")
+            raise RuntimeError(
+                f"GitHub OAuth error: {data.get('error_description') or data.get('error')}"
+            )
 
         access_token = data.get("access_token")
         if not access_token:
@@ -322,7 +339,10 @@ class GitHubConnector(BaseConnector):
         start = time.perf_counter()
         try:
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                has_auth = bool(self._credentials and (self._credentials.access_token or self._credentials.api_key))
+                has_auth = bool(
+                    self._credentials
+                    and (self._credentials.access_token or self._credentials.api_key)
+                )
                 url = f"{self.endpoint}/user" if has_auth else f"{self.endpoint}/zen"
                 resp = await client.get(url, headers=self._get_headers())
 
@@ -398,7 +418,9 @@ class GitHubConnector(BaseConnector):
         parameters: dict[str, Any],
     ) -> ToolExecutionResult:
         start = time.perf_counter()
-        if not self._credentials or not (self._credentials.access_token or self._credentials.api_key):
+        if not self._credentials or not (
+            self._credentials.access_token or self._credentials.api_key
+        ):
             return ToolExecutionResult(
                 success=False,
                 error="GitHub connector is not authenticated. Please complete OAuth connection.",
@@ -425,7 +447,9 @@ class GitHubConnector(BaseConnector):
                 elif tool_id in ("github.get_repository", "get_repository"):
                     owner = parameters["owner"]
                     repo = parameters["repo"]
-                    resp = await client.get(f"{self.endpoint}/repos/{owner}/{repo}", headers=headers)
+                    resp = await client.get(
+                        f"{self.endpoint}/repos/{owner}/{repo}", headers=headers
+                    )
 
                 elif tool_id in ("github.list_issues", "list_issues"):
                     owner = parameters["owner"]
@@ -518,8 +542,12 @@ class GitHubConnector(BaseConnector):
                     owner = parameters["owner"]
                     repo = parameters["repo"]
                     if parameters.get("confirmation") != repo:
-                        raise ValueError(f"Confirmation '{parameters.get('confirmation')}' does not match '{repo}'")
-                    resp = await client.delete(f"{self.endpoint}/repos/{owner}/{repo}", headers=headers)
+                        raise ValueError(
+                            f"Confirmation '{parameters.get('confirmation')}' does not match '{repo}'"
+                        )
+                    resp = await client.delete(
+                        f"{self.endpoint}/repos/{owner}/{repo}", headers=headers
+                    )
 
                 else:
                     raise ValueError(f"Unknown GitHub tool: {tool_id}")
@@ -535,7 +563,11 @@ class GitHubConnector(BaseConnector):
                     integration_id=self.integration_id,
                 )
 
-            data = resp.json() if resp.text and resp.status_code != 204 else {"deleted": True, "status": "success"}
+            data = (
+                resp.json()
+                if resp.text and resp.status_code != 204
+                else {"deleted": True, "status": "success"}
+            )
             return ToolExecutionResult(
                 success=True,
                 data=data,

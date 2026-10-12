@@ -38,7 +38,13 @@ async def test_durable_idempotency_across_worker_restarts():
     async def mock_get(key: str):
         return fake_db.get(key)
 
-    async def mock_save(idempotency_key: str, tool_id: str, user_id: str, response_payload: dict, ttl_seconds: int = 86400):
+    async def mock_save(
+        idempotency_key: str,
+        tool_id: str,
+        user_id: str,
+        response_payload: dict,
+        ttl_seconds: int = 86400,
+    ):
         fake_db[idempotency_key] = response_payload
         return True
 
@@ -69,13 +75,18 @@ async def test_durable_idempotency_across_worker_restarts():
 
     # Worker 1: executes first request
     worker1 = GatewayExecutionService(idempotency_repo=mock_idempotency_repo)
-    with patch.object(worker1.tool_repo, "get_tool", return_value=mock_tool), \
-         patch.object(worker1.integration_repo, "get_integration", return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"}), \
-         patch.object(worker1.tool_repo, "record_risk_decision", return_value="risk_1"), \
-         patch.object(worker1.connector_registry, "execute_tool", side_effect=mock_exec), \
-         patch.object(worker1.tool_repo, "record_tool_execution", return_value="exec_1"), \
-         patch.object(worker1.audit_repo, "record_audit_event", return_value="audit_1"):
-
+    with (
+        patch.object(worker1.tool_repo, "get_tool", return_value=mock_tool),
+        patch.object(
+            worker1.integration_repo,
+            "get_integration",
+            return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"},
+        ),
+        patch.object(worker1.tool_repo, "record_risk_decision", return_value="risk_1"),
+        patch.object(worker1.connector_registry, "execute_tool", side_effect=mock_exec),
+        patch.object(worker1.tool_repo, "record_tool_execution", return_value="exec_1"),
+        patch.object(worker1.audit_repo, "record_audit_event", return_value="audit_1"),
+    ):
         req = GatewayExecuteRequest(
             tool_id="custom_mcp.query_customer_records",
             parameters={"limit": 10},
@@ -93,10 +104,15 @@ async def test_durable_idempotency_across_worker_restarts():
     worker2 = GatewayExecutionService(idempotency_repo=mock_idempotency_repo)
     assert "durable-key-phase16-999" not in worker2._idempotency_cache  # L1 is empty!
 
-    with patch.object(worker2.tool_repo, "get_tool", return_value=mock_tool), \
-         patch.object(worker2.integration_repo, "get_integration", return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"}), \
-         patch.object(worker2.connector_registry, "execute_tool", side_effect=mock_exec):
-
+    with (
+        patch.object(worker2.tool_repo, "get_tool", return_value=mock_tool),
+        patch.object(
+            worker2.integration_repo,
+            "get_integration",
+            return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"},
+        ),
+        patch.object(worker2.connector_registry, "execute_tool", side_effect=mock_exec),
+    ):
         resp2 = await worker2.execute(req)
         assert resp2.success is True
         # Must return the cached result without invoking the connector
@@ -133,19 +149,26 @@ async def test_concurrent_duplicate_submissions_deduplication():
         "input_schema": {},
     }
 
-    with patch.object(gw.tool_repo, "get_tool", return_value=mock_tool), \
-         patch.object(gw.integration_repo, "get_integration", return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"}), \
-         patch.object(gw.tool_repo, "record_risk_decision", return_value="risk_1"), \
-         patch.object(gw.connector_registry, "execute_tool", side_effect=mock_exec_delayed), \
-         patch.object(gw.tool_repo, "record_tool_execution", return_value="exec_1"), \
-         patch.object(gw.audit_repo, "record_audit_event", return_value="audit_1"):
+    with (
+        patch.object(gw.tool_repo, "get_tool", return_value=mock_tool),
+        patch.object(
+            gw.integration_repo,
+            "get_integration",
+            return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"},
+        ),
+        patch.object(gw.tool_repo, "record_risk_decision", return_value="risk_1"),
+        patch.object(gw.connector_registry, "execute_tool", side_effect=mock_exec_delayed),
+        patch.object(gw.tool_repo, "record_tool_execution", return_value="exec_1"),
+        patch.object(gw.audit_repo, "record_audit_event", return_value="audit_1"),
+    ):
+        import uuid
 
         req = GatewayExecuteRequest(
             tool_id="custom_mcp.query_customer_records",
             parameters={"limit": 5},
             user_id="user@sentinel.test",
             user_role="OPERATOR",
-            idempotency_key="race-key-concurrent-001",
+            idempotency_key=f"race-key-concurrent-{uuid.uuid4().hex}",
         )
 
         # Launch 5 concurrent executions with identical idempotency key
@@ -178,13 +201,18 @@ async def test_provider_outage_graceful_failure():
         "input_schema": {},
     }
 
-    with patch.object(gw.tool_repo, "get_tool", return_value=mock_tool), \
-         patch.object(gw.integration_repo, "get_integration", return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"}), \
-         patch.object(gw.tool_repo, "record_risk_decision", return_value="risk_1"), \
-         patch.object(gw.connector_registry, "execute_tool", side_effect=mock_exec_crash), \
-         patch.object(gw.tool_repo, "record_tool_execution", return_value="exec_1"), \
-         patch.object(gw.audit_repo, "record_audit_event", return_value="audit_1"):
-
+    with (
+        patch.object(gw.tool_repo, "get_tool", return_value=mock_tool),
+        patch.object(
+            gw.integration_repo,
+            "get_integration",
+            return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"},
+        ),
+        patch.object(gw.tool_repo, "record_risk_decision", return_value="risk_1"),
+        patch.object(gw.connector_registry, "execute_tool", side_effect=mock_exec_crash),
+        patch.object(gw.tool_repo, "record_tool_execution", return_value="exec_1"),
+        patch.object(gw.audit_repo, "record_audit_event", return_value="audit_1"),
+    ):
         req = GatewayExecuteRequest(
             tool_id="custom_mcp.query_customer_records",
             parameters={"limit": 5},
@@ -201,8 +229,12 @@ async def test_provider_outage_graceful_failure():
 async def test_database_idempotency_failure_graceful_degradation():
     """Verify that if database durable lookup encounters an error, gateway degrades gracefully to L1."""
     mock_idempotency_repo = IdempotencyRepository()
-    mock_idempotency_repo.get_response = AsyncMock(side_effect=RuntimeError("Database connection lost"))
-    mock_idempotency_repo.save_response = AsyncMock(side_effect=RuntimeError("Database write failed"))
+    mock_idempotency_repo.get_response = AsyncMock(
+        side_effect=RuntimeError("Database connection lost")
+    )
+    mock_idempotency_repo.save_response = AsyncMock(
+        side_effect=RuntimeError("Database write failed")
+    )
 
     gw = GatewayExecutionService(idempotency_repo=mock_idempotency_repo)
 
@@ -224,13 +256,18 @@ async def test_database_idempotency_failure_graceful_degradation():
             data={"status": "ok"},
         )
 
-    with patch.object(gw.tool_repo, "get_tool", return_value=mock_tool), \
-         patch.object(gw.integration_repo, "get_integration", return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"}), \
-         patch.object(gw.tool_repo, "record_risk_decision", return_value="risk_1"), \
-         patch.object(gw.connector_registry, "execute_tool", side_effect=mock_exec), \
-         patch.object(gw.tool_repo, "record_tool_execution", return_value="exec_1"), \
-         patch.object(gw.audit_repo, "record_audit_event", return_value="audit_1"):
-
+    with (
+        patch.object(gw.tool_repo, "get_tool", return_value=mock_tool),
+        patch.object(
+            gw.integration_repo,
+            "get_integration",
+            return_value={"name": "Custom MCP", "is_enabled": True, "status": "CONNECTED"},
+        ),
+        patch.object(gw.tool_repo, "record_risk_decision", return_value="risk_1"),
+        patch.object(gw.connector_registry, "execute_tool", side_effect=mock_exec),
+        patch.object(gw.tool_repo, "record_tool_execution", return_value="exec_1"),
+        patch.object(gw.audit_repo, "record_audit_event", return_value="audit_1"),
+    ):
         req = GatewayExecuteRequest(
             tool_id="custom_mcp.query_customer_records",
             parameters={},
@@ -296,9 +333,14 @@ async def test_invalid_tool_argument_schema_validation_rejection():
         },
     }
 
-    with patch.object(gw.tool_repo, "get_tool", return_value=mock_tool), \
-         patch.object(gw.integration_repo, "get_integration", return_value={"name": "Test", "is_enabled": True, "status": "CONNECTED"}):
-
+    with (
+        patch.object(gw.tool_repo, "get_tool", return_value=mock_tool),
+        patch.object(
+            gw.integration_repo,
+            "get_integration",
+            return_value={"name": "Test", "is_enabled": True, "status": "CONNECTED"},
+        ),
+    ):
         # Case 1: Missing required parameter 'destination'
         req1 = GatewayExecuteRequest(
             tool_id="test.data_transfer",
@@ -327,6 +369,7 @@ async def test_invalid_tool_argument_schema_validation_rejection():
 def test_sensitive_endpoint_unauthenticated_rejection():
     """Verify unauthenticated request to sensitive tool execution returns 401."""
     from fastapi.testclient import TestClient
+
     from mcp_sentinel.api.app import create_app
 
     app = create_app()
@@ -339,4 +382,3 @@ def test_sensitive_endpoint_unauthenticated_rejection():
     assert resp.status_code == 401
     data = resp.json()
     assert "Authentication required" in (data.get("message") or data.get("detail"))
-

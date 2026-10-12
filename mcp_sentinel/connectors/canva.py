@@ -157,13 +157,16 @@ class CanvaConnector(RemoteMcpConnector):
         scopes: Optional[list[str]] = None,
     ) -> str:
         """Constructs the Canva OAuth 2.0 authorization URL."""
-        scope_str = " ".join(scopes or [
-            "design:meta:read",
-            "design:content:read",
-            "design:content:write",
-            "asset:read",
-            "asset:write",
-        ])
+        scope_str = " ".join(
+            scopes
+            or [
+                "design:meta:read",
+                "design:content:read",
+                "design:content:write",
+                "asset:read",
+                "asset:write",
+            ]
+        )
         params = {
             "response_type": "code",
             "client_id": client_id,
@@ -253,7 +256,11 @@ class CanvaConnector(RemoteMcpConnector):
 
             # Canva remote MCP endpoint returns HTTP 200/405/404 when live
             is_live = resp.status_code in (200, 400, 404, 405)
-            msg = "Canva remote MCP server reachable at mcp.canva.com" if is_live else f"Canva endpoint returned HTTP {resp.status_code}"
+            msg = (
+                "Canva remote MCP server reachable at mcp.canva.com"
+                if is_live
+                else f"Canva endpoint returned HTTP {resp.status_code}"
+            )
             return ConnectionTestResult(
                 success=is_live,
                 latency_ms=latency,

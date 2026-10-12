@@ -47,6 +47,7 @@ logger = logging.getLogger(__name__)
 
 class GatewayExecuteRequest(BaseModel):
     """Payload submitted to execute a governed tool."""
+
     tool_id: str
     parameters: dict[str, Any] = Field(default_factory=dict)
     user_id: str = "operator@sentinel.internal"
@@ -61,6 +62,7 @@ class GatewayExecuteRequest(BaseModel):
 
 class GatewayExecuteResponse(BaseModel):
     """Unified response from the Gateway execution pipeline."""
+
     success: bool
     status: str  # EXECUTED, PENDING_APPROVAL, BLOCKED, FAILED
     tool_id: str
@@ -99,14 +101,18 @@ class GatewayExecutionService:
         self._settings = get_settings()
         self._idempotency_cache: dict[str, GatewayExecuteResponse] = {}
         self._idempotency_locks: dict[str, asyncio.Lock] = {}
-        self._concurrency_semaphore = asyncio.Semaphore(self._settings.MAX_CONCURRENT_TOOL_EXECUTIONS)
+        self._concurrency_semaphore = asyncio.Semaphore(
+            self._settings.MAX_CONCURRENT_TOOL_EXECUTIONS
+        )
 
     async def execute(self, req: GatewayExecuteRequest) -> GatewayExecuteResponse:
         """Entrypoint for executing a governed tool with durable L1/L2 idempotency protection."""
         if req.idempotency_key:
             # 1. L1 in-memory cache check
             if req.idempotency_key in self._idempotency_cache:
-                logger.info("Returning L1 cached response for idempotency key %s", req.idempotency_key)
+                logger.info(
+                    "Returning L1 cached response for idempotency key %s", req.idempotency_key
+                )
                 return self._idempotency_cache[req.idempotency_key]
 
             # 2. L2 database durable cache check (survives restarts and cross-worker execution)
@@ -117,7 +123,10 @@ class GatewayExecutionService:
                 logger.warning("Idempotency L2 lookup error for key %s: %s", req.idempotency_key, e)
 
             if db_cached:
-                logger.info("Returning L2 database cached response for idempotency key %s", req.idempotency_key)
+                logger.info(
+                    "Returning L2 database cached response for idempotency key %s",
+                    req.idempotency_key,
+                )
                 resp = GatewayExecuteResponse(**db_cached)
                 self._idempotency_cache[req.idempotency_key] = resp
                 return resp
@@ -129,7 +138,9 @@ class GatewayExecutionService:
                 try:
                     db_cached = await self.idempotency_repo.get_response(req.idempotency_key)
                 except Exception as e:
-                    logger.warning("Idempotency L2 lookup error for key %s: %s", req.idempotency_key, e)
+                    logger.warning(
+                        "Idempotency L2 lookup error for key %s: %s", req.idempotency_key, e
+                    )
 
                 if db_cached:
                     resp = GatewayExecuteResponse(**db_cached)
@@ -147,7 +158,9 @@ class GatewayExecutionService:
                         response_payload=response.model_dump(),
                     )
                 except Exception as e:
-                    logger.warning("Idempotency L2 save error for key %s: %s", req.idempotency_key, e)
+                    logger.warning(
+                        "Idempotency L2 save error for key %s: %s", req.idempotency_key, e
+                    )
 
                 return response
 
@@ -212,7 +225,11 @@ class GatewayExecutionService:
         # Check if integration requires authentication and verify connection status
         if integration_id == "github":
             connector = self.connector_registry.get_connector("github")
-            has_creds = bool(connector and connector._credentials and (connector._credentials.access_token or connector._credentials.api_key))
+            has_creds = bool(
+                connector
+                and connector._credentials
+                and (connector._credentials.access_token or connector._credentials.api_key)
+            )
             if not has_creds:
                 stored_creds = await self.integration_repo.get_credentials("github")
                 if stored_creds and (stored_creds.access_token or stored_creds.api_key):
@@ -293,7 +310,9 @@ class GatewayExecutionService:
                 for prop_name, prop_spec in properties.items():
                     if prop_name in req.parameters and req.parameters[prop_name] is not None:
                         val = req.parameters[prop_name]
-                        expected_type_str = prop_spec.get("type") if isinstance(prop_spec, dict) else None
+                        expected_type_str = (
+                            prop_spec.get("type") if isinstance(prop_spec, dict) else None
+                        )
                         if expected_type_str in type_map:
                             expected_type = type_map[expected_type_str]
                             if expected_type_str in ("number", "integer") and isinstance(val, bool):
@@ -336,7 +355,9 @@ class GatewayExecutionService:
             )
 
         # RBAC: VIEWER cannot execute non-read or destructive operations
-        is_mutating_or_destructive = tool_record.get("approval_required", False) or tool_record.get("risk_level") in ("MEDIUM", "HIGH", "CRITICAL")
+        is_mutating_or_destructive = tool_record.get("approval_required", False) or tool_record.get(
+            "risk_level"
+        ) in ("MEDIUM", "HIGH", "CRITICAL")
         if req.user_role == "VIEWER" and is_mutating_or_destructive:
             return GatewayExecuteResponse(
                 success=False,
@@ -374,7 +395,10 @@ class GatewayExecutionService:
         # ---------------------------------------------------------------------
         # Stage 6: Approval decision
         # ---------------------------------------------------------------------
-        requires_approval = tool_record.get("approval_required", False) or risk_level in ("HIGH", "CRITICAL")
+        requires_approval = tool_record.get("approval_required", False) or risk_level in (
+            "HIGH",
+            "CRITICAL",
+        )
 
         if requires_approval:
             if not req.approval_ticket_id:
@@ -382,11 +406,18 @@ class GatewayExecutionService:
                 approval_req = ApprovalRequestCreate(
                     request_id=req_id,
                     action=f"execute_{req.tool_id}",
-                    target_id=str(req.parameters.get("id") or req.parameters.get("customer_id") or req.parameters.get("repo") or req.parameters.get("design_id") or req.tool_id),
+                    target_id=str(
+                        req.parameters.get("id")
+                        or req.parameters.get("customer_id")
+                        or req.parameters.get("repo")
+                        or req.parameters.get("design_id")
+                        or req.tool_id
+                    ),
                     target_type=integration_id,
                     risk_level=risk_level,
                     tool_name=req.tool_id,
-                    reason=req.reason or f"Action requires human approval per Sentinel policy for {risk_level} risk.",
+                    reason=req.reason
+                    or f"Action requires human approval per Sentinel policy for {risk_level} risk.",
                     requester_id=req.user_id,
                     agent_id=req.agent_id,
                     parameters=req.parameters,
@@ -426,7 +457,13 @@ class GatewayExecutionService:
                 # Verify provided ticket via atomic binding verification & consumption
                 is_valid = await self.approval_repo.verify_and_consume_bound(
                     ticket_id=req.approval_ticket_id,
-                    target_id=str(req.parameters.get("id") or req.parameters.get("customer_id") or req.parameters.get("repo") or req.parameters.get("design_id") or req.tool_id),
+                    target_id=str(
+                        req.parameters.get("id")
+                        or req.parameters.get("customer_id")
+                        or req.parameters.get("repo")
+                        or req.parameters.get("design_id")
+                        or req.tool_id
+                    ),
                     action=f"execute_{req.tool_id}",
                     tool_name=req.tool_id,
                     parameters=req.parameters,
@@ -445,7 +482,9 @@ class GatewayExecutionService:
                         error="Approval ticket verification failed: ticket is invalid, expired, replayed, or parameters mismatched.",
                         stages_completed=stages_completed,
                     )
-                stages_completed.append(f"6. Approval Verified & Consumed ({req.approval_ticket_id})")
+                stages_completed.append(
+                    f"6. Approval Verified & Consumed ({req.approval_ticket_id})"
+                )
         else:
             stages_completed.append("6. Approval Not Required (LOW risk)")
 
@@ -478,7 +517,9 @@ class GatewayExecutionService:
             )
             stages_completed.append("7. Connector Executed")
         except asyncio.TimeoutError:
-            logger.warning("Tool execution timed out after %ss for %s", timeout_seconds, req.tool_id)
+            logger.warning(
+                "Tool execution timed out after %ss for %s", timeout_seconds, req.tool_id
+            )
             exec_result = ToolExecutionResult(
                 success=False,
                 status="FAILED",
@@ -501,7 +542,9 @@ class GatewayExecutionService:
         # ---------------------------------------------------------------------
         # Stage 8: Result validation & sanitization
         # ---------------------------------------------------------------------
-        sanitized_data = scrub_dict_secrets(exec_result.data) if exec_result.data is not None else None
+        sanitized_data = (
+            scrub_dict_secrets(exec_result.data) if exec_result.data is not None else None
+        )
         sanitized_parameters = scrub_dict_secrets(req.parameters)
 
         if exec_result.success:
@@ -515,7 +558,11 @@ class GatewayExecutionService:
         # ---------------------------------------------------------------------
         # Stage 9: Audit logging
         # ---------------------------------------------------------------------
-        final_status = "EXECUTED" if exec_result.success else (exec_result.status if exec_result.status in ("BLOCKED", "FAILED") else "FAILED")
+        final_status = (
+            "EXECUTED"
+            if exec_result.success
+            else (exec_result.status if exec_result.status in ("BLOCKED", "FAILED") else "FAILED")
+        )
 
         exec_id = await self.tool_repo.record_tool_execution(
             run_id=run_id,

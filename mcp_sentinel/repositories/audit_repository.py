@@ -122,22 +122,22 @@ class AuditRepository:
                 for row in rows:
                     raw_text = row["note_text"]
                     wrapped_text = (
-                        f"[UNTRUSTED_TOOL_DATA: audit_note]\n"
-                        f"{raw_text}\n"
-                        f"[/UNTRUSTED_TOOL_DATA]"
+                        f"[UNTRUSTED_TOOL_DATA: audit_note]\n{raw_text}\n[/UNTRUSTED_TOOL_DATA]"
                     )
-                    results.append({
-                        "note_id": row["note_id"],
-                        "customer_id": row["customer_id"],
-                        "author_id": row["author_id"],
-                        "note_text": wrapped_text,
-                        "raw_note_text": raw_text,
-                        "created_at": (
-                            row["created_at"].isoformat()
-                            if hasattr(row["created_at"], "isoformat")
-                            else str(row["created_at"])
-                        ),
-                    })
+                    results.append(
+                        {
+                            "note_id": row["note_id"],
+                            "customer_id": row["customer_id"],
+                            "author_id": row["author_id"],
+                            "note_text": wrapped_text,
+                            "raw_note_text": raw_text,
+                            "created_at": (
+                                row["created_at"].isoformat()
+                                if hasattr(row["created_at"], "isoformat")
+                                else str(row["created_at"])
+                            ),
+                        }
+                    )
                 return results
         except Exception as exc:
             log_security_event(

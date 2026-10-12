@@ -58,7 +58,9 @@ class ConnectorRegistry:
     def register_connector(self, connector: BaseConnector) -> None:
         """Registers or replaces a connector instance."""
         self._connectors[connector.integration_id] = connector
-        logger.info(f"Registered connector for integration: {connector.integration_id} ({connector.name})")
+        logger.info(
+            f"Registered connector for integration: {connector.integration_id} ({connector.name})"
+        )
 
     def unregister_connector(self, integration_id: str) -> None:
         if integration_id in self._connectors:

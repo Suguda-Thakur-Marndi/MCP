@@ -73,7 +73,10 @@ class LocalMcpConnector(BaseConnector):
                 "schema": {
                     "type": "object",
                     "properties": {
-                        "filter": {"type": "object", "description": "Search criteria (status, search, email)"},
+                        "filter": {
+                            "type": "object",
+                            "description": "Search criteria (status, search, email)",
+                        },
                         "limit": {"type": "integer", "default": 50},
                         "offset": {"type": "integer", "default": 0},
                     },
@@ -265,8 +268,13 @@ class LocalMcpConnector(BaseConnector):
                 res = await handle_update_customer(parameters, service=customer_service)
             elif tool_id in ("custom_mcp.delete_customer", "delete_customer"):
                 res = await handle_delete_customer(parameters, service=customer_service)
-            elif tool_id in ("custom_mcp.purge_inactive_customer_data", "purge_inactive_customer_data"):
-                res = await handle_purge_inactive_customer_data(parameters, service=customer_service)
+            elif tool_id in (
+                "custom_mcp.purge_inactive_customer_data",
+                "purge_inactive_customer_data",
+            ):
+                res = await handle_purge_inactive_customer_data(
+                    parameters, service=customer_service
+                )
             elif tool_id in ("custom_mcp.get_order", "get_order"):
                 res = await handle_get_order(parameters, service=order_service)
             elif tool_id in ("custom_mcp.get_customer_orders", "get_customer_orders"):

@@ -96,4 +96,3 @@ class AuditService:
         except ValueError as exc:
             raise SecurityValidationError(str(exc))
         return await self.audit_repo.get_customer_audit_notes(num_id)
-

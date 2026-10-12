@@ -60,12 +60,16 @@ class RemoteMcpConnector(BaseConnector):
             "User-Agent": "MCP-Sentinel-Gateway/1.0",
         }
         if self._credentials and self._credentials.access_token:
-            headers["Authorization"] = f"{self._credentials.token_type} {self._credentials.access_token}"
+            headers["Authorization"] = (
+                f"{self._credentials.token_type} {self._credentials.access_token}"
+            )
         elif self._credentials and self._credentials.api_key:
             headers["Authorization"] = f"Bearer {self._credentials.api_key}"
         return headers
 
-    async def _send_rpc(self, method: str, params: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+    async def _send_rpc(
+        self, method: str, params: Optional[dict[str, Any]] = None
+    ) -> dict[str, Any]:
         """Sends a JSON-RPC 2.0 request to the remote MCP server."""
         payload = {
             "jsonrpc": "2.0",
@@ -142,11 +146,13 @@ class RemoteMcpConnector(BaseConnector):
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
                 resp = await client.get(self.endpoint, headers=self._get_headers())
             latency = int((time.perf_counter() - start) * 1000)
-            is_valid = resp.status_code in (200, 400, 404, 405) # Active HTTP service
+            is_valid = resp.status_code in (200, 400, 404, 405)  # Active HTTP service
             return ConnectionTestResult(
                 success=is_valid,
                 latency_ms=latency,
-                message="Remote MCP endpoint reachable" if is_valid else f"Status: {resp.status_code}",
+                message="Remote MCP endpoint reachable"
+                if is_valid
+                else f"Status: {resp.status_code}",
                 server_version=self._server_info.get("version"),
                 protocol_version="2024-11-05",
             )
@@ -166,7 +172,11 @@ class RemoteMcpConnector(BaseConnector):
 
         for item in raw_tools:
             name = item.get("name", "")
-            tool_id = f"{self.integration_id}.{name}" if not name.startswith(self.integration_id) else name
+            tool_id = (
+                f"{self.integration_id}.{name}"
+                if not name.startswith(self.integration_id)
+                else name
+            )
             desc = item.get("description", "")
             schema = item.get("inputSchema", {})
 
@@ -214,10 +224,13 @@ class RemoteMcpConnector(BaseConnector):
         raw_tool_name = tool_id.split(".", 1)[-1] if "." in tool_id else tool_id
 
         try:
-            result = await self._send_rpc("tools/call", {
-                "name": raw_tool_name,
-                "arguments": parameters,
-            })
+            result = await self._send_rpc(
+                "tools/call",
+                {
+                    "name": raw_tool_name,
+                    "arguments": parameters,
+                },
+            )
             latency = int((time.perf_counter() - start) * 1000)
             return ToolExecutionResult(
                 success=True,

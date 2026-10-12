@@ -73,14 +73,20 @@ async def get_current_user(
             )
 
     # 3. Dev / Test Header Shortcut (Strictly fallback when no session token is present, ENABLE_TEST_AUTH is True, and NOT in production)
-    if (x_test_role or x_test_email) and (settings.APP_ENV == "production" or not settings.ENABLE_TEST_AUTH):
+    if (x_test_role or x_test_email) and (
+        settings.APP_ENV == "production" or not settings.ENABLE_TEST_AUTH
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Development test headers are strictly prohibited in production.",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    if settings.ENABLE_TEST_AUTH and settings.APP_ENV != "production" and (x_test_role or x_test_email):
+    if (
+        settings.ENABLE_TEST_AUTH
+        and settings.APP_ENV != "production"
+        and (x_test_role or x_test_email)
+    ):
         role_str = (x_test_role or "OPERATOR").upper()
         role = (
             UserRoleEnum[role_str]

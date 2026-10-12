@@ -232,7 +232,7 @@ async def list_agent_runs(
 
     async with pool.acquire() as conn:
         rows = await conn.fetch(query, *params)
-        total = await conn.fetchval(count_query, *params[:len(params) - 2])
+        total = await conn.fetchval(count_query, *params[: len(params) - 2])
 
     runs = []
     for r in rows:

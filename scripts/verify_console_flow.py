@@ -58,14 +58,20 @@ async def test_full_console_lifecycle():
     # Verify customer ID 1 exists
     c_before = await cust_repo.get_customer_by_id(1)
     assert c_before is not None, "Customer ID 1 must exist before test"
-    print(f"  [OK] Customer found: ID={c_before['id']}, Code={c_before['customer_code']}, Name={c_before['name']}")
+    print(
+        f"  [OK] Customer found: ID={c_before['id']}, Code={c_before['customer_code']}, Name={c_before['name']}"
+    )
 
     # Verify that FastMCP tools do NOT expose any approve or decide tool
     tools = await server.list_tools()
     tool_names = [t.name for t in tools]
     print(f"  [OK] MCP Server exposed tools ({len(tool_names)}): {', '.join(tool_names)}")
-    assert "approve_ticket" not in tool_names, "CRITICAL SECURITY FAULT: approve_ticket must NOT be on MCP surface!"
-    assert "decide_approval" not in tool_names, "CRITICAL SECURITY FAULT: decide_approval must NOT be on MCP surface!"
+    assert "approve_ticket" not in tool_names, (
+        "CRITICAL SECURITY FAULT: approve_ticket must NOT be on MCP surface!"
+    )
+    assert "decide_approval" not in tool_names, (
+        "CRITICAL SECURITY FAULT: decide_approval must NOT be on MCP surface!"
+    )
     assert "approve" not in tool_names
     print("  [PASS] Verified: AI client CANNOT reach approval endpoints via MCP protocol.")
 
@@ -74,7 +80,9 @@ async def test_full_console_lifecycle():
     res1 = await server.call_tool("delete_customer", {"customer_id": 1})
     data1 = extract_data(res1)
     print("  Server Response:", data1)
-    assert data1.get("status") in ("REQUIRE_APPROVAL", "rejected"), "Must halt on approval requirement"
+    assert data1.get("status") in ("REQUIRE_APPROVAL", "rejected"), (
+        "Must halt on approval requirement"
+    )
     assert data1.get("approval_required") is True, "approval_required must be True"
     ticket_id = data1.get("ticket_id")
     assert ticket_id, "Must return a ticket_id"
@@ -87,12 +95,14 @@ async def test_full_console_lifecycle():
 
     # 2. Human Operator logs into Approval Console and approves ticket
     print(f"\n[STEP 2] Human Operator logs into Console and approves ticket '{ticket_id}'...")
-    async with AsyncClient(transport=ASGITransport(app=fastapi_app), base_url="http://test") as client:
+    async with AsyncClient(
+        transport=ASGITransport(app=fastapi_app), base_url="http://test"
+    ) as client:
         # Step 2a: Login as APPROVER
-        login_resp = await client.post("/api/auth/login", json={
-            "id_token": "test-token:approver@sentinel.test:APPROVER",
-            "provider": "mock"
-        })
+        login_resp = await client.post(
+            "/api/auth/login",
+            json={"id_token": "test-token:approver@sentinel.test:APPROVER", "provider": "mock"},
+        )
         assert login_resp.status_code == 200, f"Login failed: {login_resp.text}"
         auth_info = login_resp.json()
         token = auth_info["access_token"]
@@ -106,29 +116,34 @@ async def test_full_console_lifecycle():
         pending_tickets = pending_resp.json()
         matching = [t for t in pending_tickets if t["ticket_id"] == ticket_id]
         assert len(matching) > 0, f"Ticket {ticket_id} must appear in pending queue"
-        print(f"  [OK] Ticket {ticket_id} verified in pending queue with Risk Score: {matching[0]['risk_score']}")
+        print(
+            f"  [OK] Ticket {ticket_id} verified in pending queue with Risk Score: {matching[0]['risk_score']}"
+        )
 
         # Step 2c: Human issues Approval Sign-Off
         approve_resp = await client.post(
             f"/api/approvals/{ticket_id}/approve",
             json={"decision_notes": "Authorized by security compliance lead"},
-            headers=headers
+            headers=headers,
         )
         assert approve_resp.status_code == 200, f"Approval decision failed: {approve_resp.text}"
         decision_data = approve_resp.json()
         assert decision_data["status"] == "APPROVED"
         assert decision_data["approver_id"] == approver_id
-        print(f"  [PASS] Step 2: Human authorized ticket in Console. Approver recorded: {decision_data['approver_id']}")
+        print(
+            f"  [PASS] Step 2: Human authorized ticket in Console. Approver recorded: {decision_data['approver_id']}"
+        )
 
     # 3. AI Client retries with approved ticket
     print(f"\n[STEP 3] Agent retries delete_customer with approved ticket '{ticket_id}'...")
-    res2 = await server.call_tool("delete_customer", {
-        "customer_id": 1,
-        "approval_ticket": ticket_id
-    })
+    res2 = await server.call_tool(
+        "delete_customer", {"customer_id": 1, "approval_ticket": ticket_id}
+    )
     data2 = extract_data(res2)
     print("  Server Response:", data2)
-    assert data2.get("status") == "success", f"Execution should succeed with approved ticket: {data2}"
+    assert data2.get("status") == "success", (
+        f"Execution should succeed with approved ticket: {data2}"
+    )
     assert data2.get("deleted_records") == 1 or data2.get("rows_affected") == 1
     print("  [PASS] Step 3: Deletion executed successfully.")
 
@@ -139,10 +154,9 @@ async def test_full_console_lifecycle():
 
     # 4. Replay attack attempt
     print(f"\n[STEP 4] Replay attack: Agent attempts to reuse consumed ticket '{ticket_id}'...")
-    res3 = await server.call_tool("delete_customer", {
-        "customer_id": 1,
-        "approval_ticket": ticket_id
-    })
+    res3 = await server.call_tool(
+        "delete_customer", {"customer_id": 1, "approval_ticket": ticket_id}
+    )
     data3 = extract_data(res3)
     print("  Server Response to Replay:", data3)
     assert (

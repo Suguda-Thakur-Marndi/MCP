@@ -58,6 +58,7 @@ def get_tool_registry_service() -> ToolRegistryService:
 
 class ConnectRequest(BaseModel):
     """Payload to connect an integration with credentials."""
+
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
     api_key: Optional[str] = None
@@ -94,7 +95,7 @@ async def list_integrations(
             item["is_connected"] = connector.is_connected
         else:
             item["live_status"] = item["status"]
-            item["is_connected"] = (item["status"] == "CONNECTED")
+            item["is_connected"] = item["status"] == "CONNECTED"
     return integrations
 
 
@@ -105,6 +106,7 @@ async def get_canva_oauth_url(
     current_user: AuthUser = Depends(require_permission(PERM_MANAGE_INTEGRATIONS)),
 ) -> CanvaOAuthUrlResponse:
     import secrets
+
     verifier, challenge = CanvaConnector.generate_pkce_pair()
     state = secrets.token_urlsafe(16)
     auth_url = CanvaConnector.get_authorization_url(
@@ -148,7 +150,11 @@ async def complete_canva_oauth(
         tool_svc = get_tool_registry_service()
         await tool_svc.sync_all_tools()
 
-        return {"success": True, "message": "Canva OAuth connected successfully", "integration_id": "canva"}
+        return {
+            "success": True,
+            "message": "Canva OAuth connected successfully",
+            "integration_id": "canva",
+        }
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -159,6 +165,7 @@ async def complete_canva_oauth(
 # =============================================================================
 # GitHub OAuth & Integration Management
 # =============================================================================
+
 
 class GitHubConnectRequest(BaseModel):
     access_token: Optional[str] = None
@@ -182,6 +189,7 @@ async def get_github_oauth_url(
     current_user: AuthUser = Depends(require_permission(PERM_MANAGE_INTEGRATIONS)),
 ) -> GitHubOAuthUrlResponse:
     import secrets
+
     settings = get_settings()
     client_id = settings.GITHUB_OAUTH_CLIENT_ID
     if not client_id:
@@ -191,7 +199,9 @@ async def get_github_oauth_url(
         )
     target_redirect = redirect_uri or settings.GITHUB_OAUTH_REDIRECT_URI
     state = secrets.token_urlsafe(16)
-    target_scopes = [s.strip() for s in scopes.split(",")] if scopes else ["repo", "read:user", "user:email"]
+    target_scopes = (
+        [s.strip() for s in scopes.split(",")] if scopes else ["repo", "read:user", "user:email"]
+    )
 
     auth_url = GitHubConnector.get_authorization_url(
         client_id=client_id,
@@ -218,7 +228,9 @@ async def connect_github(
     reg = get_connector_registry()
     connector = reg.get_connector("github")
     if not connector:
-        raise HTTPException(status_code=500, detail="GitHub connector is not registered in MCP Sentinel")
+        raise HTTPException(
+            status_code=500, detail="GitHub connector is not registered in MCP Sentinel"
+        )
 
     credentials: Optional[ConnectorCredentials] = None
 
@@ -327,7 +339,11 @@ async def github_oauth_callback(
     if connector:
         await connector.authenticate(credentials)
         test_res = await connector.test_connection()
-        username = test_res.details.get("username", "authenticated_user") if test_res.details else "authenticated_user"
+        username = (
+            test_res.details.get("username", "authenticated_user")
+            if test_res.details
+            else "authenticated_user"
+        )
     else:
         username = "authenticated_user"
 
@@ -419,11 +435,15 @@ async def get_github_status(
         "id": "github",
         "name": "GitHub",
         "status": connector.status.value if connector else integration["status"],
-        "is_connected": connector.is_connected if connector else (integration["status"] == "CONNECTED"),
+        "is_connected": connector.is_connected
+        if connector
+        else (integration["status"] == "CONNECTED"),
         "is_authenticated": is_authenticated,
         "authenticated_user": authenticated_user,
         "scopes": scopes or (creds.scopes if creds else []),
-        "masked_token": CredentialVault.mask_secret(creds.access_token or creds.api_key) if creds else None,
+        "masked_token": CredentialVault.mask_secret(creds.access_token or creds.api_key)
+        if creds
+        else None,
         "token_type": creds.token_type if creds else None,
         "connection_endpoint": integration["connection_endpoint"],
         "tools_count": len(tools),
@@ -474,7 +494,9 @@ async def get_integration(
     integration["is_authenticated"] = bool(creds and (creds.access_token or creds.api_key))
     if creds:
         integration["token_type"] = creds.token_type
-        integration["masked_token"] = CredentialVault.mask_secret(creds.access_token or creds.api_key)
+        integration["masked_token"] = CredentialVault.mask_secret(
+            creds.access_token or creds.api_key
+        )
         integration["scopes"] = creds.scopes
 
     if connector:
@@ -506,7 +528,9 @@ async def connect_integration(
     reg = get_connector_registry()
     connector = reg.get_connector(integration_id)
     if not connector:
-        raise HTTPException(status_code=400, detail=f"No connector registered for '{integration_id}'")
+        raise HTTPException(
+            status_code=400, detail=f"No connector registered for '{integration_id}'"
+        )
 
     # Authenticate and test connection
     connected = await connector.authenticate(credentials)

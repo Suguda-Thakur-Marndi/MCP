@@ -58,6 +58,7 @@ def settings():
 # 1. GITHUB OAUTH & ENVIRONMENT TESTS
 # =============================================================================
 
+
 class TestGitHubOAuth:
     def test_github_oauth_url_generation(self, client):
         res = client.get("/api/integrations/github/connect")
@@ -106,6 +107,7 @@ class TestGitHubOAuth:
 # =============================================================================
 # 2. GITHUB TOOL DISCOVERY & REGISTRY TESTS
 # =============================================================================
+
 
 class TestGitHubToolRegistry:
     @pytest.mark.asyncio
@@ -170,6 +172,7 @@ class TestGitHubToolRegistry:
 # 3. GITHUB CONNECTION & TOOL EXECUTION TESTS
 # =============================================================================
 
+
 class TestGitHubExecution:
     @pytest.mark.asyncio
     async def test_unauthenticated_execution_fails_closed(self):
@@ -217,7 +220,12 @@ class TestGitHubExecution:
 
             res = await gh.execute_tool(
                 "github.create_issue",
-                {"owner": "octocat", "repo": "Hello-World", "title": "Security Issue", "body": "Audit report"},
+                {
+                    "owner": "octocat",
+                    "repo": "Hello-World",
+                    "title": "Security Issue",
+                    "body": "Audit report",
+                },
             )
             assert res.success is True
             assert res.data["number"] == 101
@@ -226,6 +234,7 @@ class TestGitHubExecution:
 # =============================================================================
 # 4. SECURITY PIPELINE & APPROVAL GATING TESTS
 # =============================================================================
+
 
 class TestGitHubSecurityPipeline:
     @pytest.mark.asyncio
@@ -317,7 +326,11 @@ class TestGitHubSecurityPipeline:
         with patch("httpx.AsyncClient.put") as mock_put:
             mock_put.return_value = httpx.Response(
                 status_code=200,
-                json={"sha": "6dcb09b5b57875f334f61aebed695e2e4193db5e", "merged": True, "message": "Pull Request successfully merged"},
+                json={
+                    "sha": "6dcb09b5b57875f334f61aebed695e2e4193db5e",
+                    "merged": True,
+                    "message": "Pull Request successfully merged",
+                },
             )
 
             exec_req = GatewayExecuteRequest(
@@ -383,6 +396,7 @@ class TestGitHubSecurityPipeline:
 # 5. TOKEN SECURITY & AUDIT LOGGING TESTS
 # =============================================================================
 
+
 class TestTokenSecurityAndAudit:
     @pytest.mark.asyncio
     async def test_token_vault_encryption_at_rest(self):
@@ -418,7 +432,11 @@ class TestTokenSecurityAndAudit:
         raw_text = json.dumps(data)
         assert "gho_super_secret" not in raw_text
         if data.get("masked_token"):
-            assert "..." in data["masked_token"] or "●" in data["masked_token"] or "***" in data["masked_token"]
+            assert (
+                "..." in data["masked_token"]
+                or "●" in data["masked_token"]
+                or "***" in data["masked_token"]
+            )
 
     def test_disconnect_purges_stored_credentials(self, client):
         res = client.post("/api/integrations/github/disconnect")

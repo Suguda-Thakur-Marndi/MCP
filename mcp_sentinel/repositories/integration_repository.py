@@ -137,8 +137,12 @@ class IntegrationRepository:
     ) -> None:
         """Encrypts secrets with CredentialVault before storing in database."""
         pool = await self._get_pool()
-        enc_access = self._vault.encrypt(credentials.access_token) if credentials.access_token else None
-        enc_refresh = self._vault.encrypt(credentials.refresh_token) if credentials.refresh_token else None
+        enc_access = (
+            self._vault.encrypt(credentials.access_token) if credentials.access_token else None
+        )
+        enc_refresh = (
+            self._vault.encrypt(credentials.refresh_token) if credentials.refresh_token else None
+        )
         enc_api_key = self._vault.encrypt(credentials.api_key) if credentials.api_key else None
 
         async with pool.acquire() as conn:
@@ -182,9 +186,19 @@ class IntegrationRepository:
             if not row:
                 return None
 
-            access_token = self._vault.decrypt(row["encrypted_access_token"]) if row["encrypted_access_token"] else None
-            refresh_token = self._vault.decrypt(row["encrypted_refresh_token"]) if row["encrypted_refresh_token"] else None
-            api_key = self._vault.decrypt(row["encrypted_api_key"]) if row["encrypted_api_key"] else None
+            access_token = (
+                self._vault.decrypt(row["encrypted_access_token"])
+                if row["encrypted_access_token"]
+                else None
+            )
+            refresh_token = (
+                self._vault.decrypt(row["encrypted_refresh_token"])
+                if row["encrypted_refresh_token"]
+                else None
+            )
+            api_key = (
+                self._vault.decrypt(row["encrypted_api_key"]) if row["encrypted_api_key"] else None
+            )
 
             return ConnectorCredentials(
                 access_token=access_token,

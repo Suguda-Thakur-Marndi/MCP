@@ -41,12 +41,14 @@ export function useApiQuery<T>(
   const isMountedRef = useRef<boolean>(true);
   const abortControllerRef = useRef<AbortController | null>(null);
   const queryFnRef = useRef(queryFn);
-  queryFnRef.current = queryFn;
-
   const onSuccessRef = useRef(onSuccess);
-  onSuccessRef.current = onSuccess;
   const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
+
+  useEffect(() => {
+    queryFnRef.current = queryFn;
+    onSuccessRef.current = onSuccess;
+    onErrorRef.current = onError;
+  });
 
   const fetchData = useCallback(async (): Promise<T | undefined> => {
     // Abort any pending in-flight request for this hook

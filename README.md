@@ -8,7 +8,7 @@
 [![Model Context Protocol](https://img.shields.io/badge/MCP-Standard%20JSON--RPC-blue.svg)](https://modelcontextprotocol.io/)
 [![FastMCP](https://img.shields.io/badge/FastMCP-4.0%2B-green.svg)](https://github.com/jlowin/fastmcp)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16%2F18-336791.svg)](https://www.postgresql.org/)
-[![Tests Passing](https://img.shields.io/badge/Pytest-453%20Passed%2C%200%20Failed-brightgreen.svg)](tests/)
+[![Tests Passing](https://img.shields.io/badge/Pytest-500%2B%20Passed-brightgreen.svg)](tests/)
 
 
 ---
@@ -219,34 +219,50 @@ REPLAY ATTEMPT
 ## 11. Setup & Installation
 
 ### Prerequisites
-- Python 3.10+ (tested on Python 3.10, 3.11, 3.12, 3.13)
-- PostgreSQL 16+ running locally or in Docker
-- Virtual environment (`.venv`)
+- **Python**: 3.10+ (tested on Python 3.10, 3.11, 3.12, 3.13)
+- **Node.js**: 20+ and npm 10+ (for Next.js Web Security Console)
+- **PostgreSQL**: 16+ running locally or via Docker
+- **Docker & Docker Compose**: Optional, for multi-service deployment
 
-### Installation Steps
+### Backend Installation & Setup
 
 ```bash
 # 1. Clone repository
 git clone https://github.com/mcp-sentinel/mcp-sentinel.git
 cd mcp-sentinel
 
-# 2. Activate virtual environment
+# 2. Create and activate virtual environment
 # Windows:
+python -m venv .venv
 .venv\Scripts\activate
 # Linux/macOS:
+python3 -m venv .venv
 source .venv/bin/activate
 
-# 3. Install dependencies
+# 3. Install Python dependencies
 pip install -r requirements.txt
 
 # 4. Configure environment variables
 cp .env.example .env
 
-# 5. Initialize database migrations
+# 5. Initialize database migrations and WORM triggers
 python scripts/init_db.py
 
 # 6. Seed synthetic customer dataset
 python scripts/seed_database.py
+```
+
+### Frontend Web Console Setup
+
+```bash
+# Navigate to web application directory
+cd web
+
+# Install frontend dependencies
+npm install
+
+# Start Next.js development console (http://localhost:3000)
+npm run dev
 ```
 
 ---
@@ -358,20 +374,48 @@ Once configured:
 
 ## 16. How to Test & Validate
 
-Execute live verification scripts and automated test suites:
+Execute live verification scripts, automated test suites, and quality checks:
+
+### Backend Testing & Quality Checks
 
 ```bash
-# 1. End-to-End MCP Protocol stdio test (tools, resources, prompts, real data, HITL)
+# 1. Full Pytest Suite (unit, integration, security, and regression tests)
+python -m pytest -q
+
+# 2. Python Linting & Formatting Checks (ruff)
+ruff check mcp_sentinel scripts tests
+ruff format --check mcp_sentinel scripts tests
+
+# 3. Security Evaluation Benchmark (84 scenarios across Categories A-T)
+python scripts/run_security_evaluation.py
+
+# 4. End-to-End MCP Protocol stdio test (tools, resources, prompts, real data, HITL)
 python scripts/test_mcp_protocol_e2e.py
 
-# 2. FastMCP Tool Manual Verification
+# 5. FastMCP Tool Manual Verification
 python scripts/manual_mcp_verification.py
 
-# 3. Release Candidate Live Demos (Read, Write, Destructive HITL, Replay Defense, Prompt Injection)
+# 6. Release Candidate Live Demos (Read, Write, Destructive HITL, Replay Defense, Prompt Injection)
 python scripts/run_release_demos.py
 
-# 4. Full Pytest Suite (453 tests)
-pytest -q
+# 7. Disaster Recovery & Rollback Drills
+python scripts/drill_database_recovery.py
+python scripts/drill_application_rollback.py
+```
+
+### Frontend Testing & Build Checks
+
+```bash
+cd web
+
+# Static TypeScript type check
+npm run type-check
+
+# ESLint verification
+npm run lint
+
+# Production Next.js build
+npm run build
 ```
 
 ---
@@ -379,9 +423,11 @@ pytest -q
 ## 17. Production Deployment & Monitoring
 
 - **Docker Multi-Container Stack**: Pre-configured `docker-compose.yml` orchestrates PostgreSQL, FastAPI backend, Next.js console, and Prometheus metrics.
+- **Staging Verification Stack**: Isolated `docker-compose.staging.yml` provides staging container verification with dedicated ports and environment bindings.
 - **Prometheus Metrics**: Scrapable `/metrics` endpoint exports HTTP latency, DB connection pool status, and gating counters.
 - **Health Checks**: Decoupled `/health/live` and `/health/ready` probes for container orchestrators.
 - **Audit Logs**: Immutable SQL events recorded in `audit_events` with SHA-256 request correlation IDs.
+- **Cloud Blueprints**: Complete AWS ECS Fargate, RDS PostgreSQL, and ALB deployment blueprints in [`docs/AWS_DEPLOYMENT.md`](docs/AWS_DEPLOYMENT.md).
 
 ---
 
@@ -390,6 +436,24 @@ pytest -q
 - **External Connectors**: GitHub, Slack, Google Drive, and Canva connectors are implemented with full REST/OAuth handling, but operate in unconfigured state until active client secrets are supplied.
 - **Notion & Supabase Connectors**: Not currently present in this codebase (planned for future releases).
 - **In-Memory Approvals in Stdio Mode**: When running as an isolated stdio process without the Next.js console active, approval sign-off is completed via the database repository (`ApprovalRepository.decide_approval`) or API endpoint (`POST /api/approvals/{ticket_id}/approve`).
+
+---
+
+## 19. Authoritative Documentation Hub
+
+| Document | Description |
+| :--- | :--- |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Canonical security architecture, 9-stage pipeline, and approval state machine |
+| [SECURITY.md](SECURITY.md) | Vulnerability disclosure policy, security controls checklist, and disclosure guidance |
+| [THREAT_MODEL.md](THREAT_MODEL.md) | Comprehensive STRIDE threat model, trust boundaries, and OWASP Top 10 for LLMs mitigations |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | Local development, container orchestration, and multi-service deployment guide |
+| [CHANGELOG.md](CHANGELOG.md) | Version release notes, development history, and platform milestones |
+| [SECURITY_EVALUATION_REPORT.md](SECURITY_EVALUATION_REPORT.md) | Formal 84-scenario benchmark results and attack surface audit |
+| [docs/OPERATIONS_RUNBOOK.md](docs/OPERATIONS_RUNBOOK.md) | Production SRE operational runbook, alert responses, and incident triage |
+| [docs/AWS_DEPLOYMENT.md](docs/AWS_DEPLOYMENT.md) | Production AWS cloud deployment guide (ECS Fargate, RDS PostgreSQL, ALB) |
+| [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md) | Step-by-step interactive walkthrough demonstration scripts |
+| [docs/README.md](docs/README.md) | Documentation index and structural reference |
+| [docs/archive/](docs/archive/) | Historical phase reports, milestone records, and verification archives |
 
 ---
 

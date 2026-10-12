@@ -52,7 +52,9 @@ async def main():
             # 1. Handshake
             init_res = await session.initialize()
             assert init_res.server_info.name == "MCP-Sentinel"
-            print(f"  [PASS] Handshake Initialized: Server={init_res.server_info.name}, Version={init_res.server_info.version}")
+            print(
+                f"  [PASS] Handshake Initialized: Server={init_res.server_info.name}, Version={init_res.server_info.version}"
+            )
             results["Handshake"] = "PASS"
 
             # 2. Tool Discovery
@@ -66,7 +68,9 @@ async def main():
             # 3. Resource Discovery & Reading
             res_list = await session.list_resources()
             res_uris = [str(r.uri) for r in res_list.resources]
-            print(f"  [PASS] Resources Discovered ({len(res_list.resources)}): {', '.join(res_uris)}")
+            print(
+                f"  [PASS] Resources Discovered ({len(res_list.resources)}): {', '.join(res_uris)}"
+            )
             assert "schema://customers" in res_uris
             assert "security://policy" in res_uris
 
@@ -79,50 +83,69 @@ async def main():
             # 4. Prompt Discovery & Rendering
             prompts_res = await session.list_prompts()
             prompt_names = [p.name for p in prompts_res.prompts]
-            print(f"  [PASS] Prompts Discovered ({len(prompts_res.prompts)}): {', '.join(prompt_names)}")
+            print(
+                f"  [PASS] Prompts Discovered ({len(prompts_res.prompts)}): {', '.join(prompt_names)}"
+            )
             assert "customer_investigation_brief" in prompt_names
 
-            rendered_prompt = await session.get_prompt("customer_investigation_brief", {"customer_id": "CUST-000001"})
+            rendered_prompt = await session.get_prompt(
+                "customer_investigation_brief", {"customer_id": "CUST-000001"}
+            )
             assert len(rendered_prompt.messages) > 0
             print("  [PASS] Prompt Rendered: customer_investigation_brief")
             results["Prompts"] = "PASS"
 
             # 5. Real Data Read Access
             read_res = await session.call_tool("get_customer", {"customer_id": "CUST-000001"})
-            data = read_res.structured_content or (read_res.content[0].text if read_res.content else {})
+            data = read_res.structured_content or (
+                read_res.content[0].text if read_res.content else {}
+            )
             if isinstance(data, str):
                 import json
+
                 data = json.loads(data)
             assert data["status"] == "success"
             assert data["customer"]["customer_code"] == "CUST-000001"
-            print(f"  [PASS] Read Real Data: Found customer '{data['customer']['name']}' (Country: {data['customer']['country']})")
+            print(
+                f"  [PASS] Read Real Data: Found customer '{data['customer']['name']}' (Country: {data['customer']['country']})"
+            )
             results["Real Data Read"] = "PASS"
 
             # 6. Destructive Operation Gating (Without approval)
             print("\n[PHASE 2] Verifying Human-in-the-Loop Gating for Sensitive Deletion...")
             test_target_code = "CUST-000002"
-            gate_res = await session.call_tool("delete_customer", {
-                "customer_id": test_target_code,
-                "approval_ticket": "",
-                "reason": "E2E verification of human gating",
-            })
-            gate_data = gate_res.structured_content or (gate_res.content[0].text if gate_res.content else {})
+            gate_res = await session.call_tool(
+                "delete_customer",
+                {
+                    "customer_id": test_target_code,
+                    "approval_ticket": "",
+                    "reason": "E2E verification of human gating",
+                },
+            )
+            gate_data = gate_res.structured_content or (
+                gate_res.content[0].text if gate_res.content else {}
+            )
             if isinstance(gate_data, str):
                 import json
+
                 gate_data = json.loads(gate_data)
 
             assert gate_data["status"] == "rejected"
             assert gate_data["approval_required"] is True
             ticket_id = gate_data.get("ticket_id") or gate_data.get("approval_id")
             assert ticket_id, "Server must provide a staged approval ticket ID"
-            print(f"  [PASS] Destructive Operation Blocked: Approval required. Staged Ticket={ticket_id}")
+            print(
+                f"  [PASS] Destructive Operation Blocked: Approval required. Staged Ticket={ticket_id}"
+            )
             results["HITL Gating"] = "PASS"
 
             # Verify target was NOT deleted
             pool = await get_db_pool()
             cust_repo = CustomerRepository(pool=pool)
             cust_still_exists = await cust_repo.get_customer_by_id(2)
-            assert cust_still_exists is not None, "Target customer must remain intact before approval"
+            assert cust_still_exists is not None, (
+                "Target customer must remain intact before approval"
+            )
             print("  [PASS] Database Intact: Customer was NOT deleted.")
 
             # 7. Human Sign-Off & Execution
@@ -137,48 +160,72 @@ async def main():
             print(f"  [PASS] Human Sign-Off Complete: Ticket {ticket_id} transitioned to APPROVED")
 
             # Retry with valid approval ticket
-            exec_res = await session.call_tool("delete_customer", {
-                "customer_id": test_target_code,
-                "approval_ticket": ticket_id,
-                "reason": "E2E verification of human gating",
-            })
-            exec_data = exec_res.structured_content or (exec_res.content[0].text if exec_res.content else {})
+            exec_res = await session.call_tool(
+                "delete_customer",
+                {
+                    "customer_id": test_target_code,
+                    "approval_ticket": ticket_id,
+                    "reason": "E2E verification of human gating",
+                },
+            )
+            exec_data = exec_res.structured_content or (
+                exec_res.content[0].text if exec_res.content else {}
+            )
             if isinstance(exec_data, str):
                 import json
+
                 exec_data = json.loads(exec_data)
 
             assert exec_data["status"] == "success", f"Execution failed: {exec_data}"
-            print("  [PASS] Approved Execution Succeeded: Customer permanently deleted with approval ticket.")
+            print(
+                "  [PASS] Approved Execution Succeeded: Customer permanently deleted with approval ticket."
+            )
             results["Approved Execution"] = "PASS"
 
             # 8. Replay Attack Prevention
             print("\n[PHASE 4] Verifying Anti-Replay Defense on Consumed Ticket...")
-            replay_res = await session.call_tool("delete_customer", {
-                "customer_id": test_target_code,
-                "approval_ticket": ticket_id,
-                "reason": "E2E replay test",
-            })
-            replay_data = replay_res.structured_content or (replay_res.content[0].text if replay_res.content else {})
+            replay_res = await session.call_tool(
+                "delete_customer",
+                {
+                    "customer_id": test_target_code,
+                    "approval_ticket": ticket_id,
+                    "reason": "E2E replay test",
+                },
+            )
+            replay_data = replay_res.structured_content or (
+                replay_res.content[0].text if replay_res.content else {}
+            )
             if isinstance(replay_data, str):
                 import json
+
                 replay_data = json.loads(replay_data)
 
-            assert replay_data["status"] in ("rejected", "error"), f"Replay was not blocked: {replay_data}"
+            assert replay_data["status"] in ("rejected", "error"), (
+                f"Replay was not blocked: {replay_data}"
+            )
             print("  [PASS] Replay Attack Blocked: Consumed ticket cannot be re-executed.")
             results["Anti-Replay"] = "PASS"
 
             # 9. SQL Injection / Input Validation Defense
             print("\n[PHASE 5] Verifying Input Validation & SQL Injection Defenses...")
-            sqli_res = await session.call_tool("get_customer", {
-                "customer_id": "1' OR '1'='1' --",
-            })
-            sqli_data = sqli_res.structured_content or (sqli_res.content[0].text if sqli_res.content else {})
+            sqli_res = await session.call_tool(
+                "get_customer",
+                {
+                    "customer_id": "1' OR '1'='1' --",
+                },
+            )
+            sqli_data = sqli_res.structured_content or (
+                sqli_res.content[0].text if sqli_res.content else {}
+            )
             if isinstance(sqli_data, str):
                 import json
+
                 sqli_data = json.loads(sqli_data)
 
             assert sqli_data["status"] in ("error", "not_found")
-            print("  [PASS] Malicious SQL Injection Safely Defeated: Input validated before execution.")
+            print(
+                "  [PASS] Malicious SQL Injection Safely Defeated: Input validated before execution."
+            )
             results["SQL Injection Defense"] = "PASS"
 
     print("\n" + "=" * 80)

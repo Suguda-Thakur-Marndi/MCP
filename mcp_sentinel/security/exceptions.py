@@ -202,4 +202,3 @@ class UpstreamProviderError(SentinelError):
         internal_details: str | None = None,
     ):
         super().__init__(safe_message=message, internal_details=internal_details)
-

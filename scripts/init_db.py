@@ -1,8 +1,12 @@
 """
 Database Initialization and Migration Script for MCP-Sentinel.
 Creates target database if needed, runs schema migrations, and seeds synthetic test data.
+Applies migrations to both primary and evaluation databases.
 """
 
+from __future__ import annotations
+
+import argparse
 import asyncio
 import pathlib
 import sys
@@ -16,12 +20,11 @@ import asyncpg
 from mcp_sentinel.config.settings import get_settings
 
 
-async def main() -> None:
-    settings = get_settings()
-    parsed = urllib.parse.urlparse(settings.DATABASE_URL)
+async def init_single_db(target_url: str, seed_data: bool = True) -> None:
+    parsed = urllib.parse.urlparse(target_url)
     db_name = parsed.path.lstrip("/") or "mcp_sentinel_db"
 
-    # Admin connection to postgres default database
+    # Admin connection to postgres default database to check/create target database
     admin_url = urllib.parse.urlunparse((parsed.scheme, parsed.netloc, "postgres", "", "", ""))
 
     print(f"[*] Connecting to server to check database '{db_name}'...")
@@ -38,11 +41,14 @@ async def main() -> None:
         finally:
             await conn.close()
     except Exception as exc:
-        print(f"[!] Warning during admin DB check: {exc}")
+        print(f"[!] Note during admin DB check for '{db_name}': {exc}. Proceeding.")
 
     # Connect to target database
-    print(f"[*] Connecting to target database: {settings.masked_database_url}")
-    target_conn = await asyncpg.connect(settings.DATABASE_URL)
+    masked_url = target_url
+    if parsed.username and parsed.password:
+        masked_url = target_url.replace(parsed.password, "***")
+    print(f"[*] Connecting to target database: {masked_url}")
+    target_conn = await asyncpg.connect(target_url)
     try:
         base_dir = pathlib.Path(__file__).parent.parent / "mcp_sentinel" / "database"
 
@@ -137,20 +143,45 @@ async def main() -> None:
             await target_conn.execute(idempotency_sql)
             print("[+] Migration 011 applied successfully.")
 
-        # 5. Seed Data
-        seed_path = base_dir / "seed" / "seed_synthetic_data.sql"
-        print(f"[*] Applying seed data: {seed_path.name}...")
-        seed_sql = seed_path.read_text(encoding="utf-8")
-        await target_conn.execute(seed_sql)
-        print("[+] Seed data applied successfully.")
+        # Seed Data if requested
+        if seed_data:
+            seed_path = base_dir / "seed" / "seed_synthetic_data.sql"
+            print(f"[*] Applying seed data: {seed_path.name}...")
+            seed_sql = seed_path.read_text(encoding="utf-8")
+            await target_conn.execute(seed_sql)
+            print("[+] Seed data applied successfully.")
 
         # Verification counts
         cust_count = await target_conn.fetchval("SELECT COUNT(*) FROM customers")
         ticket_count = await target_conn.fetchval("SELECT COUNT(*) FROM gating_approval_tickets")
-        print(f"[OK] Database ready. Customers: {cust_count}, Gating Tickets: {ticket_count}")
+        print(
+            f"[OK] Database '{db_name}' ready. Customers: {cust_count}, Gating Tickets: {ticket_count}"
+        )
 
     finally:
         await target_conn.close()
+
+
+async def main() -> None:
+    parser = argparse.ArgumentParser(description="Initialize and migrate MCP-Sentinel databases.")
+    parser.add_argument(
+        "--eval-only", action="store_true", help="Initialize only the evaluation database"
+    )
+    parser.add_argument(
+        "--primary-only", action="store_true", help="Initialize only the primary database"
+    )
+    parser.add_argument("--no-seed", action="store_true", help="Skip synthetic data seeding")
+    args = parser.parse_args()
+
+    settings = get_settings()
+
+    if not args.eval_only:
+        print("=== Initializing Primary Database ===")
+        await init_single_db(settings.DATABASE_URL, seed_data=not args.no_seed)
+
+    if not args.primary_only and settings.evaluation_database_url != settings.DATABASE_URL:
+        print("\n=== Initializing Evaluation Database ===")
+        await init_single_db(settings.evaluation_database_url, seed_data=not args.no_seed)
 
 
 if __name__ == "__main__":

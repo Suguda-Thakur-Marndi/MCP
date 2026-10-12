@@ -44,7 +44,10 @@ class GoogleDriveConnector(BaseConnector):
             "schema": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "Search query expression (q parameter)"},
+                    "query": {
+                        "type": "string",
+                        "description": "Search query expression (q parameter)",
+                    },
                     "page_size": {"type": "integer", "default": 20, "maximum": 100},
                 },
             },
@@ -149,7 +152,9 @@ class GoogleDriveConnector(BaseConnector):
     async def test_connection(self) -> ConnectionTestResult:
         start = time.perf_counter()
         try:
-            has_token = self._credentials and (self._credentials.access_token or self._credentials.api_key)
+            has_token = self._credentials and (
+                self._credentials.access_token or self._credentials.api_key
+            )
             if not has_token:
                 return ConnectionTestResult(
                     success=False,
@@ -158,7 +163,9 @@ class GoogleDriveConnector(BaseConnector):
                 )
 
             async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
-                resp = await client.get(f"{self.endpoint}/about?fields=user,storageQuota", headers=self._get_headers())
+                resp = await client.get(
+                    f"{self.endpoint}/about?fields=user,storageQuota", headers=self._get_headers()
+                )
 
             latency = int((time.perf_counter() - start) * 1000)
             if resp.status_code == 200:
@@ -215,7 +222,9 @@ class GoogleDriveConnector(BaseConnector):
         parameters: dict[str, Any],
     ) -> ToolExecutionResult:
         start = time.perf_counter()
-        if not self._credentials or not (self._credentials.access_token or self._credentials.api_key):
+        if not self._credentials or not (
+            self._credentials.access_token or self._credentials.api_key
+        ):
             return ToolExecutionResult(
                 success=False,
                 error="Google Drive connector is not authenticated.",
@@ -237,7 +246,9 @@ class GoogleDriveConnector(BaseConnector):
                     resp = await client.get(url, headers=headers)
                 elif tool_id in ("google_drive.get_file_metadata", "get_file_metadata"):
                     file_id = parameters["file_id"]
-                    resp = await client.get(f"{self.endpoint}/files/{file_id}?fields=*", headers=headers)
+                    resp = await client.get(
+                        f"{self.endpoint}/files/{file_id}?fields=*", headers=headers
+                    )
                 elif tool_id in ("google_drive.create_folder", "create_folder"):
                     body = {
                         "name": parameters["name"],

@@ -37,7 +37,9 @@ def get_integration_repo() -> IntegrationRepository:
 class RegisterMcpServerRequest(BaseModel):
     id: str = Field(..., description="Unique MCP server ID (e.g. srv_finance_mcp)")
     name: str = Field(..., description="Human-readable server name")
-    transport: str = Field(default="stream-http", description="Transport: stdio, sse, or stream-http")
+    transport: str = Field(
+        default="stream-http", description="Transport: stdio, sse, or stream-http"
+    )
     endpoint: str = Field(..., description="Network URL or command endpoint")
     auth_method: str = Field(default="Bearer Token", description="Authentication scheme")
     environment: str = Field(default="production", description="Runtime environment")
@@ -99,9 +101,15 @@ async def test_mcp_server(
     connector = reg.get_connector(server_id)
     if not connector:
         servers = await repo.list_mcp_servers()
-        matched = next((s for s in servers if s.get("id") == server_id or s.get("server_id") == server_id), None)
+        matched = next(
+            (s for s in servers if s.get("id") == server_id or s.get("server_id") == server_id),
+            None,
+        )
         if matched:
-            if matched.get("transport") == "stdio" or "subprocess" in str(matched.get("endpoint", "")).lower():
+            if (
+                matched.get("transport") == "stdio"
+                or "subprocess" in str(matched.get("endpoint", "")).lower()
+            ):
                 return {
                     "success": True,
                     "latency_ms": 1,
@@ -116,7 +124,9 @@ async def test_mcp_server(
                 name=matched["name"],
                 endpoint=matched["endpoint"],
                 transport=matched["transport"],
-                auth_type=AuthType.OAUTH2 if "oauth" in str(matched.get("auth_method", "")).lower() else AuthType.API_KEY,
+                auth_type=AuthType.OAUTH2
+                if "oauth" in str(matched.get("auth_method", "")).lower()
+                else AuthType.API_KEY,
             )
             connector = reg.get_connector(server_id)
 

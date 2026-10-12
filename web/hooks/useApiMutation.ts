@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError } from "@/lib/api";
 
 export interface UseApiMutationOptions<TData, TVariables> {
@@ -36,9 +36,12 @@ export function useApiMutation<TData = unknown, TVariables = void>(
 
   const inFlightRef = useRef<boolean>(false);
   const optionsRef = useRef(options);
-  optionsRef.current = options;
   const mutationFnRef = useRef(mutationFn);
-  mutationFnRef.current = mutationFn;
+
+  useEffect(() => {
+    optionsRef.current = options;
+    mutationFnRef.current = mutationFn;
+  });
 
   const reset = useCallback(() => {
     setError(null);

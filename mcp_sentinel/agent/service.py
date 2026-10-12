@@ -139,4 +139,3 @@ class AgentService:
         finally:
             clear_request_id()
             clear_current_user_context()
-

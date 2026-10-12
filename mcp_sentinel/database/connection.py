@@ -90,7 +90,10 @@ async def close_db_pool() -> None:
     """
     global _pool, _pool_loop
     if _pool is not None and not _pool._closed:
-        await _pool.close()
+        try:
+            await _pool.close()
+        except Exception:
+            pass
     _pool = None
     _pool_loop = None
 
