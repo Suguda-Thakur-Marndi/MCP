@@ -7,8 +7,6 @@ import {
   Copy,
   Check,
   Shield,
-  Layers,
-  CheckCircle2,
 } from "lucide-react";
 import { api, PolicyRule } from "@/lib/api";
 import { LoadingState, EmptyState } from "@/components/ui/FeedbackStates";

@@ -452,7 +452,7 @@ npm run build
 | [docs/OPERATIONS_RUNBOOK.md](docs/OPERATIONS_RUNBOOK.md) | Production SRE operational runbook, alert responses, and incident triage |
 | [docs/AWS_DEPLOYMENT.md](docs/AWS_DEPLOYMENT.md) | Production AWS cloud deployment guide (ECS Fargate, RDS PostgreSQL, ALB) |
 | [docs/DEMO_GUIDE.md](docs/DEMO_GUIDE.md) | Step-by-step interactive walkthrough demonstration scripts |
-| [docs/README.md](docs/README.md) | Documentation index and structural reference |
+| [docs/design-reference/stitch/DESIGN.md](docs/design-reference/stitch/DESIGN.md) | Google Stitch design tokens and specifications |
 | [docs/archive/](docs/archive/) | Historical phase reports, milestone records, and verification archives |
 
 ---

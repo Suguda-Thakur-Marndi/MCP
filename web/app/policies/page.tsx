@@ -11,7 +11,7 @@ import {
   RefreshCw,
   ArrowRight,
 } from "lucide-react";
-import { api, PolicyResponse, PolicyRule } from "@/lib/api";
+import { api, PolicyResponse } from "@/lib/api";
 import { LoadingState, EmptyState } from "@/components/ui/FeedbackStates";
 import { decisionBadgeClass } from "@/lib/utils";
 

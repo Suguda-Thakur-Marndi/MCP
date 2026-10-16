@@ -44,7 +44,6 @@ function AuthContent() {
   const errorParam = searchParams.get("error");
   const [error, setError] = useState<string | null>(errorParam);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [loading, setLoading] = useState(false);
   const [tokenInput, setTokenInput] = useState("");
   const [tokenStatus, setTokenStatus] = useState<{
     type: "info" | "valid" | "invalid";
@@ -106,7 +105,6 @@ function AuthContent() {
   };
 
   const handleTestLogin = (identity: (typeof TEST_IDENTITIES)[0]) => {
-    setLoading(true);
     setError(null);
     try {
       if (typeof window !== "undefined") {
@@ -119,7 +117,6 @@ function AuthContent() {
       }, 250);
     } catch {
       setError("Failed to initialize session identity");
-      setLoading(false);
     }
   };
 

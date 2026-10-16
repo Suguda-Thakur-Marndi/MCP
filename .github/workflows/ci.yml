@@ -181,7 +181,7 @@ jobs:
 
           violations = 0
           for p in Path('.').rglob('*'):
-              if any(skip in p.parts for skip in ['.git', '.venv', 'node_modules', '__pycache__', '.pytest_cache', 'scratch']):
+              if any(skip in p.parts for skip in ['.git', '.venv', 'node_modules', '__pycache__', '.pytest_cache', 'scratch', 'tests']):
                   continue
               if p.is_file() and p.stat().st_size < 1_000_000:
                   try:

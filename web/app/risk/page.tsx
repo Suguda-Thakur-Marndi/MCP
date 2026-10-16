@@ -11,7 +11,7 @@ import {
   AlertTriangle,
   Info,
 } from "lucide-react";
-import { api, DashboardStats, ToolInfo, AuditEvent, IntegrationListItem } from "@/lib/api";
+import { api, ToolInfo, AuditEvent, IntegrationListItem } from "@/lib/api";
 
 interface RankedTool {
   name: string;
@@ -94,7 +94,6 @@ const DETERMINISTIC_RISK_FACTORS: RiskFactorDefinition[] = [
 
 export default function RiskCenterPage() {
   const [selectedTimeframe, setSelectedTimeframe] = useState<"24h" | "7d" | "30d">("24h");
-  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [tools, setTools] = useState<ToolInfo[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [integrations, setIntegrations] = useState<IntegrationListItem[]>([]);
@@ -104,13 +103,11 @@ export default function RiskCenterPage() {
   const loadRiskData = () => {
     setLoading(true);
     Promise.allSettled([
-      api.dashboard.stats(),
       api.policies.tools(),
       api.audit.events({ limit: 100 }),
       api.integrations.list(),
-    ]).then(([statsRes, toolsRes, auditRes, integRes]) => {
+    ]).then(([toolsRes, auditRes, integRes]) => {
       startTransition(() => {
-        if (statsRes.status === "fulfilled") setStats(statsRes.value);
         if (toolsRes.status === "fulfilled") setTools(toolsRes.value);
         if (auditRes.status === "fulfilled") setAuditEvents(auditRes.value.events);
         if (integRes.status === "fulfilled") setIntegrations(integRes.value);
@@ -122,14 +119,12 @@ export default function RiskCenterPage() {
   useEffect(() => {
     let isMounted = true;
     Promise.allSettled([
-      api.dashboard.stats(),
       api.policies.tools(),
       api.audit.events({ limit: 100 }),
       api.integrations.list(),
-    ]).then(([statsRes, toolsRes, auditRes, integRes]) => {
+    ]).then(([toolsRes, auditRes, integRes]) => {
       if (isMounted) {
         startTransition(() => {
-          if (statsRes.status === "fulfilled") setStats(statsRes.value);
           if (toolsRes.status === "fulfilled") setTools(toolsRes.value);
           if (auditRes.status === "fulfilled") setAuditEvents(auditRes.value.events);
           if (integRes.status === "fulfilled") setIntegrations(integRes.value);

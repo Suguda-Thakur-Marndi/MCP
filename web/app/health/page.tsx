@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { api, HealthStatus } from "@/lib/api";
-import { formatTime } from "@/lib/utils";
 
 interface SubsystemNode {
   name: string;

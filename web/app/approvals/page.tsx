@@ -9,7 +9,7 @@ export default function ApprovalsPage() {
   const [, startTransition] = useTransition();
 
   const [approvals, setApprovals] = useState<ApprovalRecord[]>([]);
-  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [, setCurrentUser] = useState<CurrentUser | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [filterTab, setFilterTab] = useState<"PENDING" | "APPROVED" | "DENIED" | "ALL">("PENDING");
@@ -235,6 +235,11 @@ export default function ApprovalsPage() {
       <section className="grid grid-cols-1 xl:grid-cols-12 gap-space-lg items-start">
         {/* Left: Ticket Cards List */}
         <div className="xl:col-span-7 flex flex-col gap-space-sm">
+          {error && (
+            <div className="p-space-sm bg-error-container text-on-error-container text-body-sm rounded-lg border border-error/20">
+              {error}
+            </div>
+          )}
           {loading ? (
             <div className="bg-surface-container-lowest p-12 rounded-xl text-center font-label-mono text-on-surface-variant border border-surface-container">
               Loading approval tickets from Sentinel API...
@@ -252,7 +257,6 @@ export default function ApprovalsPage() {
           ) : (
             filteredApprovals.map((ticket) => {
               const isSelected = selectedTicket?.id === ticket.id || selectedTicket?.ticket_id === ticket.ticket_id;
-              const isCritical = ticket.risk_level === "CRITICAL" || ticket.risk_score >= 80;
 
               return (
                 <div

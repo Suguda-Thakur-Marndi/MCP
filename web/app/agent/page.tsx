@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useTransition, useCallback } from "react";
-import Link from "next/link";
 import {
   api,
   AgentRunRecord,
   AgentExecutionRecord,
   AgentStatusResponse,
 } from "@/lib/api";
-import { formatTime, riskBadgeClass, decisionBadgeClass } from "@/lib/utils";
+import { formatTime } from "@/lib/utils";
 
 interface ChatMessage {
   id: string;
@@ -40,7 +39,7 @@ export default function AICommandCenterPage() {
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
 
   const [agentStatus, setAgentStatus] = useState<AgentStatusResponse | null>(null);
-  const [recentExecutions, setRecentExecutions] = useState<AgentExecutionRecord[]>([]);
+  const [, setRecentExecutions] = useState<AgentExecutionRecord[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   const chatBottomRef = useRef<HTMLDivElement>(null);

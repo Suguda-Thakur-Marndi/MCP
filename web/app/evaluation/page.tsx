@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useTransition, useMemo } from "react";
 import { api, SecurityEvalResult, SecurityEvalScenario } from "@/lib/api";
-import { riskBadgeClass, decisionBadgeClass } from "@/lib/utils";
+import { riskBadgeClass } from "@/lib/utils";
 
 export default function SecurityEvaluationPage() {
   const [, startTransition] = useTransition();

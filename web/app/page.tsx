@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useTransition, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   api,
   DashboardStats,
@@ -12,10 +11,9 @@ import {
   ToolInfo,
   IntegrationListItem,
 } from "@/lib/api";
-import { formatNumber, formatTime, riskBadgeClass, decisionBadgeClass } from "@/lib/utils";
+import { formatNumber, formatTime } from "@/lib/utils";
 
 export default function OverviewPage() {
-  const router = useRouter();
   const [, startTransition] = useTransition();
 
   const [stats, setStats] = useState<DashboardStats | null>(null);

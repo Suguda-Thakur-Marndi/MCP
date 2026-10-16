@@ -3,7 +3,7 @@
 import React, { use, useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { api, IntegrationListItem, ToolInfo } from "@/lib/api";
-import { formatTime, riskBadgeClass } from "@/lib/utils";
+import { riskBadgeClass } from "@/lib/utils";
 
 interface PageProps {
   params: Promise<{ id: string }>;

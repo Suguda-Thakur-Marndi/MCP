@@ -252,7 +252,13 @@ export default function AuditLogsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-surface-container font-body-sm text-body-sm">
-                {loading ? (
+                {error ? (
+                  <tr>
+                    <td colSpan={7} className="py-12 text-center text-error font-label-mono">
+                      {error}
+                    </td>
+                  </tr>
+                ) : loading ? (
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-on-surface-variant font-label-mono">
                       Querying PostgreSQL ledger...

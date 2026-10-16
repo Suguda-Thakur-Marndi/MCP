@@ -1,22 +1,18 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useTransition } from "react";
-import Link from "next/link";
 import {
   Search,
-  Layers,
   Eye,
   X,
   Copy,
   Check,
   Lock,
-  ChevronRight,
   RefreshCw,
   Wrench,
-  AlertTriangle,
 } from "lucide-react";
 import { api, ToolInfo } from "@/lib/api";
-import { prettyJson, formatNumber, riskBadgeClass } from "@/lib/utils";
+import { prettyJson, riskBadgeClass } from "@/lib/utils";
 import { LoadingState, EmptyState } from "@/components/ui/FeedbackStates";
 
 interface UnifiedToolRow {
