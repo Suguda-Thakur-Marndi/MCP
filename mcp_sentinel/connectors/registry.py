@@ -10,7 +10,6 @@ import logging
 from typing import Any, Optional
 
 from mcp_sentinel.connectors.base import BaseConnector
-from mcp_sentinel.connectors.canva import CanvaConnector
 from mcp_sentinel.connectors.github import GitHubConnector
 from mcp_sentinel.connectors.google_drive import GoogleDriveConnector
 from mcp_sentinel.connectors.local_mcp import LocalMcpConnector
@@ -22,6 +21,7 @@ from mcp_sentinel.connectors.models import (
     IntegrationStatus,
     ToolExecutionResult,
 )
+from mcp_sentinel.connectors.notion import NotionConnector
 from mcp_sentinel.connectors.remote_mcp import RemoteMcpConnector
 from mcp_sentinel.connectors.slack import SlackConnector
 
@@ -40,8 +40,8 @@ class ConnectorRegistry:
 
     def _initialize_builtins(self) -> None:
         """Registers default platform connectors."""
-        # 1. Canva (Phase 1 Remote MCP)
-        self.register_connector(CanvaConnector())
+        # 1. Notion (Official REST API)
+        self.register_connector(NotionConnector())
 
         # 2. GitHub (Phase 2 REST API)
         self.register_connector(GitHubConnector())

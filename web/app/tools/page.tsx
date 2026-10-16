@@ -67,10 +67,12 @@ export default function ToolRegistryPage() {
   }, []);
 
   const allTools: UnifiedToolRow[] = useMemo(() => {
-    return liveTools.map((t) => {
+    return liveTools.map((t, idx) => {
       const name = t.tool_name || t.name;
       let app = "FastMCP Core";
-      if (name.startsWith("github.") || name.includes("github")) {
+      if (t.integration_id) {
+        app = t.integration_id.charAt(0).toUpperCase() + t.integration_id.slice(1);
+      } else if (name.startsWith("github.") || name.includes("github")) {
         app = "GitHub";
       } else if (name.startsWith("postgres.") || name.startsWith("customer.") || name.startsWith("order.") || name.startsWith("database.")) {
         app = "PostgreSQL DB";
@@ -85,9 +87,10 @@ export default function ToolRegistryPage() {
       const rawScore = parseInt(t.base_risk?.replace("/100", "") || "0", 10);
       const score = rawScore > 0 ? rawScore : t.risk_level === "CRITICAL" ? 95 : t.risk_level === "HIGH" ? 75 : t.risk_level === "MEDIUM" ? 45 : 15;
       const riskLevel = (t.risk_level as "LOW" | "MEDIUM" | "HIGH" | "CRITICAL") || (t.is_destructive ? "CRITICAL" : "MEDIUM");
+      const uniqueId = t.tool_id ? `live_${t.tool_id}` : (t.integration_id ? `live_${t.integration_id}_${name}` : `live_${name}_${idx}`);
 
       return {
-        id: `live_${name}`,
+        id: uniqueId,
         application: app,
         toolName: name,
         description: t.description || `FastMCP governed capability: ${name}`,

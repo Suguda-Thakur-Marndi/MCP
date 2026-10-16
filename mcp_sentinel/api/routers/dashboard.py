@@ -76,7 +76,5 @@ async def get_dashboard_stats(current_user: AuthUser = Depends(get_current_user)
         "server": {
             "name": settings.MCP_SERVER_NAME,
             "version": settings.MCP_SERVER_VERSION,
-            "agent_id": settings.AGENT_ID,
-            "model": settings.GEMINI_MODEL,
         },
     }

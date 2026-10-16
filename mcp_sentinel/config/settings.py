@@ -25,14 +25,18 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    # Core Database Configuration
+    # Core Database & Real Data Integration Configuration
     DATABASE_URL: str = Field(
         ...,
         description="PostgreSQL DSN string. Required. Must not be empty.",
     )
-    EVAL_DATABASE_URL: Optional[str] = Field(
+    SUPABASE_DATABASE_URL: Optional[str] = Field(
         default=None,
-        description="Isolated evaluation database URL. Defaults to mcp_sentinel_eval.",
+        description="Supabase PostgreSQL connection string.",
+    )
+    NOTION_API_KEY: Optional[str] = Field(
+        default=None,
+        description="Notion workspace integration secret key.",
     )
 
     # Environment & Logging
@@ -356,45 +360,15 @@ class Settings(BaseSettings):
             return "postgresql://***:***@masked/masked"
 
     @property
-    def evaluation_database_url(self) -> str:
+    def masked_notion_api_key(self) -> str:
         """
-        Returns the isolated database URL used exclusively for security evaluation.
-        Defaults to 'mcp_sentinel_eval' on the same server, ensuring complete isolation from production/dev.
+        Returns masked representation of the Notion API key.
         """
-        if self.EVAL_DATABASE_URL:
-            return self.EVAL_DATABASE_URL
-        try:
-            parsed = urllib.parse.urlparse(self.DATABASE_URL)
-            return urllib.parse.urlunparse(
-                (
-                    parsed.scheme,
-                    parsed.netloc,
-                    "/mcp_sentinel_eval",
-                    parsed.params,
-                    parsed.query,
-                    parsed.fragment,
-                )
-            )
-        except Exception:
-            return self.DATABASE_URL
-
-    @property
-    def masked_evaluation_database_url(self) -> str:
-        """
-        Returns the evaluation database URL with credentials safely masked.
-        """
-        try:
-            parsed = urllib.parse.urlparse(self.evaluation_database_url)
-            netloc = parsed.hostname or "localhost"
-            if parsed.port:
-                netloc = f"{netloc}:{parsed.port}"
-            if parsed.username:
-                netloc = f"{parsed.username}:***@{netloc}"
-            return urllib.parse.urlunparse(
-                (parsed.scheme, netloc, parsed.path, parsed.params, parsed.query, parsed.fragment)
-            )
-        except Exception:
-            return "postgresql://***:***@masked/mcp_sentinel_eval"
+        if not self.NOTION_API_KEY:
+            return "not_configured"
+        if len(self.NOTION_API_KEY) <= 8:
+            return "***"
+        return f"{self.NOTION_API_KEY[:4]}...***"
 
     @property
     def masked_gemini_api_key(self) -> str:
@@ -478,8 +452,6 @@ class Settings(BaseSettings):
             "app_env": self.APP_ENV,
             "server_name": self.MCP_SERVER_NAME,
             "server_version": self.MCP_SERVER_VERSION,
-            "agent_id": self.AGENT_ID,
-            "gemini_model": self.GEMINI_MODEL,
             "google_client_id": self.GOOGLE_CLIENT_ID,
             "frontend_url": self.FRONTEND_URL,
             "backend_url": self.BACKEND_URL,
@@ -492,7 +464,6 @@ class Settings(BaseSettings):
         return (
             f"Settings(app_env={self.APP_ENV!r}, log_level={self.LOG_LEVEL!r}, "
             f"database_url={self.masked_database_url!r}, server={self.MCP_SERVER_NAME!r}, "
-            f"agent_id={self.AGENT_ID!r}, gemini_key={self.masked_gemini_api_key!r}, "
             f"google_client_id={self.GOOGLE_CLIENT_ID!r})"
         )
 

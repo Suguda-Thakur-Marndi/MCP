@@ -8,10 +8,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
 from httpx import ASGITransport, AsyncClient
 
-from mcp_sentinel.agent.providers.gemini import GeminiProvider
-from mcp_sentinel.agent.providers.mock import MockLLMProvider
 from mcp_sentinel.api.app import app as fastapi_app
-from mcp_sentinel.config.settings import get_settings
+from mcp_sentinel.connectors.registry import get_connector_registry
 from mcp_sentinel.database.connection import check_db_health, get_db_pool
 from mcp_sentinel.observability.metrics import generate_prometheus_metrics
 from mcp_sentinel.schemas.approval import compute_parameter_hash
@@ -23,7 +21,6 @@ from mcp_sentinel.security.auth.rbac import (
     has_permission,
 )
 from mcp_sentinel.security.correlation import clear_request_id, get_request_id, set_request_id
-from mcp_sentinel.security.evaluation.dataset import get_dataset
 from mcp_sentinel.security.policy.engine import PolicyEngine
 from mcp_sentinel.security.risk.engine import RiskEngine
 from mcp_sentinel.server.app import create_app as create_mcp_app
@@ -95,17 +92,20 @@ async def verify_all():
     except Exception as e:
         results["Frontend"] = f"FAILED: {e}"
 
-    # 5. Gemini Integration
+    # 5. Real Data Integrations (Notion & PostgreSQL)
     try:
-        settings = get_settings()
-        gemini_provider = GeminiProvider()
-        mock_provider = MockLLMProvider()
-        assert gemini_provider and mock_provider
-        results["Gemini integration"] = (
-            f"OK (GeminiProvider configured for {settings.GEMINI_MODEL}, fallback MockLLMProvider ready)"
+        reg = get_connector_registry()
+        notion_conn = reg.get_connector("notion")
+        custom_mcp_conn = reg.get_connector("custom_mcp")
+        assert notion_conn is not None, "Notion connector not registered in registry"
+        assert custom_mcp_conn is not None, "PostgreSQL connector not registered in registry"
+        notion_tools = await notion_conn.list_tools()
+        assert len(notion_tools) >= 4, f"Expected 4 Notion tools, got {len(notion_tools)}"
+        results["Real Integrations"] = (
+            f"OK (Notion & PostgreSQL connectors registered with {len(notion_tools)} verified Notion tools)"
         )
     except Exception as e:
-        results["Gemini integration"] = f"FAILED: {e}"
+        results["Real Integrations"] = f"FAILED: {e}"
 
     # 6. Authentication
     try:
@@ -164,16 +164,6 @@ async def verify_all():
         results["Approval"] = f"OK (SHA-256 cryptographic binding verified: {p_hash[:16]}...)"
     except Exception as e:
         results["Approval"] = f"FAILED: {e}"
-
-    # 10. Security Evaluation Engine
-    try:
-        dataset = get_dataset()
-        assert len(dataset) >= 80, f"Expected 80+ cases, found {len(dataset)}"
-        results["Evaluation"] = (
-            f"OK (Dataset loaded {len(dataset)} adversarial cases across 20 categories)"
-        )
-    except Exception as e:
-        results["Evaluation"] = f"FAILED: {e}"
 
     # 11. Observability
     try:

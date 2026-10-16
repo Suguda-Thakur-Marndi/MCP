@@ -6,10 +6,8 @@ import {
   Search,
   X,
   ShieldAlert,
-  Bot,
   Wrench,
   Sliders,
-  CheckCircle,
   ScrollText,
   ArrowRight,
   Layers,
@@ -19,7 +17,7 @@ import {
 interface SearchEntity {
   id: string;
   title: string;
-  category: "Agents" | "Runs" | "Tools" | "Integrations" | "Policies" | "Approvals" | "Audit Events" | "Evaluations";
+  category: "Tools" | "Integrations" | "Policies" | "Approvals" | "Audit Events";
   href: string;
   icon: React.ElementType;
   description: string;
@@ -27,25 +25,15 @@ interface SearchEntity {
 }
 
 const SEARCH_CATALOG: SearchEntity[] = [
-  // Agents
-  { id: "agent-1", title: "DevOps Sentinel Agent", category: "Agents", href: "/agent-runs", icon: Bot, description: "Gemini 2.5 Pro autonomous infrastructure & CI/CD agent", badge: "CRITICAL" },
-  { id: "agent-2", title: "Marketing Lead Agent", category: "Agents", href: "/agent-runs", icon: Bot, description: "Canva design synthesis & template compliance agent", badge: "ACTIVE" },
-  { id: "agent-3", title: "Customer CRM Agent", category: "Agents", href: "/agent-runs", icon: Bot, description: "Customer account lifecycle & PostgreSQL supervisor", badge: "GATED" },
-
-  // Runs
-  { id: "run-1", title: "Run #90214 — github.delete_repository", category: "Runs", href: "/agent-runs", icon: Bot, description: "Production repo deletion blocked by Repository Protection Policy", badge: "BLOCKED" },
-  { id: "run-2", title: "Run #90213 — canva.create_design", category: "Runs", href: "/agent-runs", icon: Bot, description: "Q4 Brand Banner generation completed through Canva MCP bridge", badge: "EXECUTED" },
-  { id: "run-3", title: "Run #90212 — delete_customer", category: "Runs", href: "/agent-runs", icon: Bot, description: "GDPR erasure ticket awaiting human cryptographic sign-off", badge: "PENDING" },
-
   // Tools
-  { id: "tool-1", title: "canva.create_design", category: "Tools", href: "/tools", icon: Wrench, description: "Generates brand asset layers with typography and color tokens", badge: "MEDIUM" },
+  { id: "tool-1", title: "notion.archive_page", category: "Tools", href: "/tools", icon: Wrench, description: "Archives Notion pages subject to Human-in-the-Loop approval", badge: "HIGH" },
   { id: "tool-2", title: "github.delete_repository", category: "Tools", href: "/tools", icon: Wrench, description: "Permanently deletes an organization version control repository", badge: "CRITICAL" },
-  { id: "tool-3", title: "slack.send_message", category: "Tools", href: "/tools", icon: Wrench, description: "Dispatches formatted block kit messages to verified channels", badge: "LOW" },
+  { id: "tool-3", title: "slack.send_message", category: "Tools", href: "/tools", icon: Wrench, description: "Dispatches formatted messages to verified enterprise channels", badge: "LOW" },
   { id: "tool-4", title: "query_customer_records", category: "Tools", href: "/tools", icon: Wrench, description: "Reads filtered customer records with verified column projection", badge: "LOW" },
   { id: "tool-5", title: "purge_inactive_customer_data", category: "Tools", href: "/tools", icon: Wrench, description: "Purges inactive customer records subject to dual-custody approval", badge: "CRITICAL" },
 
   // Integrations
-  { id: "int-1", title: "Canva", category: "Integrations", href: "/integrations", icon: Layers, description: "OAuth 2.0 visual communications platform — registered tools", badge: "CONNECTED" },
+  { id: "int-1", title: "Notion", category: "Integrations", href: "/integrations", icon: Layers, description: "Official Notion REST API for workspace pages and database queries", badge: "CONFIGURED" },
   { id: "int-2", title: "GitHub Enterprise", category: "Integrations", href: "/integrations", icon: Layers, description: "OAuth App source code management & PR gating", badge: "CRITICAL" },
   { id: "int-3", title: "Slack Enterprise Grid", category: "Integrations", href: "/integrations", icon: Layers, description: "Bot token communication gateway & incident channels", badge: "CONNECTED" },
   { id: "int-4", title: "Google Drive Vault", category: "Integrations", href: "/integrations", icon: Layers, description: "Google OAuth 2.0 cloud storage file repository", badge: "HIGH" },
@@ -63,11 +51,6 @@ const SEARCH_CATALOG: SearchEntity[] = [
   // Audit Events
   { id: "aud-1", title: "Audit Event aud_98410294", category: "Audit Events", href: "/audit", icon: ScrollText, description: "BLOCKED invariant violation on destructive SQL with SHA-256 seal", badge: "VERIFIED" },
   { id: "aud-2", title: "Audit Event aud_98410295", category: "Audit Events", href: "/audit", icon: ScrollText, description: "ALLOWED customer read query under active rate limits", badge: "VERIFIED" },
-
-  // Evaluations
-  { id: "eval-1", title: "Prompt Injection Adversarial Suite", category: "Evaluations", href: "/evaluation", icon: CheckCircle, description: "Jailbreak & System Prompt Override defense scenarios", badge: "PASS" },
-  { id: "eval-2", title: "Tool Abuse & Side-Effect Suite", category: "Evaluations", href: "/evaluation", icon: CheckCircle, description: "Parameter Tampering & State Pollution tests blocked", badge: "PASS" },
-  { id: "eval-3", title: "SQL Injection Neutralization Suite", category: "Evaluations", href: "/evaluation", icon: CheckCircle, description: "Parameterized query builder defense against SQLi patterns", badge: "PASS" },
 ];
 
 export function GlobalSearchModal({

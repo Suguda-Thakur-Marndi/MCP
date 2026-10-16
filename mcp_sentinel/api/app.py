@@ -22,7 +22,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
 from mcp_sentinel.api.routers import (
-    agent,
     approvals,
     audit,
     auth,
@@ -31,8 +30,6 @@ from mcp_sentinel.api.routers import (
     integrations,
     mcp_servers,
     policies,
-    security,
-    security_eval,
     tools,
 )
 from mcp_sentinel.config.settings import get_settings
@@ -261,13 +258,10 @@ def create_app() -> FastAPI:
     # Attach routers
     app.include_router(health.router)
     app.include_router(auth.router)
-    app.include_router(agent.router)
     app.include_router(approvals.router)
     app.include_router(audit.router)
     app.include_router(dashboard.router)
     app.include_router(policies.router)
-    app.include_router(security.router)
-    app.include_router(security_eval.router)
     app.include_router(integrations.router)
     app.include_router(tools.router)
     app.include_router(mcp_servers.router)

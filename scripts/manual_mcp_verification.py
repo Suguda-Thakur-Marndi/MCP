@@ -71,10 +71,14 @@ async def main():
 
     # 3. Read Tool: get_customer
     print("\n[3] Testing Read Tool (get_customer)...")
-    res = await server.call_tool("get_customer", {"customer_id": "CUST-000001"})
+    cust_res = await server.call_tool("query_customer_records", {"limit": 1})
+    cust_data = extract_data(cust_res)
+    sample_id = cust_data["records"][0]["id"] if (cust_data.get("records")) else 2
+    sample_code = f"CUST-{sample_id:06d}"
+    res = await server.call_tool("get_customer", {"customer_id": sample_code})
     data = extract_data(res)
     assert data["status"] == "success", f"Read customer failed: {data}"
-    assert data["customer"]["customer_code"] == "CUST-000001"
+    assert data["customer"]["customer_code"] == sample_code
     print(
         f"    Retrieved customer: ID={data['customer']['id']}, Code={data['customer']['customer_code']}, Name={data['customer']['name']}"
     )
@@ -111,7 +115,7 @@ async def main():
     res = await server.call_tool(
         "append_customer_audit_note",
         {
-            "customer_id": "CUST-000001",
+            "customer_id": sample_code,
             "note": "Phase 2 manual verification note",
             "author_id": "verifier_bot",
         },
@@ -126,7 +130,7 @@ async def main():
     res = await server.call_tool(
         "delete_customer",
         {
-            "customer_id": "CUST-000001",
+            "customer_id": sample_code,
             "approval_ticket": "TICKET-UNAUTHORIZED-TRIAL",
             "reason": "Unauthorized deletion test",
         },

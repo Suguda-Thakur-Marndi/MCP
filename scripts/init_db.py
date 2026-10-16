@@ -143,6 +143,14 @@ async def init_single_db(target_url: str, seed_data: bool = True) -> None:
             await target_conn.execute(idempotency_sql)
             print("[+] Migration 011 applied successfully.")
 
+        # 12. Prune Out-of-Scope Tables Schema
+        prune_path = base_dir / "migrations" / "012_prune_out_of_scope_tables.sql"
+        if prune_path.exists():
+            print(f"[*] Applying migration: {prune_path.name}...")
+            prune_sql = prune_path.read_text(encoding="utf-8")
+            await target_conn.execute(prune_sql)
+            print("[+] Migration 012 applied successfully.")
+
         # Seed Data if requested
         if seed_data:
             seed_path = base_dir / "seed" / "seed_synthetic_data.sql"
@@ -163,25 +171,13 @@ async def init_single_db(target_url: str, seed_data: bool = True) -> None:
 
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(description="Initialize and migrate MCP-Sentinel databases.")
-    parser.add_argument(
-        "--eval-only", action="store_true", help="Initialize only the evaluation database"
-    )
-    parser.add_argument(
-        "--primary-only", action="store_true", help="Initialize only the primary database"
-    )
+    parser = argparse.ArgumentParser(description="Initialize and migrate MCP-Sentinel database.")
     parser.add_argument("--no-seed", action="store_true", help="Skip synthetic data seeding")
     args = parser.parse_args()
 
     settings = get_settings()
-
-    if not args.eval_only:
-        print("=== Initializing Primary Database ===")
-        await init_single_db(settings.DATABASE_URL, seed_data=not args.no_seed)
-
-    if not args.primary_only and settings.evaluation_database_url != settings.DATABASE_URL:
-        print("\n=== Initializing Evaluation Database ===")
-        await init_single_db(settings.evaluation_database_url, seed_data=not args.no_seed)
+    print("=== Initializing MCP-Sentinel Database ===")
+    await init_single_db(settings.DATABASE_URL, seed_data=not args.no_seed)
 
 
 if __name__ == "__main__":

@@ -14,7 +14,6 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from mcp_sentinel.config.settings import get_settings
-from mcp_sentinel.connectors.canva import CanvaConnector
 from mcp_sentinel.connectors.github import GitHubConnector
 from mcp_sentinel.connectors.models import (
     ConnectorCredentials,
@@ -65,20 +64,6 @@ class ConnectRequest(BaseModel):
     token_type: str = "Bearer"
 
 
-class CanvaOAuthUrlResponse(BaseModel):
-    authorization_url: str
-    code_verifier: str
-    state: str
-
-
-class CanvaOAuthCallbackRequest(BaseModel):
-    code: str
-    code_verifier: str
-    client_id: str
-    client_secret: str
-    redirect_uri: str
-
-
 @router.get("", summary="List all integrations")
 async def list_integrations(
     repo: IntegrationRepository = Depends(get_integration_repo),
@@ -97,69 +82,6 @@ async def list_integrations(
             item["live_status"] = item["status"]
             item["is_connected"] = item["status"] == "CONNECTED"
     return integrations
-
-
-@router.get("/canva/oauth-url", summary="Generate Canva OAuth 2.0 PKCE Authorization URL")
-async def get_canva_oauth_url(
-    client_id: str = Query(..., description="Canva Developer Client ID"),
-    redirect_uri: str = Query(..., description="Redirect URI configured in Canva app"),
-    current_user: AuthUser = Depends(require_permission(PERM_MANAGE_INTEGRATIONS)),
-) -> CanvaOAuthUrlResponse:
-    import secrets
-
-    verifier, challenge = CanvaConnector.generate_pkce_pair()
-    state = secrets.token_urlsafe(16)
-    auth_url = CanvaConnector.get_authorization_url(
-        client_id=client_id,
-        redirect_uri=redirect_uri,
-        state=state,
-        code_challenge=challenge,
-    )
-    return CanvaOAuthUrlResponse(
-        authorization_url=auth_url,
-        code_verifier=verifier,
-        state=state,
-    )
-
-
-@router.post("/canva/oauth-callback", summary="Complete Canva OAuth 2.0 PKCE Token Exchange")
-async def complete_canva_oauth(
-    body: CanvaOAuthCallbackRequest,
-    repo: IntegrationRepository = Depends(get_integration_repo),
-    current_user: AuthUser = Depends(require_permission(PERM_MANAGE_INTEGRATIONS)),
-) -> dict[str, Any]:
-    try:
-        credentials = await CanvaConnector.exchange_code(
-            client_id=body.client_id,
-            client_secret=body.client_secret,
-            code=body.code,
-            code_verifier=body.code_verifier,
-            redirect_uri=body.redirect_uri,
-        )
-        # Encrypt and persist credentials
-        await repo.save_credentials("canva", credentials)
-        await repo.update_status("canva", IntegrationStatus.CONNECTED)
-
-        # Update active connector in memory
-        reg = get_connector_registry()
-        canva = reg.get_connector("canva")
-        if canva:
-            await canva.authenticate(credentials)
-
-        # Sync Canva tools
-        tool_svc = get_tool_registry_service()
-        await tool_svc.sync_all_tools()
-
-        return {
-            "success": True,
-            "message": "Canva OAuth connected successfully",
-            "integration_id": "canva",
-        }
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Canva OAuth exchange failed: {str(exc)}",
-        )
 
 
 # =============================================================================

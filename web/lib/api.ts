@@ -277,6 +277,8 @@ export interface PolicyInfo {
 }
 
 export interface ToolInfo {
+  tool_id?: string;
+  integration_id?: string;
   tool_name: string;
   name: string;
   description: string;
@@ -293,121 +295,6 @@ export interface ToolInfo {
   schema?: Record<string, unknown> | null;
 }
 
-export interface AgentRunRecord {
-  id?: string;
-  run_id: string;
-  agent_id: string;
-  agent_name: string;
-  model: string;
-  environment: string;
-  application: string;
-  tool_id?: string | null;
-  user_prompt?: string | null;
-  reasoning?: string | null;
-  payload?: Record<string, unknown> | null;
-  risk_level: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL" | string;
-  risk_score: number;
-  approval_state: string;
-  execution_state: "RUNNING" | "COMPLETED" | "FAILED" | "BLOCKED" | "INTERCEPTED" | string;
-  status?: string;
-  started_at?: string;
-  duration_ms: number;
-  created_at: string;
-  completed_at?: string | null;
-  approval_ticket_id?: string | null;
-  policy_id?: string | null;
-  policy_decision?: string | null;
-}
-
-export interface ToolExecutionRecord {
-  id: string | number;
-  run_id: string;
-  tool_id: string;
-  tool_name?: string;
-  ticket_id?: string | null;
-  parameters: Record<string, unknown> | string;
-  parameters_hash?: string | null;
-  result?: unknown;
-  error_message?: string | null;
-  status: string;
-  latency_ms: number;
-  execution_time_ms?: number;
-  executed_at: string;
-}
-
-export interface SecurityEvalScenario {
-  scenario_id: string | number;
-  test_id?: string;
-  name: string;
-  category: string;
-  passed: boolean;
-  status?: string;
-  attack_success?: boolean;
-  side_effect_detected?: boolean;
-  severity?: string;
-  evidence?: unknown;
-  expected?: string;
-  actual?: string;
-  expected_decision?: string;
-  actual_decision?: string;
-  duration_ms?: number;
-  latency_ms?: number;
-  db_integrity_verified?: boolean;
-  notes?: string;
-  error?: string | null;
-}
-
-export interface SecurityEvalResult {
-  summary: {
-    total: number;
-    passed: number;
-    failed: number;
-    pass_rate: number;
-    duration_seconds: number;
-    average_latency_ms?: number;
-  };
-  total_scenarios?: number;
-  results: SecurityEvalScenario[];
-  generated_at?: string;
-  timestamp?: string;
-}
-
-export interface AgentExecutionRecord {
-  id: string | number;
-  event_type: string;
-  actor_type: string;
-  actor_id: string;
-  tool_name: string;
-  decision: string;
-  request_id: string;
-  action?: string;
-  risk_score?: number;
-  details: Record<string, unknown> | null;
-  parameters?: Record<string, unknown> | null;
-  created_at: string;
-}
-
-export interface AgentStatusResponse {
-  status: string;
-  agent_id: string;
-  model: string;
-  max_iterations?: number;
-  max_tool_calls?: number;
-  tool_timeout_seconds?: number;
-  tools_registered?: number;
-}
-
-export interface AgentChatResponse {
-  request_id: string;
-  conversation_id: string;
-  response: string;
-  status: string;
-  tool_calls: { tool: string; result?: string; [key: string]: unknown }[];
-  iteration_count?: number;
-  iterations?: number;
-  tool_calls_made?: number;
-  final_state?: string;
-}
 
 export interface IntegrationListItem {
   id: string;
@@ -458,64 +345,6 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   purge_inactive_customer_data: "Permanently purges inactive customer data. Mandatory dual-custody gated.",
 };
 
-function normalizeSecurityEval(res: unknown): SecurityEvalResult {
-  const data = res && typeof res === "object" ? (res as Record<string, unknown>) : {};
-  const report =
-    data.report && typeof data.report === "object"
-      ? (data.report as Record<string, unknown>)
-      : data;
-
-  const total = Number(report.total_scenarios ?? (report.summary as Record<string, unknown>)?.total ?? 0);
-  const passed = Number(report.passed_scenarios ?? (report.summary as Record<string, unknown>)?.passed ?? 0);
-  const failed = Number(report.failed_scenarios ?? (report.summary as Record<string, unknown>)?.failed ?? 0);
-  const passRate = Number(report.pass_rate ?? (total > 0 ? (passed / total) * 100 : 100));
-  const duration = Number(report.total_duration_seconds ?? (report.summary as Record<string, unknown>)?.duration_seconds ?? 0);
-  const avgLatency = Number(report.average_latency_ms ?? 0);
-
-  const rawResults = Array.isArray(report.results) ? report.results : [];
-  const results: SecurityEvalScenario[] = rawResults.map((r: Record<string, unknown>) => {
-    const isPass = r.status === "PASS" || r.passed === true || (r.attack_success === false && r.status !== "FAIL");
-    const testId = String(r.test_id ?? r.scenario_id ?? "");
-    return {
-      scenario_id: testId,
-      test_id: testId,
-      name: String(r.name ?? "Scenario"),
-      category: String(r.category ?? "SECURITY"),
-      status: String(r.status ?? (isPass ? "PASS" : "FAIL")),
-      passed: isPass,
-      attack_success: Boolean(r.attack_success),
-      side_effect_detected: Boolean(r.side_effect_detected),
-      severity: String(r.severity ?? "MEDIUM"),
-      expected: String(r.expected ?? r.expected_decision ?? "ALLOW"),
-      actual: String(r.actual ?? r.actual_decision ?? (isPass ? "ALLOW" : "BLOCK")),
-      expected_decision: String(r.expected_decision ?? r.expected ?? "ALLOW"),
-      actual_decision: String(r.actual_decision ?? r.actual ?? "ALLOW"),
-      duration_ms: Number(r.duration_ms ?? r.latency_ms ?? 0),
-      latency_ms: Number(r.latency_ms ?? r.duration_ms ?? 0),
-      db_integrity_verified:
-        r.db_integrity_verified !== undefined
-          ? Boolean(r.db_integrity_verified)
-          : !Boolean(r.side_effect_detected),
-      notes: r.notes ? String(r.notes) : undefined,
-      evidence: r.evidence,
-      error: r.error ? String(r.error) : null,
-    };
-  });
-
-  return {
-    summary: {
-      total,
-      passed,
-      failed,
-      pass_rate: passRate,
-      duration_seconds: duration,
-      average_latency_ms: avgLatency,
-    },
-    results,
-    timestamp: String(report.timestamp ?? new Date().toISOString()),
-    generated_at: String(report.timestamp ?? new Date().toISOString()),
-  };
-}
 
 function normalizeApproval(r: Record<string, unknown>): ApprovalRecord {
   const ticketId = String(r.ticket_id || r.id || "");
@@ -539,20 +368,6 @@ function normalizeApproval(r: Record<string, unknown>): ApprovalRecord {
   };
 }
 
-function normalizeAgentRun(r: Record<string, unknown>): AgentRunRecord {
-  const runId = String(r.run_id || r.id || "");
-  const execState = String(r.execution_state || r.status || "COMPLETED");
-  const createdAt = String(r.created_at || r.started_at || new Date().toISOString());
-  return {
-    ...(r as unknown as AgentRunRecord),
-    id: runId,
-    run_id: runId,
-    execution_state: execState,
-    status: execState,
-    created_at: createdAt,
-    started_at: createdAt,
-  };
-}
 
 // --------------------------------------------------------------------------
 // API Functions
@@ -688,8 +503,10 @@ export const api = {
     tools: async (): Promise<ToolInfo[]> => {
       const res = await apiFetch<{ tools?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>>("/api/tools");
       const list = Array.isArray(res) ? res : res.tools || [];
-      return list.map((t) => {
-        const name = String(t.tool_name || t.name || "unnamed_tool");
+      return list.map((t, idx) => {
+        const toolId = String(t.tool_id || t.id || "");
+        const integrationId = t.integration_id ? String(t.integration_id) : undefined;
+        const name = String(t.tool_name || t.name || (toolId ? toolId : `tool_${idx}`));
         const isDestructive = Boolean(t.destructive ?? t.is_destructive);
         const readOnly = Boolean(t.read_only);
         const baseRiskNum = typeof t.base_risk === "number" ? t.base_risk : Number(t.base_risk) || 0;
@@ -707,6 +524,8 @@ export const api = {
         }
 
         return {
+          tool_id: toolId || (integrationId ? `${integrationId}.${name}` : `${name}_${idx}`),
+          integration_id: integrationId,
           tool_name: name,
           name: name,
           description: String(t.description || TOOL_DESCRIPTIONS[name] || `FastMCP tool: ${name}`),
@@ -730,89 +549,6 @@ export const api = {
     },
   },
 
-  // Security Evaluation
-  security: {
-    runEval: async (): Promise<SecurityEvalResult> => {
-      const res = await apiFetch<unknown>("/api/security/eval", { method: "POST" });
-      return normalizeSecurityEval(res);
-    },
-    getLatest: async (): Promise<SecurityEvalResult> => {
-      const res = await apiFetch<unknown>("/api/security/eval/latest");
-      return normalizeSecurityEval(res);
-    },
-  },
-
-  // Agent
-  agent: {
-    chat: async (message: string): Promise<AgentChatResponse> => {
-      const res = await apiFetch<{
-        request_id?: string;
-        conversation_id?: string;
-        response?: string;
-        status?: string;
-        tool_calls?: Array<{ tool: string; result?: string }>;
-        iteration_count?: number;
-      }>("/api/agent/chat", {
-        method: "POST",
-        body: JSON.stringify({ message }),
-      });
-      return {
-        request_id: res.request_id || "",
-        conversation_id: res.conversation_id || "",
-        response: res.response || "",
-        status: res.status || "completed",
-        tool_calls: res.tool_calls || [],
-        iteration_count: res.iteration_count ?? 1,
-        iterations: res.iteration_count ?? 1,
-        tool_calls_made: (res.tool_calls || []).length,
-        final_state: res.status || "completed",
-      };
-    },
-    status: (): Promise<AgentStatusResponse> => apiFetch("/api/agent/status"),
-    executions: async (limit = 20): Promise<AgentExecutionRecord[]> => {
-      const res = await apiFetch<{ count: number; executions: AgentExecutionRecord[] }>(
-        `/api/agent/executions?limit=${limit}`
-      );
-      return (res.executions || []).map((ex) => ({
-        ...ex,
-        action: typeof ex.details?.action === "string" ? (ex.details.action as string) : ex.event_type,
-        risk_score: typeof ex.details?.risk_score === "number" ? (ex.details.risk_score as number) : undefined,
-      }));
-    },
-    runs: async (params?: {
-      status?: string;
-      application?: string;
-      limit?: number;
-      offset?: number;
-    }): Promise<{ total: number; count: number; runs: AgentRunRecord[] }> => {
-      const q = new URLSearchParams();
-      if (params?.status && params.status !== "ALL") q.set("status", params.status);
-      if (params?.application && params.application !== "ALL") q.set("application", params.application);
-      if (params?.limit) q.set("limit", String(params.limit));
-      if (params?.offset) q.set("offset", String(params.offset));
-      const qs = q.toString();
-      const res = await apiFetch<{ total?: number; count?: number; runs?: Record<string, unknown>[] }>(
-        `/api/agent/runs${qs ? "?" + qs : ""}`
-      );
-      const runs = (res?.runs || []).map(normalizeAgentRun);
-      return {
-        total: res?.total ?? runs.length,
-        count: res?.count ?? runs.length,
-        runs,
-      };
-    },
-    run: async (
-      runId: string
-    ): Promise<{ run: AgentRunRecord; tool_executions: ToolExecutionRecord[] }> => {
-      const res = await apiFetch<{ run: Record<string, unknown>; tool_executions: ToolExecutionRecord[] }>(
-        `/api/agent/runs/${runId}`
-      );
-      return {
-        run: normalizeAgentRun(res.run),
-        tool_executions: res.tool_executions || [],
-      };
-    },
-  },
 
   // Authentication & Session Management
   auth: {

@@ -6,7 +6,6 @@ MCP server registries, security policies, evaluation benchmarks, and tools.
 """
 
 from mcp_sentinel.api.routers import (
-    agent,
     approvals,
     audit,
     auth,
@@ -15,13 +14,10 @@ from mcp_sentinel.api.routers import (
     integrations,
     mcp_servers,
     policies,
-    security,
-    security_eval,
     tools,
 )
 
 __all__ = [
-    "agent",
     "approvals",
     "audit",
     "auth",
@@ -30,7 +26,5 @@ __all__ = [
     "integrations",
     "mcp_servers",
     "policies",
-    "security",
-    "security_eval",
     "tools",
 ]

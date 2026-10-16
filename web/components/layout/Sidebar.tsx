@@ -76,16 +76,6 @@ export function Sidebar({
           icon: "grid_view",
         },
         {
-          label: "AI Command Center",
-          href: "/agent",
-          icon: "terminal",
-        },
-        {
-          label: "Agent Runs",
-          href: "/agent-runs",
-          icon: "fast_forward",
-        },
-        {
           label: "Approvals",
           href: "/approvals",
           icon: "verified_user",
@@ -107,19 +97,9 @@ export function Sidebar({
           icon: "list_alt",
         },
         {
-          label: "Security Evaluation",
-          href: "/evaluation",
-          icon: "shield_with_heart",
-        },
-        {
           label: "System Health",
           href: "/health",
           icon: "vital_signs",
-        },
-        {
-          label: "Risk Analysis",
-          href: "/risk",
-          icon: "warning",
         },
       ],
     },
