@@ -1,0 +1,559 @@
+name: MCP-Sentinel Production CI/CD
+
+on:
+  push:
+    branches: [main, master, release-candidate, feat/website]
+  pull_request:
+    branches: [main, master, release-candidate]
+  workflow_dispatch:
+    inputs:
+      deploy_to_ec2:
+        description: "Deploy to AWS EC2 via AWS SSM after build"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/release-candidate' }}
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+  AWS_REGION: "ap-southeast-2"
+  NEXT_PUBLIC_API_URL: "http://13.239.120.141:3000"
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: ci_test_password
+  POSTGRES_DB: mcp_sentinel_test
+  DATABASE_URL: postgresql://postgres:ci_test_password@localhost:5432/mcp_sentinel_test
+  APP_ENV: test
+  ENABLE_TEST_AUTH: "true"
+  JWT_SECRET_KEY: ci-test-jwt-secret-key-do-not-use-in-production
+  APPROVAL_HMAC_SECRET: ci-test-hmac-secret-at-least-32-chars-long-sentinel
+  SESSION_SECRET: ci-test-session-secret-at-least-32-chars-long-sentinel
+  GEMINI_API_KEY: ""
+
+jobs:
+  # ============================================================
+  # Job 1: Python Lint & Formatting Check
+  # ============================================================
+  lint-python:
+    name: Python Lint (Ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install Ruff
+        run: pip install ruff
+
+      - name: Run Ruff Lint
+        run: ruff check mcp_sentinel/ scripts/ tests/ --output-format=github
+
+      - name: Run Ruff Format Check
+        run: ruff format --check mcp_sentinel/ scripts/ tests/
+
+  # ============================================================
+  # Job 2: Backend Security Evaluation & Verification
+  # ============================================================
+  security-evaluation:
+    name: Security Evaluation & Integrity Verification
+    runs-on: ubuntu-latest
+    needs: lint-python
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Initialize database schema
+        run: python scripts/init_db.py
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Seed test data
+        run: python scripts/seed_database.py
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+      - name: Run automated unit tests (Pytest)
+        run: pytest -v
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          APP_ENV: ${{ env.APP_ENV }}
+          ENABLE_TEST_AUTH: ${{ env.ENABLE_TEST_AUTH }}
+          JWT_SECRET_KEY: ${{ env.JWT_SECRET_KEY }}
+          APPROVAL_HMAC_SECRET: ${{ env.APPROVAL_HMAC_SECRET }}
+          SESSION_SECRET: ${{ env.SESSION_SECRET }}
+
+      - name: Verify MCP Tool Discovery and Security Enforcements
+        run: python scripts/manual_mcp_verification.py
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          APP_ENV: ${{ env.APP_ENV }}
+          ENABLE_TEST_AUTH: ${{ env.ENABLE_TEST_AUTH }}
+          JWT_SECRET_KEY: ${{ env.JWT_SECRET_KEY }}
+          APPROVAL_HMAC_SECRET: ${{ env.APPROVAL_HMAC_SECRET }}
+          SESSION_SECRET: ${{ env.SESSION_SECRET }}
+
+      - name: Verify Human-in-the-Loop Approval Lifecycle and Anti-Replay
+        run: python scripts/verify_console_flow.py
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+          APP_ENV: ${{ env.APP_ENV }}
+          ENABLE_TEST_AUTH: ${{ env.ENABLE_TEST_AUTH }}
+          JWT_SECRET_KEY: ${{ env.JWT_SECRET_KEY }}
+          APPROVAL_HMAC_SECRET: ${{ env.APPROVAL_HMAC_SECRET }}
+          SESSION_SECRET: ${{ env.SESSION_SECRET }}
+
+      - name: Verify database data integrity post-verification
+        run: |
+          python -c "
+          import asyncio, asyncpg, os
+          async def verify():
+              conn = await asyncpg.connect(os.environ['DATABASE_URL'])
+              customers = await conn.fetchval('SELECT count(*) FROM customers')
+              audit_events = await conn.fetchval('SELECT count(*) FROM audit_events')
+              print(f'Database integrity check: {customers} customers, {audit_events} audit events')
+              assert audit_events > 0, 'Audit events must be recorded'
+              await conn.close()
+          asyncio.run(verify())
+          "
+        env:
+          DATABASE_URL: ${{ env.DATABASE_URL }}
+
+  # ============================================================
+  # Job 3: Security & Secret Scan
+  # ============================================================
+  security-audit:
+    name: Security & Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: "pip"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Dependency vulnerability audit
+        run: pip-audit -r requirements.txt
+
+      - name: Scan repository for unredacted secret patterns
+        run: |
+          python -c "
+          import re, sys
+          from pathlib import Path
+
+          patterns = [
+              (re.compile(r'AKIA[0-9A-Z]{16}'), 'AWS Access Key'),
+              (re.compile(r'ghp_[0-9a-zA-Z]{36}'), 'GitHub Personal Access Token'),
+              (re.compile(r'-----BEGIN (RSA|EC|OPENSSH) PRIVATE KEY-----'), 'Private Key'),
+          ]
+
+          violations = 0
+          for p in Path('.').rglob('*'):
+              if any(skip in p.parts for skip in ['.git', '.venv', 'node_modules', '__pycache__', '.pytest_cache', 'scratch', 'tests']):
+                  continue
+              if p.is_file() and p.stat().st_size < 1_000_000:
+                  try:
+                      content = p.read_text(encoding='utf-8', errors='ignore')
+                      for pattern, desc in patterns:
+                          if pattern.search(content):
+                              print(f'::error file={p}::Potential {desc} detected in {p}')
+                              violations += 1
+                  except Exception:
+                      pass
+          if violations > 0:
+              print(f'Secret scan failed: {violations} potential secrets found.')
+              sys.exit(1)
+          print('Secret scan passed: zero leaked credentials detected.')
+          "
+
+  # ============================================================
+  # Job 4: Frontend Lint, Type-Check + Production Build
+  # ============================================================
+  build-frontend:
+    name: Next.js Frontend Quality & Build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Lint TypeScript / ESLint
+        run: npm run lint
+
+      - name: Type check (tsc)
+        run: npm run type-check
+
+      - name: Production build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Audit production npm dependencies
+        run: npm audit --omit=dev --audit-level=critical
+
+  # ============================================================
+  # Job 5: Docker Image Build & Security Verification (CI)
+  # ============================================================
+  build-docker-ci:
+    name: Docker Buildx & Container Security Verification
+    runs-on: ubuntu-latest
+    needs: [lint-python, build-frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image (verification)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.api
+          load: true
+          push: false
+          tags: mcp-sentinel/api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build Web image (verification)
+        uses: docker/build-push-action@v5
+        with:
+          context: web
+          file: web/Dockerfile
+          load: true
+          push: false
+          tags: mcp-sentinel/web:${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://localhost:8000
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Scan API Image for Critical Vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: mcp-sentinel/api:${{ github.sha }}
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL"
+
+      - name: Scan Web Image for Critical Vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: mcp-sentinel/web:${{ github.sha }}
+          format: "table"
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: "os,library"
+          severity: "CRITICAL"
+
+  # ============================================================
+  # Job 6: Push Images to Amazon ECR (CD)
+  # ============================================================
+  ecr-publish:
+    name: Publish to Amazon ECR
+    runs-on: ubuntu-latest
+    needs: [security-evaluation, build-frontend, security-audit, build-docker-ci]
+    if: |
+      (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/release-candidate')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_to_ec2 == 'true')
+
+    outputs:
+      registry: ${{ steps.login-ecr.outputs.registry }}
+      image_tag: ${{ steps.prep-tags.outputs.image_tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate AWS Deployment Role Configuration
+        env:
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+        run: |
+          if [ -z "$AWS_ROLE_ARN" ]; then
+            echo "::error::Secret AWS_ROLE_ARN is not configured in repository secrets. See docs/deployment/aws-ec2-cicd.md."
+            exit 1
+          fi
+
+      - name: Configure AWS Credentials via GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: GitHubActions-MCPSentinel-ECR
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Prepare Image Tags
+        id: prep-tags
+        run: |
+          IMAGE_TAG="${{ github.sha }}"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            RELEASE_TAG="${GITHUB_REF#refs/tags/}"
+          elif [[ "${{ github.ref }}" == "refs/heads/main" || "${{ github.ref }}" == "refs/heads/master" ]]; then
+            RELEASE_TAG="prod-${IMAGE_TAG:0:8}"
+          else
+            RELEASE_TAG="rc-${IMAGE_TAG:0:8}"
+          fi
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Backend API Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.api
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/mcp-sentinel-api:${{ steps.prep-tags.outputs.image_tag }}
+            ${{ steps.login-ecr.outputs.registry }}/mcp-sentinel-api:${{ steps.prep-tags.outputs.release_tag }}
+            ${{ steps.login-ecr.outputs.registry }}/mcp-sentinel-api:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and Push Frontend Web Image
+        uses: docker/build-push-action@v5
+        with:
+          context: web
+          file: web/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/mcp-sentinel-web:${{ steps.prep-tags.outputs.image_tag }}
+            ${{ steps.login-ecr.outputs.registry }}/mcp-sentinel-web:${{ steps.prep-tags.outputs.release_tag }}
+            ${{ steps.login-ecr.outputs.registry }}/mcp-sentinel-web:latest
+          build-args: |
+            NEXT_PUBLIC_API_URL=${{ env.NEXT_PUBLIC_API_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================
+  # Job 7: Deploy to AWS EC2 via AWS Systems Manager (CD)
+  # ============================================================
+  ec2-deploy:
+    name: Deploy to AWS EC2 via SSM
+    runs-on: ubuntu-latest
+    needs: ecr-publish
+    concurrency:
+      group: production-ec2-deploy
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate EC2 Instance Target
+        env:
+          EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+        run: |
+          if [ -z "$EC2_INSTANCE_ID" ]; then
+            echo "::error::Secret EC2_INSTANCE_ID is not configured in repository secrets. See docs/deployment/aws-ec2-cicd.md."
+            exit 1
+          fi
+
+      - name: Configure AWS Credentials via GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: GitHubActions-MCPSentinel-Deploy
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Deploy Container Update via AWS SSM Run Command
+        id: ssm-deploy
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+          EC2_INSTANCE_ID: ${{ secrets.EC2_INSTANCE_ID }}
+          ECR_REGISTRY: ${{ needs.ecr-publish.outputs.registry }}
+          IMAGE_TAG: ${{ needs.ecr-publish.outputs.image_tag }}
+        run: |
+          echo "Initiating SSM deployment to instance ${EC2_INSTANCE_ID}..."
+          
+          # Export variables for remote EC2 shell environment
+          REMOTE_ENV=$(cat << EOF
+          export AWS_REGION="${AWS_REGION}"
+          export ECR_REGISTRY="${ECR_REGISTRY}"
+          export IMAGE_TAG="${IMAGE_TAG}"
+          EOF
+          )
+
+          REMOTE_SCRIPT=$(cat << 'EOF'
+          set -euo pipefail
+          DEPLOY_DIR="/opt/mcp-sentinel"
+          cd "$DEPLOY_DIR"
+
+          echo "[*] Authenticating with Amazon ECR..."
+          aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+          # Record previous running versions before applying update
+          PREVIOUS_API_TAG=$(docker inspect --format '{{.Config.Image}}' sentinel-api 2>/dev/null | cut -d: -f2 || echo "")
+          PREVIOUS_WEB_TAG=$(docker inspect --format '{{.Config.Image}}' sentinel-web 2>/dev/null | cut -d: -f2 || echo "")
+          echo "[*] Previous running API image tag: ${PREVIOUS_API_TAG:-none}"
+          echo "[*] Previous running Web image tag: ${PREVIOUS_WEB_TAG:-none}"
+          echo "[*] Target deployment image tag: ${IMAGE_TAG}"
+
+          echo "[*] Pulling target release images from ECR..."
+          docker compose -f docker-compose.prod.yml pull api web
+
+          echo "[*] Updating containers with zero unnecessary downtime..."
+          docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+          echo "[*] Running health verification probes..."
+          HEALTHY=false
+          for i in $(seq 1 18); do
+            sleep 5
+            API_LIVE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health/live || echo "000")
+            API_READY=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health/ready || echo "000")
+            WEB_LIVE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/ || echo "000")
+            
+            echo "Probe $i/18: API live=$API_LIVE ready=$API_READY | Web live=$WEB_LIVE"
+            
+            if [ "$API_LIVE" -eq 200 ] && [ "$API_READY" -eq 200 ] && [ "$WEB_LIVE" -eq 200 ]; then
+              echo "[+] Health verification SUCCESS! All probes returned HTTP 200."
+              HEALTHY=true
+              break
+            fi
+          done
+
+          if [ "$HEALTHY" != "true" ]; then
+            echo "[!] FATAL: Health probes failed for deployment ${IMAGE_TAG}! Initiating automated rollback..."
+            if [ -n "$PREVIOUS_API_TAG" ] && [ "$PREVIOUS_API_TAG" != "$IMAGE_TAG" ]; then
+              echo "[*] Restoring previous API tag (${PREVIOUS_API_TAG})..."
+              export IMAGE_TAG="$PREVIOUS_API_TAG"
+              docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+              echo "[*] Verifying health of restored containers..."
+              ROLLBACK_HEALTHY=false
+              for r in $(seq 1 12); do
+                sleep 5
+                R_API_LIVE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health/live || echo "000")
+                R_API_READY=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/health/ready || echo "000")
+                R_WEB_LIVE=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/ || echo "000")
+                
+                if [ "$R_API_LIVE" -eq 200 ] && [ "$R_API_READY" -eq 200 ] && [ "$R_WEB_LIVE" -eq 200 ]; then
+                  ROLLBACK_HEALTHY=true
+                  break
+                fi
+              done
+
+              if [ "$ROLLBACK_HEALTHY" = "true" ]; then
+                echo "[+] Verified: Rollback successfully restored previous stable version (${PREVIOUS_API_TAG})."
+              else
+                echo "[!] FATAL: Rollback was attempted but health probes failed to recover!"
+              fi
+            else
+              echo "[!] No previous distinct version recorded to rollback to."
+            fi
+
+            echo "[!] Dumping container logs for diagnostic analysis:"
+            docker compose -f docker-compose.prod.yml logs --tail=100
+            exit 1
+          fi
+
+          echo "[+] Pruning old dangling images (>72h)..."
+          docker image prune -af --filter "until=72h" || true
+          echo "[+] MCP-Sentinel deployment ${IMAGE_TAG} successfully verified."
+          EOF
+          )
+
+          COMMAND_PAYLOAD="${REMOTE_ENV}"$'\n'"${REMOTE_SCRIPT}"
+
+          # Execute SSM Run Command
+          CMD_ID=$(aws ssm send-command \
+            --instance-ids "${EC2_INSTANCE_ID}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy MCP-Sentinel ${IMAGE_TAG} via GitHub Actions" \
+            --parameters "{\"commands\":[$(echo "$COMMAND_PAYLOAD" | jq -Rs .)],\"executionTimeout\":[\"300\"]}" \
+            --output text \
+            --query "Command.CommandId")
+
+          echo "SSM Command dispatched. CommandId: ${CMD_ID}"
+          echo "cmd_id=${CMD_ID}" >> "$GITHUB_OUTPUT"
+
+          echo "[*] Waiting for deployment command to complete..."
+          aws ssm wait command-executed \
+            --command-id "${CMD_ID}" \
+            --instance-id "${EC2_INSTANCE_ID}"
+
+          STATUS=$(aws ssm get-command-invocation \
+            --command-id "${CMD_ID}" \
+            --instance-id "${EC2_INSTANCE_ID}" \
+            --query "Status" \
+            --output text)
+
+          echo "[*] SSM Command Final Status: ${STATUS}"
+
+          # Display output
+          aws ssm get-command-invocation \
+            --command-id "${CMD_ID}" \
+            --instance-id "${EC2_INSTANCE_ID}" \
+            --query "StandardOutputContent" \
+            --output text
+
+          if [ "${STATUS}" != "Success" ]; then
+            echo "::error::SSM Deployment failed with status ${STATUS}"
+            aws ssm get-command-invocation \
+              --command-id "${CMD_ID}" \
+              --instance-id "${EC2_INSTANCE_ID}" \
+              --query "StandardErrorContent" \
+              --output text
+            exit 1
+          fi

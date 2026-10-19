@@ -1,0 +1,85 @@
+from mcp_sentinel.security.audit_logger import (
+    APPROVAL_REQUIRED,
+    APPROVAL_VALIDATION_FAILED,
+    AUTHORIZATION_FAILURE,
+    DATABASE_ERROR,
+    DESTRUCTIVE_ACTION_BLOCKED,
+    DESTRUCTIVE_ACTION_EXECUTED,
+    INPUT_VALIDATION_FAILED,
+    SQL_INJECTION_ATTEMPT,
+    TOOL_ALLOWED,
+    TOOL_DENIED,
+    TOOL_REQUESTED,
+    hash_identifier,
+    log_security_event,
+    redact_secrets,
+)
+from mcp_sentinel.security.correlation import clear_request_id, get_request_id, set_request_id
+from mcp_sentinel.security.decisions.models import (
+    RiskLevelEnum,
+    SecurityDecision,
+    SecurityDecisionEnum,
+)
+from mcp_sentinel.security.exceptions import (
+    ApprovalRequiredError,
+    AuthorizationDeniedError,
+    DatabaseOperationError,
+    PolicyViolationError,
+    SecurityValidationError,
+    SecurityViolationError,
+    SentinelError,
+)
+from mcp_sentinel.security.filters import SecureQueryBuilder
+from mcp_sentinel.security.gating import ApprovalGate
+from mcp_sentinel.security.policy import (
+    PolicyContext,
+    PolicyDefinition,
+    PolicyEngine,
+    get_policy_engine,
+)
+from mcp_sentinel.security.risk import (
+    DataSensitivityEnum,
+    RiskEngine,
+    RiskExplanation,
+    ToolRiskProfile,
+)
+
+__all__ = [
+    "APPROVAL_REQUIRED",
+    "APPROVAL_VALIDATION_FAILED",
+    "AUTHORIZATION_FAILURE",
+    "DATABASE_ERROR",
+    "DESTRUCTIVE_ACTION_BLOCKED",
+    "DESTRUCTIVE_ACTION_EXECUTED",
+    "INPUT_VALIDATION_FAILED",
+    "SQL_INJECTION_ATTEMPT",
+    "TOOL_ALLOWED",
+    "TOOL_DENIED",
+    "TOOL_REQUESTED",
+    "ApprovalGate",
+    "ApprovalRequiredError",
+    "AuthorizationDeniedError",
+    "DatabaseOperationError",
+    "DataSensitivityEnum",
+    "PolicyContext",
+    "PolicyDefinition",
+    "PolicyEngine",
+    "PolicyViolationError",
+    "RiskEngine",
+    "RiskExplanation",
+    "RiskLevelEnum",
+    "SecureQueryBuilder",
+    "SecurityDecision",
+    "SecurityDecisionEnum",
+    "SecurityValidationError",
+    "SecurityViolationError",
+    "SentinelError",
+    "ToolRiskProfile",
+    "clear_request_id",
+    "get_policy_engine",
+    "get_request_id",
+    "hash_identifier",
+    "log_security_event",
+    "redact_secrets",
+    "set_request_id",
+]

@@ -1,0 +1,11 @@
+# ============================================================
+# MCP-Sentinel Terraform Variables Configuration Example
+# ============================================================
+aws_region        = "ap-southeast-2"
+environment       = "production"
+project_name      = "mcp-sentinel"
+instance_type     = "t3.small"
+ebs_volume_size   = 30
+github_repository = "Suguda-Thakur-Marndi/MCP"
+allowed_branches  = ["main", "master", "release-candidate"]
+domain_name       = "sentinel.yourdomain.com"

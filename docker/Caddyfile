@@ -1,0 +1,53 @@
+# ============================================================
+# Caddyfile – Production TLS Reverse Proxy for MCP Sentinel
+# ============================================================
+# Automatically provisions and renews Let's Encrypt certificates.
+# Routes /api/* to FastAPI Backend (port 8000).
+# Routes all other requests to Next.js Frontend Console (port 3000).
+# ============================================================
+
+{$DOMAIN:sentinel.yourdomain.com} {
+    # Strong TLS configuration
+    tls {
+        protocols tls1.2 tls1.3
+    }
+
+    # Security Headers
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        -Server
+    }
+
+    # API and Health Probes -> FastAPI Backend
+    handle /api/* {
+        reverse_proxy api:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    handle /health/* {
+        reverse_proxy api:8000
+    }
+
+    # Next.js Web Console -> Frontend Service
+    handle {
+        reverse_proxy web:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    log {
+        output stdout
+        format json
+    }
+}

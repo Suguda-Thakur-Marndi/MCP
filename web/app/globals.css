@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-on-background: var(--on-background);
+
+  --color-surface: var(--surface);
+  --color-surface-dim: var(--surface-dim);
+  --color-surface-bright: var(--surface-bright);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-surface-container-highest: var(--surface-container-highest);
+
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-outline: var(--outline);
+  --color-outline-variant: var(--outline-variant);
+
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-container: var(--primary-container);
+  --color-on-primary-container: var(--on-primary-container);
+
+  --color-secondary: var(--secondary);
+  --color-on-secondary: var(--on-secondary);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+
+  --color-error: var(--error);
+  --color-on-error: var(--on-error);
+  --color-error-container: var(--error-container);
+  --color-on-error-container: var(--on-error-container);
+
+  --color-border: var(--border);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-focus: var(--border-focus);
+
+  --font-sans: var(--font-sans), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* ========================================================
+   DARK OBSERVATORY DESIGN SYSTEM — SECURITY INFRASTRUCTURE
+   Precision, restrained contrast, zero neon visual noise
+   ======================================================== */
+
+:root,
+.dark {
+  /* Obsidian & Charcoal Neutral Foundation */
+  --background: #090B0E;
+  --foreground: #F0F3F8;
+  --on-background: #F0F3F8;
+
+  --surface: #0E1116;
+  --surface-dim: #080A0D;
+  --surface-bright: #1E232D;
+  --surface-container-lowest: #0D1015;
+  --surface-container-low: #12161D;
+  --surface-container: #181D26;
+  --surface-container-high: #202632;
+  --surface-container-highest: #2A3241;
+
+  --on-surface: #F0F3F8;
+  --on-surface-variant: #8C96A5;
+  --outline: #3B4455;
+  --outline-variant: #222834;
+
+  /* Restrained Structural Hairline Borders */
+  --border: #222834;
+  --border-subtle: #181D26;
+  --border-focus: #38BDF8;
+
+  /* Signature Observatory Accents: Cyan & Emerald */
+  --primary: #38BDF8;
+  --on-primary: #032130;
+  --primary-container: #0369A1;
+  --on-primary-container: #E0F2FE;
+
+  --secondary: #10B981;
+  --on-secondary: #022C1D;
+  --secondary-container: #065F46;
+  --on-secondary-container: #D1FAE5;
+
+  /* Critical & Alert Tokens: Amber & Ruby */
+  --error: #F87171;
+  --on-error: #450A0A;
+  --error-container: #7F1D1D;
+  --on-error-container: #FEE2E2;
+
+  --warning: #FBBF24;
+  --on-warning: #451A03;
+  --warning-container: #78350F;
+  --on-warning-container: #FEF3C7;
+
+  /* Spacing Scale (8pt baseline grid) */
+  --spacing-2xs: 0.125rem;
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+}
+
+/* ========================================================
+   OBSERVATORY TYPOGRAPHY UTILITIES
+   ======================================================== */
+.font-headline-xl {
+  font-family: var(--font-sans), Inter, sans-serif;
+  font-size: 1.75rem;
+  line-height: 2.25rem;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+}
+
+.font-headline-lg {
+  font-family: var(--font-sans), Inter, sans-serif;
+  font-size: 1.375rem;
+  line-height: 1.875rem;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.font-headline-md {
+  font-family: var(--font-sans), Inter, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+
+.font-headline-sm {
+  font-family: var(--font-sans), Inter, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+
+.font-body-md {
+  font-family: var(--font-sans), Inter, sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  letter-spacing: -0.006em;
+  font-weight: 400;
+}
+
+.font-body-sm {
+  font-family: var(--font-sans), Inter, sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  letter-spacing: -0.005em;
+  font-weight: 400;
+}
+
+.font-label-mono {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  letter-spacing: 0.05em;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-container-lowest);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-container-highest);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--outline);
+}

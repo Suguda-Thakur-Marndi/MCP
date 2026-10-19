@@ -1,0 +1,99 @@
+# ==============================================================================
+# MCP-Sentinel — Prometheus Alert Rules Catalog
+# Corresponds to monitoring/alerts.md
+# ==============================================================================
+
+groups:
+  - name: sentinel_critical_alerts
+    rules:
+      - alert: SentinelBackendDown
+        expr: up{job="sentinel-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MCP-Sentinel FastAPI Backend is down"
+          description: "Sentinel API has been unreachable for more than 1 minute."
+
+      - alert: SentinelDatabaseDisconnected
+        expr: sentinel_db_pool_connections{state="total"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Sentinel Database connection pool is disconnected"
+          description: "Database connection pool has 0 total connections for > 1m."
+
+      - alert: SentinelHighHttpErrorRate
+        expr: sum(rate(sentinel_http_errors_total{status_family="5xx"}[5m])) / sum(rate(sentinel_http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High HTTP 5xx error rate detected"
+          description: "HTTP 5xx error rate exceeds 5% of total requests over 5 minutes."
+
+      - alert: SentinelApprovalReplaySpike
+        expr: rate(sentinel_approval_replays_blocked_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Approval replay attack detected"
+          description: "Elevated replay attempts blocked on approval tickets (> 0 in 5m window)."
+
+  - name: sentinel_security_and_operational_alerts
+    rules:
+      - alert: SentinelAuthBruteForce
+        expr: rate(sentinel_auth_failures_total[5m]) > 0.2
+        for: 2m
+        labels:
+          severity: high
+        annotations:
+          summary: "Potential authentication brute force"
+          description: "Authentication failure rate exceeds 0.2 failures/sec (> 12/min)."
+
+      - alert: SentinelAuthorizationDenialSpike
+        expr: rate(sentinel_authorization_denials_total[5m]) > 0.5
+        for: 2m
+        labels:
+          severity: high
+        annotations:
+          summary: "Authorization denial spike detected"
+          description: "RBAC/ABAC authorization denial rate exceeds 0.5 denials/sec."
+
+      - alert: SentinelDatabasePoolSaturated
+        expr: sentinel_db_pool_connections{state="used"} / sentinel_db_pool_connections{state="total"} > 0.9
+        for: 3m
+        labels:
+          severity: high
+        annotations:
+          summary: "Database connection pool saturated (> 90%)"
+          description: "Database connection pool utilization has exceeded 90% for 3 minutes."
+
+      - alert: SentinelHighHttpLatency
+        expr: histogram_quantile(0.95, sum(rate(sentinel_http_request_duration_seconds_bucket[5m])) by (le)) > 1.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Elevated API p95 response latency"
+          description: "API p95 latency exceeds 1.5 seconds over 5 minutes."
+
+      - alert: SentinelMcpToolFailureSpike
+        expr: rate(sentinel_mcp_tool_failures_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MCP tool execution failure rate elevated"
+          description: "MCP tool failure rate exceeds 0.1 failures/sec over 5 minutes."
+
+      - alert: SentinelAgentLoopLimitExceeded
+        expr: rate(sentinel_agent_invocations_total{status="max_iterations_reached"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Agent reasoning loop limit exceeded"
+          description: "Agent execution reached max iteration safety cap (possible infinite reasoning loop)."

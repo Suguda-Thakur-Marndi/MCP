@@ -1,0 +1,106 @@
+# ============================================================
+# MCP-Sentinel – Staging Multi-Container Stack (Pre-Production)
+#   postgres  : Dedicated Staging PostgreSQL 16 (isolated network)
+#   api       : FastAPI backend on port 8001 with health/live probe
+#   web       : Next.js security console on port 3001
+# ============================================================
+
+services:
+  # ----------------------------------------------------------
+  # Staging PostgreSQL Database
+  # ----------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: sentinel-postgres-staging
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sentinel_staging}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-staging_secure_pass_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-mcp_sentinel_staging}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - postgres_staging_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-sentinel_staging} -d $${POSTGRES_DB:-mcp_sentinel_staging}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+    networks:
+      - sentinel-staging-net
+
+  # ----------------------------------------------------------
+  # FastAPI Backend (Staging Image)
+  # ----------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    image: mcp-sentinel-api:staging-1.0.0-rc.2
+    container_name: sentinel-api-staging
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env.staging
+    environment:
+      APP_ENV: staging
+      ENABLE_TEST_AUTH: "false"
+      PORT: 8001
+    ports:
+      - "8001:8000"
+    networks:
+      - sentinel-staging-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 1536M
+
+  # ----------------------------------------------------------
+  # Next.js Frontend Console (Staging Image)
+  # ----------------------------------------------------------
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8001
+    image: mcp-sentinel-web:staging-1.0.0-rc.2
+    container_name: sentinel-web-staging
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8001
+      API_BASE_URL: http://api:8000
+      PORT: 3001
+    ports:
+      - "3001:3000"
+    networks:
+      - sentinel-staging-net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+
+networks:
+  sentinel-staging-net:
+    driver: bridge
+
+volumes:
+  postgres_staging_data:
