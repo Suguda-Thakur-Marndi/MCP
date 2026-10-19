@@ -2,8 +2,8 @@
 # MCP-Sentinel – Production Container Composition (AWS EC2)
 #
 # Services:
-#   api: FastAPI Security Gateway & Runtime (ECR Image)
-#   web: Next.js Security Console (ECR Image)
+#   api: FastAPI Security Gateway & Runtime (Local Docker Build)
+#   web: Next.js Security Console (Local Docker Build)
 #   proxy (optional profile 'tls-proxy'): Caddy TLS Reverse Proxy
 #
 # Database: Supabase PostgreSQL is hosted externally (never local in prod).
@@ -15,7 +15,10 @@ services:
   # FastAPI Backend API (MCP-Sentinel Core)
   # ----------------------------------------------------------
   api:
-    image: ${ECR_REGISTRY:-mcp-sentinel}/mcp-sentinel-api:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    image: mcp-sentinel-api:${IMAGE_TAG:-latest}
     container_name: sentinel-api
     restart: unless-stopped
     environment:
@@ -81,7 +84,12 @@ services:
   # Next.js Security Console Frontend
   # ----------------------------------------------------------
   web:
-    image: ${ECR_REGISTRY:-mcp-sentinel}/mcp-sentinel-web:${IMAGE_TAG:-latest}
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    image: mcp-sentinel-web:${IMAGE_TAG:-latest}
     container_name: sentinel-web
     restart: unless-stopped
     depends_on:

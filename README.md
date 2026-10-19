@@ -1,6 +1,5 @@
 # MCP Sentinel — Enterprise Security Gateway & Gated MCP Runtime
 
-[![MCP Sentinel CI/CD](https://github.com/Suguda-Thakur-Marndi/MCP/actions/workflows/ci.yml/badge.svg)](https://github.com/Suguda-Thakur-Marndi/MCP/actions/workflows/ci.yml)
 [![FastMCP](https://img.shields.io/badge/FastMCP-v4.0+-blue.svg)](https://github.com/jlowin/fastmcp)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
 [![Next.js](https://img.shields.io/badge/Next.js-16.3-black.svg)](https://nextjs.org)
@@ -311,49 +310,43 @@ docker compose up --build
 - **`sentinel-web`**: Next.js console on port `3000`.
 
 ### 2. Production Deployment (AWS EC2 & External Supabase)
-In production, PostgreSQL is hosted externally on Supabase (connecting over TLS). Services pull hardened, multi-stage images from Amazon ECR:
+In production, PostgreSQL is hosted externally on Supabase (connecting over TLS). Services are built and run directly on the EC2 host via Docker Compose:
 ```bash
-# Set production image tag and pull from Amazon ECR
-export ECR_REGISTRY="<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com"
-export IMAGE_TAG="<RELEASE_SHA>"
-docker compose -f docker-compose.prod.yml pull api web
+# Build production images locally from source
+docker compose -f docker-compose.prod.yml build
+
+# Start production services in detached mode
 docker compose -f docker-compose.prod.yml up -d --remove-orphans
 ```
 
 ---
 
-## Production CI/CD Pipeline (GitHub Actions & AWS)
+## Manual Production Deployment on AWS EC2
 
-The repository includes a production-grade CI/CD pipeline ([`.github/workflows/ci.yml`](file:///.github/workflows/ci.yml)):
+MCP Sentinel is deployed manually on AWS EC2 Ubuntu instances using SSH, Git, and Docker Compose without automated CI/CD dependencies:
 
 ```
-[PR / Push] ──> [Python Lint (Ruff)] ──> [Security Eval & Unit Tests (Pytest)]
-            ──> [Frontend Lint & Build] ──> [Secret & Vulnerability Audit]
-            ──> [Docker Buildx Verification]
-                                │ (Pushes to main/master/release-candidate)
-                                v
-                   [AWS OIDC Authentication] (No long-lived AWS keys)
-                                │
-                                v
-                   [Amazon ECR Image Publish] (mcp-sentinel-api & mcp-sentinel-web)
-                                │
-                                v
-                   [AWS EC2 SSM Deployment] (Zero open inbound SSH ports)
-                                │
-                                v
-                   [Health Probes & Rollback] (/health/live & /health/ready)
+[Developer / Operator] ──(SSH)──> [AWS EC2 Ubuntu Host]
+                                           │
+                                     git pull origin main
+                                           │
+                               docker compose -f docker-compose.prod.yml build
+                                           │
+                               docker compose -f docker-compose.prod.yml up -d
+                                           │
+                             ┌─────────────┴─────────────┐
+                             v                           v
+                  [sentinel-api: 8000]        [sentinel-web: 3000]
+                             │                           │
+                             └─────────────┬─────────────┘
+                                           v
+                                [Optional Caddy Proxy: 443]
+                                           │
+                                           v
+                               [External Supabase (TLS)]
 ```
 
-### GitHub Actions Secrets & Variables Required
-
-| Identifier | Type | Required For | Description |
-|---|---|---|---|
-| `AWS_ROLE_ARN` | Secret | ECR & EC2 CD | IAM Role assumed via GitHub OIDC (e.g. `arn:aws:iam::123456789012:role/mcp-sentinel-github-deploy-role`) |
-| `EC2_INSTANCE_ID` | Secret | EC2 CD | Target EC2 instance identifier (e.g. `i-084466cba136e6757`) |
-| `AWS_REGION` | Variable | ECR & EC2 CD | AWS Region for ECR/EC2 (defaults to `ap-southeast-2`) |
-| `NEXT_PUBLIC_API_URL` | Variable | Frontend Build | Public domain for web console (e.g. `https://sentinel.yourdomain.com`) |
-
-For comprehensive IAM trust policy JSON, AWS Systems Manager configuration, Caddy reverse-proxy setup, and rollback instructions, refer to the [AWS EC2 CI/CD Deployment Guide](file:///docs/deployment/aws-ec2-cicd.md).
+For step-by-step instructions—including instance initialization, host `.env` configuration, health verification, rollbacks, and Caddy TLS setup—see the [Manual EC2 Deployment Guide](file:///docs/MANUAL_EC2_DEPLOYMENT.md).
 
 ---
 
