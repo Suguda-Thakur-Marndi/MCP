@@ -4,9 +4,10 @@ Adheres to Security Rule #5: Never store secrets in source code.
 Uses Pydantic Settings for strongly-typed, environment-driven configuration.
 """
 
+import json
 import os
 import urllib.parse
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Union
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -237,7 +238,7 @@ class Settings(BaseSettings):
         default="http://localhost:8000/api/auth/google/callback",
         description="Google OAuth Redirect URI callback endpoint.",
     )
-    ALLOWED_GOOGLE_DOMAINS: list[str] = Field(
+    ALLOWED_GOOGLE_DOMAINS: Union[list[str], str] = Field(
         default_factory=list,
         description="Allowlist of email domains permitted to log in (empty allows all in dev/test).",
     )
@@ -271,7 +272,7 @@ class Settings(BaseSettings):
         default=True,
         description="Enforces CSRF header token validation on state-changing cookie requests.",
     )
-    ALLOWED_CORS_ORIGINS: list[str] = Field(
+    ALLOWED_CORS_ORIGINS: Union[list[str], str] = Field(
         default_factory=lambda: [
             "http://localhost:3000",
             "http://127.0.0.1:3000",
@@ -337,33 +338,49 @@ class Settings(BaseSettings):
         description="Version string of the active security policy.",
     )
 
-    @field_validator("ALLOWED_CORS_ORIGINS", mode="before")
+    @field_validator("ALLOWED_CORS_ORIGINS", mode="after")
     @classmethod
-    def parse_cors_origins(cls, v: Any) -> list[str]:
+    def parse_cors_origins(cls, v: Union[list[str], str]) -> list[str]:
         if isinstance(v, str):
             v = v.strip()
+            if not v:
+                return []
             if v.startswith("[") and v.endswith("]"):
-                import json
                 try:
-                    return json.loads(v)
-                except Exception:
-                    pass
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return [str(orig).strip() for orig in parsed if str(orig).strip()]
+                    raise ValueError(f"Expected a JSON list of CORS origins, got {type(parsed).__name__}")
+                except json.JSONDecodeError as exc:
+                    raise ValueError(f"Malformed JSON array for ALLOWED_CORS_ORIGINS: {exc}")
+            if v.startswith("[") and not v.endswith("]"):
+                raise ValueError("Malformed JSON array for ALLOWED_CORS_ORIGINS: missing closing ']'")
             return [orig.strip() for orig in v.split(",") if orig.strip()]
-        return v
+        elif isinstance(v, list):
+            return [str(orig).strip() for orig in v if str(orig).strip()]
+        return []
 
-    @field_validator("ALLOWED_GOOGLE_DOMAINS", mode="before")
+    @field_validator("ALLOWED_GOOGLE_DOMAINS", mode="after")
     @classmethod
-    def parse_google_domains(cls, v: Any) -> list[str]:
+    def parse_google_domains(cls, v: Union[list[str], str]) -> list[str]:
         if isinstance(v, str):
             v = v.strip()
+            if not v:
+                return []
             if v.startswith("[") and v.endswith("]"):
-                import json
                 try:
-                    return json.loads(v)
-                except Exception:
-                    pass
-            return [d.strip() for d in v.split(",") if d.strip()]
-        return v
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return [str(d).strip().lower() for d in parsed if str(d).strip()]
+                    raise ValueError(f"Expected a JSON list of domains, got {type(parsed).__name__}")
+                except json.JSONDecodeError as exc:
+                    raise ValueError(f"Malformed JSON array for ALLOWED_GOOGLE_DOMAINS: {exc}")
+            if v.startswith("[") and not v.endswith("]"):
+                raise ValueError("Malformed JSON array for ALLOWED_GOOGLE_DOMAINS: missing closing ']'")
+            return [d.strip().lower() for d in v.split(",") if d.strip()]
+        elif isinstance(v, list):
+            return [str(d).strip().lower() for d in v if str(d).strip()]
+        return []
 
     @model_validator(mode="after")
     def sync_session_and_cors(self) -> "Settings":
