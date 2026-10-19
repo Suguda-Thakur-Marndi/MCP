@@ -283,7 +283,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Scan API Image for Critical Vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           image-ref: mcp-sentinel/api:${{ github.sha }}
           format: "table"
@@ -293,7 +293,7 @@ jobs:
           severity: "CRITICAL"
 
       - name: Scan Web Image for Critical Vulnerabilities (Trivy)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.28.0
         with:
           image-ref: mcp-sentinel/web:${{ github.sha }}
           format: "table"
