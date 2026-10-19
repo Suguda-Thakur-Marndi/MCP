@@ -39,7 +39,7 @@ async def verify_supabase():
     print("\n[1] Verifying Database Connectivity...")
     masked_url = settings.masked_database_url
     print(f"    Target Connection URL : {masked_url}")
-    assert "Suguda" not in masked_url, "CRITICAL: Password leaked in masked URL!"
+    assert ":***@" in masked_url, "CRITICAL: Password not properly masked in database URL!"
 
     healthy = await check_db_health()
     assert healthy, "Database health check failed against Supabase!"

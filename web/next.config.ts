@@ -1,19 +1,20 @@
 import type { NextConfig } from "next";
 
-const backendUrl =
+const backendUrl = (
   process.env.API_BASE_URL ||
   process.env.BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
+  "http://127.0.0.1:8000"
+).replace(/\/+$/, "");
 
 const nextConfig: NextConfig = {
   output: "standalone",
   devIndicators: false,
   // Disable automatic AGENTS.md / CLAUDE.md rule generation in Next.js
   agentRules: false,
-  // API URL injected via env variable; defaults to localhost for development
+  // API URL injected via env variable; empty string defaults to same-origin in browser
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "",
   },
   async rewrites() {
     return [

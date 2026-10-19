@@ -1,7 +1,10 @@
 """
 Database Initialization and Migration Script for MCP-Sentinel.
-Creates target database if needed, runs schema migrations, and seeds synthetic test data.
-Applies migrations to both primary and evaluation databases.
+- Establishes a schema_migrations tracking table for repeatable, safe migrations.
+- Safely detects already-applied migrations without modifying existing schema.
+- Bypasses administrative database creation on managed cloud databases (e.g. Supabase).
+- Strictly prevents seeding synthetic test data in production unless explicitly forced.
+- Preserves existing production records.
 """
 
 from __future__ import annotations
@@ -20,164 +23,170 @@ import asyncpg
 from mcp_sentinel.config.settings import get_settings
 
 
-async def init_single_db(target_url: str, seed_data: bool = True) -> None:
+async def init_single_db(
+    target_url: str,
+    seed_data: bool = False,
+    check_only: bool = False,
+    force_seed: bool = False,
+) -> None:
+    settings = get_settings()
     parsed = urllib.parse.urlparse(target_url)
     db_name = parsed.path.lstrip("/") or "mcp_sentinel_db"
+    hostname = parsed.hostname or ""
 
-    # Admin connection to postgres default database to check/create target database
-    admin_url = urllib.parse.urlunparse((parsed.scheme, parsed.netloc, "postgres", "", "", ""))
+    is_managed_db = any(k in hostname.lower() for k in ("supabase.co", "pooler.supabase.com", "rds.amazonaws.com"))
 
-    print(f"[*] Connecting to server to check database '{db_name}'...")
-    try:
-        conn = await asyncpg.connect(admin_url)
+    # Only attempt database creation on local unmanaged PostgreSQL instances in non-prod
+    if not is_managed_db and settings.APP_ENV not in ("production", "staging"):
+        admin_url = urllib.parse.urlunparse((parsed.scheme, parsed.netloc, "postgres", "", "", ""))
+        print(f"[*] Checking local server for database '{db_name}'...")
         try:
-            exists = await conn.fetchval("SELECT 1 FROM pg_database WHERE datname = $1", db_name)
-            if not exists:
-                print(f"[*] Creating database '{db_name}'...")
-                await conn.execute(f'CREATE DATABASE "{db_name}"')
-                print(f"[+] Database '{db_name}' created.")
-            else:
-                print(f"[+] Database '{db_name}' already exists.")
-        finally:
-            await conn.close()
-    except Exception as exc:
-        print(f"[!] Note during admin DB check for '{db_name}': {exc}. Proceeding.")
+            conn = await asyncpg.connect(admin_url)
+            try:
+                exists = await conn.fetchval("SELECT 1 FROM pg_database WHERE datname = $1", db_name)
+                if not exists:
+                    print(f"[*] Creating local database '{db_name}'...")
+                    await conn.execute(f'CREATE DATABASE "{db_name}"')
+                    print(f"[+] Database '{db_name}' created.")
+                else:
+                    print(f"[+] Database '{db_name}' exists.")
+            finally:
+                await conn.close()
+        except Exception as exc:
+            print(f"[!] Note: Local database existence check skipped ({exc}). Proceeding.")
+    else:
+        print(f"[*] Managed cloud database detected ({hostname}). Connecting directly to target database.")
 
-    # Connect to target database
+    # Mask credentials for display
     masked_url = target_url
-    if parsed.username and parsed.password:
+    if parsed.password:
         masked_url = target_url.replace(parsed.password, "***")
-    print(f"[*] Connecting to target database: {masked_url}")
+    print(f"[*] Connecting to database: {masked_url}")
+
     target_conn = await asyncpg.connect(target_url)
     try:
-        base_dir = pathlib.Path(__file__).parent.parent / "mcp_sentinel" / "database"
+        # 1. Establish migration tracking table
+        await target_conn.execute("""
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version VARCHAR(255) PRIMARY KEY,
+                applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        """)
 
-        # 1. Initial Schema
-        schema_path = base_dir / "migrations" / "001_initial_schema.sql"
-        print(f"[*] Applying migration: {schema_path.name}...")
-        schema_sql = schema_path.read_text(encoding="utf-8")
-        await target_conn.execute(schema_sql)
-        print("[+] Migration 001 applied successfully.")
+        # Fetch applied migrations
+        applied_rows = await target_conn.fetch("SELECT version FROM schema_migrations")
+        applied_set = {r["version"] for r in applied_rows}
 
-        # 2. Least Privilege Roles
-        roles_path = base_dir / "migrations" / "002_least_privilege_roles.sql"
-        print(f"[*] Applying migration: {roles_path.name}...")
-        try:
-            roles_sql = roles_path.read_text(encoding="utf-8")
-            await target_conn.execute(roles_sql)
-            print("[+] Migration 002 (roles) applied successfully.")
-        except Exception as r_exc:
-            print(f"[!] Note: Role creation skipped or restricted ({r_exc}). Proceeding.")
+        migrations_dir = pathlib.Path(__file__).parent.parent / "mcp_sentinel" / "database" / "migrations"
+        migration_files = sorted(migrations_dir.glob("*.sql"))
 
-        # 3. Enterprise Orders & Audit Schema
-        orders_schema_path = base_dir / "migrations" / "003_enterprise_orders_audit_schema.sql"
-        print(f"[*] Applying migration: {orders_schema_path.name}...")
-        orders_schema_sql = orders_schema_path.read_text(encoding="utf-8")
-        await target_conn.execute(orders_schema_sql)
-        print("[+] Migration 003 applied successfully.")
+        print(f"\n[*] Discovered {len(migration_files)} schema migrations in repository.")
+        print(f"[*] Currently applied in database: {len(applied_set)} migrations.")
 
-        # 4. Production Security Approvals & Auth Schema
-        approvals_schema_path = (
-            base_dir / "migrations" / "004_production_security_approvals_and_auth.sql"
-        )
-        print(f"[*] Applying migration: {approvals_schema_path.name}...")
-        approvals_schema_sql = approvals_schema_path.read_text(encoding="utf-8")
-        await target_conn.execute(approvals_schema_sql)
-        print("[+] Migration 004 applied successfully.")
+        if check_only:
+            print("\n=== MIGRATION STATUS REPORT ===")
+            for mf in migration_files:
+                status_str = "[APPLIED]" if mf.name in applied_set else "[PENDING]"
+                print(f"  {status_str} {mf.name}")
+            return
 
-        # 5. Phase 5 Approval State Machine & Lifecycle Schema
-        lifecycle_schema_path = (
-            base_dir / "migrations" / "005_approval_state_machine_and_lifecycle.sql"
-        )
-        if lifecycle_schema_path.exists():
-            print(f"[*] Applying migration: {lifecycle_schema_path.name}...")
-            lifecycle_schema_sql = lifecycle_schema_path.read_text(encoding="utf-8")
-            await target_conn.execute(lifecycle_schema_sql)
-            print("[+] Migration 005 applied successfully.")
+        # Apply pending migrations in sequential order
+        applied_count = 0
+        for mf in migration_files:
+            if mf.name in applied_set:
+                print(f"  [=] Skipping already applied: {mf.name}")
+                continue
 
-        # 6. Phase 6 Production Authentication & Sessions Schema
-        auth_schema_path = base_dir / "migrations" / "006_production_auth_users_and_sessions.sql"
-        if auth_schema_path.exists():
-            print(f"[*] Applying migration: {auth_schema_path.name}...")
-            auth_schema_sql = auth_schema_path.read_text(encoding="utf-8")
-            await target_conn.execute(auth_schema_sql)
-            print("[+] Migration 006 applied successfully.")
+            print(f"  [*] Applying migration: {mf.name}...")
+            sql_content = mf.read_text(encoding="utf-8")
+            try:
+                async with target_conn.transaction():
+                    await target_conn.execute(sql_content)
+                    await target_conn.execute(
+                        "INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING",
+                        mf.name,
+                    )
+                print(f"  [+] Migration {mf.name} applied successfully.")
+                applied_count += 1
+            except Exception as m_exc:
+                # Some environments (e.g. Supabase poolers) restrict role manipulation
+                if "002_least_privilege_roles" in mf.name and "permission denied" in str(m_exc).lower():
+                    print(f"  [!] Note on {mf.name}: Role creation restricted on managed DB ({m_exc}). Recording and proceeding.")
+                    await target_conn.execute(
+                        "INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING",
+                        mf.name,
+                    )
+                else:
+                    raise RuntimeError(f"Failed applying migration {mf.name}: {m_exc}") from m_exc
 
-        # 7. Phase 8 Automated Security Evaluation Schema
-        eval_schema_path = base_dir / "migrations" / "007_security_evaluation_schema.sql"
-        if eval_schema_path.exists():
-            print(f"[*] Applying migration: {eval_schema_path.name}...")
-            eval_schema_sql = eval_schema_path.read_text(encoding="utf-8")
-            await target_conn.execute(eval_schema_sql)
-            print("[+] Migration 007 applied successfully.")
+        print(f"\n[+] Migrations completed. Newly applied: {applied_count}, Total active: {len(applied_set) + applied_count}")
 
-        # 8. Phase 9 Multi-Software Connector Gateway Schema
-        gateway_schema_path = base_dir / "migrations" / "008_multi_software_connector_gateway.sql"
-        if gateway_schema_path.exists():
-            print(f"[*] Applying migration: {gateway_schema_path.name}...")
-            gateway_schema_sql = gateway_schema_path.read_text(encoding="utf-8")
-            await target_conn.execute(gateway_schema_sql)
-            print("[+] Migration 008 applied successfully.")
-
-        # 9. Audit Events Append-Only Schema
-        append_only_path = base_dir / "migrations" / "009_audit_events_append_only.sql"
-        if append_only_path.exists():
-            print(f"[*] Applying migration: {append_only_path.name}...")
-            append_only_sql = append_only_path.read_text(encoding="utf-8")
-            await target_conn.execute(append_only_sql)
-            print("[+] Migration 009 applied successfully.")
-
-        # 10. Approval HMAC Signature Schema
-        signature_path = base_dir / "migrations" / "010_approval_hmac_signature.sql"
-        if signature_path.exists():
-            print(f"[*] Applying migration: {signature_path.name}...")
-            signature_sql = signature_path.read_text(encoding="utf-8")
-            await target_conn.execute(signature_sql)
-            print("[+] Migration 010 applied successfully.")
-
-        # 11. Durable Idempotency Records Schema
-        idempotency_path = base_dir / "migrations" / "011_durable_idempotency.sql"
-        if idempotency_path.exists():
-            print(f"[*] Applying migration: {idempotency_path.name}...")
-            idempotency_sql = idempotency_path.read_text(encoding="utf-8")
-            await target_conn.execute(idempotency_sql)
-            print("[+] Migration 011 applied successfully.")
-
-        # 12. Prune Out-of-Scope Tables Schema
-        prune_path = base_dir / "migrations" / "012_prune_out_of_scope_tables.sql"
-        if prune_path.exists():
-            print(f"[*] Applying migration: {prune_path.name}...")
-            prune_sql = prune_path.read_text(encoding="utf-8")
-            await target_conn.execute(prune_sql)
-            print("[+] Migration 012 applied successfully.")
-
-        # Seed Data if requested
+        # Seed Data (Protected by default)
         if seed_data:
-            seed_path = base_dir / "seed" / "seed_synthetic_data.sql"
-            print(f"[*] Applying seed data: {seed_path.name}...")
-            seed_sql = seed_path.read_text(encoding="utf-8")
-            await target_conn.execute(seed_sql)
-            print("[+] Seed data applied successfully.")
+            if settings.APP_ENV == "production" and not force_seed:
+                print("\n[!] SAFETY VIOLATION: Seeding synthetic test data is strictly prohibited in production!")
+                print("    Production tables were NOT truncated or modified. Pass --force-seed if this is intentional.")
+                return
 
-        # Verification counts
-        cust_count = await target_conn.fetchval("SELECT COUNT(*) FROM customers")
-        ticket_count = await target_conn.fetchval("SELECT COUNT(*) FROM gating_approval_tickets")
-        print(
-            f"[OK] Database '{db_name}' ready. Customers: {cust_count}, Gating Tickets: {ticket_count}"
+            seed_path = pathlib.Path(__file__).parent.parent / "mcp_sentinel" / "database" / "seed" / "seed_synthetic_data.sql"
+            if seed_path.exists():
+                print(f"\n[!] Applying seed data: {seed_path.name}...")
+                seed_sql = seed_path.read_text(encoding="utf-8")
+                await target_conn.execute(seed_sql)
+                print("[+] Seed data applied successfully.")
+        else:
+            print("\n[*] Seed data skipped (production safety default: preservation of existing records).")
+
+        # Table & Record Verification
+        tables = await target_conn.fetch(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
         )
+        table_names = [t["table_name"] for t in tables]
+        print(f"[*] Public database tables active ({len(table_names)}): {', '.join(table_names)}")
 
     finally:
         await target_conn.close()
 
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(description="Initialize and migrate MCP-Sentinel database.")
-    parser.add_argument("--no-seed", action="store_true", help="Skip synthetic data seeding")
+    parser = argparse.ArgumentParser(description="Initialize and migrate MCP-Sentinel database safely.")
+    parser.add_argument(
+        "--check-only",
+        "--status",
+        action="store_true",
+        help="Inspect database and report migration status without applying changes",
+    )
+    parser.add_argument(
+        "--seed",
+        action="store_true",
+        default=False,
+        help="Seed synthetic test data (DISABLED by default; prohibited in production)",
+    )
+    parser.add_argument(
+        "--force-seed",
+        action="store_true",
+        default=False,
+        help="Force seeding even if APP_ENV is production (DANGEROUS: truncates test data)",
+    )
     args = parser.parse_args()
 
     settings = get_settings()
-    print("=== Initializing MCP-Sentinel Database ===")
-    await init_single_db(settings.DATABASE_URL, seed_data=not args.no_seed)
+    print("=================================================================")
+    print(" MCP-Sentinel — Production-Safe Database Migration Utility")
+    print("=================================================================")
+    print(f"Environment : {settings.APP_ENV}")
+
+    target_dsn = settings.DATABASE_URL or settings.SUPABASE_DATABASE_URL
+    if not target_dsn:
+        print("[!] Error: Neither DATABASE_URL nor SUPABASE_DATABASE_URL is configured.")
+        sys.exit(1)
+
+    await init_single_db(
+        target_url=target_dsn,
+        seed_data=args.seed,
+        check_only=args.check_only,
+        force_seed=args.force_seed,
+    )
 
 
 if __name__ == "__main__":

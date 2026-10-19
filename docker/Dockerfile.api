@@ -62,7 +62,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health/live || exit 1
 
-# Production entrypoint: uvicorn with single worker per container (scale horizontally)
+# Production entrypoint: uvicorn with single worker per container, proxy headers enabled for reverse proxy
 CMD ["python", "-m", "uvicorn", "mcp_sentinel.api.app:app", \
      "--host", "0.0.0.0", "--port", "8000", \
-     "--workers", "1", "--no-access-log"]
+     "--workers", "1", "--proxy-headers", "--forwarded-allow-ips=*", "--no-access-log"]

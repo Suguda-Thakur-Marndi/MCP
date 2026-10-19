@@ -255,78 +255,80 @@ ALLOWED_CORS_ORIGINS=["https://sentinel.yourdomain.com"]
 
 ---
 
-## 5. Configuring Supabase Database Connectivity
+## 5. Configuring Supabase Database Connectivity & Migrations
 
-Verify that your Supabase database is accessible from the EC2 instance and that the required tables and schemas exist:
-
-```bash
-# 1. Test database network connectivity
-python3 -c "
-import urllib.parse, psycopg2
-dsn = '$(grep '^DATABASE_URL=' .env | cut -d= -f2-)'
-print('Testing Supabase connection...')
-conn = psycopg2.connect(dsn)
-cur = conn.cursor()
-cur.execute('SELECT version();')
-print('Database Connected:', cur.fetchone()[0])
-conn.close()
-"
-```
-
-If schema migrations or initial database tables need to be created:
+Verify that your Supabase database is accessible from the EC2 instance and inspect schema migration status safely:
 
 ```bash
-# Run the database schema initialization script
-python3 scripts/init_db.py
+# 1. Run safe read-only Supabase connectivity and schema verification
+python3 scripts/verify_supabase_connection.py
+
+# 2. Check schema migration status (read-only, does not apply migrations)
+python3 scripts/init_db.py --check-only
 ```
+
+### Applying Schema Migrations Safely:
+MCP Sentinel migrations (001-012) are idempotent and tracked in the `schema_migrations` table. In production, synthetic test data seeding is strictly disabled by default to preserve production records.
+
+```bash
+# Apply pending migrations safely without seeding test data
+python3 scripts/init_db.py --no-seed
+```
+
+> [!CAUTION]
+> Never run `--seed` or `--force-seed` against a live production database. Synthetic data seeding contains `TRUNCATE` operations designed solely for local test environments.
 
 ---
 
-## 6. Building API and Frontend Images Locally
+## 6. One-Step Safe Production Deployment (Recommended)
 
-Build Docker images locally on EC2 using `docker-compose.prod.yml`:
+To deploy or update MCP Sentinel safely adhering to all 14 DevOps and security best practices, run the provided deployment script:
 
 ```bash
-# Build both images from source
-docker compose -f docker-compose.prod.yml build
+# Ensure script is executable
+chmod +x scripts/deploy_ec2.sh
+
+# Run deployment
+./scripts/deploy_ec2.sh
 ```
 
-This command:
-1. Builds `mcp-sentinel-api:latest` using `docker/Dockerfile.api` (multi-stage Python 3.12 slim build).
-2. Builds `mcp-sentinel-web:latest` using `web/Dockerfile` (multi-stage Node 20 Alpine standalone build with `NEXT_PUBLIC_API_URL` injected).
+The script will automatically:
+1. Stop immediately on any error (`set -euo pipefail`).
+2. Verify host tools (`docker`, `docker compose`, `git`, `curl`).
+3. Verify `.env` exists and harden its permissions to `0600`.
+4. Validate that required variables (`DATABASE_URL`, `JWT_SECRET_KEY`, `SESSION_SECRET`, `APPROVAL_HMAC_SECRET`) do not contain unconfigured placeholders, without printing secret values.
+5. Validate `docker-compose.prod.yml` configuration syntax.
+6. Safely inspect Supabase database connectivity and migration status.
+7. Prompt the operator interactively before applying database migrations (`init_db.py --no-seed`).
+8. Build local images with memory optimizations (`NODE_OPTIONS="--max-old-space-size=1536"` in `web/Dockerfile`).
+9. Start or update services via Docker Compose (enabling Caddy `--profile tls-proxy` if `PRODUCTION_DOMAIN` is configured).
+10. Wait up to 120 seconds for container health checks (`/health/live` and `/health/ready`).
+11. Report container status and sanitized logs.
+12. Fail loudly if any health check fails, without deleting database volumes or running destructive commands.
 
 ---
 
-## 7. Validating the Docker Compose Configuration
+## 7. Manual Step-by-Step Deployment (Alternative)
 
-Before launching containers, validate the resolved configuration:
+If you prefer executing each step manually instead of using `./scripts/deploy_ec2.sh`:
 
+### A. Validate Compose Configuration
 ```bash
 docker compose -f docker-compose.prod.yml config
 ```
 
-Verify that:
-- `api` has `build.context: .` and `build.dockerfile: docker/Dockerfile.api`.
-- `web` has `build.context: ./web` and `build.dockerfile: Dockerfile`.
-- All required environment variables are parsed correctly.
-- No syntax or indentation errors exist.
-
----
-
-## 8. Starting Production Services
-
-### Option A: Running with Automatic TLS Caddy Reverse Proxy (Recommended)
-If using Caddy on the EC2 host for Let's Encrypt certificates:
-
+### B. Build Images Locally on EC2
 ```bash
-docker compose -f docker-compose.prod.yml --profile tls-proxy up -d
+docker compose -f docker-compose.prod.yml build
 ```
 
-### Option B: Running without Caddy (Behind AWS ALB)
-If you terminate TLS at an AWS Application Load Balancer:
-
+### C. Launch Containers
 ```bash
-docker compose -f docker-compose.prod.yml up -d
+# With automatic Let's Encrypt TLS reverse proxy (recommended):
+docker compose -f docker-compose.prod.yml --profile tls-proxy up -d --remove-orphans
+
+# Or without Caddy (if using AWS Application Load Balancer):
+docker compose -f docker-compose.prod.yml up -d --remove-orphans
 ```
 
 ---
@@ -480,6 +482,20 @@ If Google OAuth 2.0 / OIDC is used:
    FRONTEND_URL=https://sentinel.yourdomain.com
    BACKEND_URL=https://sentinel.yourdomain.com
    ```
+
+### Notion Integration & OAuth Configuration:
+If Notion user authorization or OAuth is used:
+1. Navigate to **Notion Developers** &rarr; **My Integrations**.
+2. Select your integration and open the **Distribution** or **OAuth Settings** tab.
+3. Under **Redirect URIs**, add:
+   - `https://sentinel.yourdomain.com/api/integrations/notion/oauth/callback`
+4. Set in `.env`:
+   ```ini
+   NOTION_CLIENT_ID=your_notion_client_id
+   NOTION_CLIENT_SECRET=your_notion_client_secret
+   NOTION_REDIRECT_URI=https://sentinel.yourdomain.com/api/integrations/notion/oauth/callback
+   ```
+*(For internal workspace tokens, configure `NOTION_API_KEY=ntn_...` directly without needing OAuth).*
 
 ---
 

@@ -4,7 +4,20 @@
  * Zero mock data — every function issues a real HTTP request.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+function getBaseUrl(): string {
+  if (typeof window === "undefined") {
+    // Server-side (Node.js runtime inside Docker): talk to backend container directly
+    return process.env.API_BASE_URL || process.env.BACKEND_URL || "http://api:8000";
+  }
+  // Browser-side:
+  // If NEXT_PUBLIC_API_URL is set to a real external domain (not localhost/127.0.0.1), use it.
+  // Otherwise, use same-origin relative path "" so requests route through Caddy or Next.js rewrites.
+  const pub = process.env.NEXT_PUBLIC_API_URL;
+  if (pub && !pub.includes("localhost") && !pub.includes("127.0.0.1")) {
+    return pub.replace(/\/+$/, "");
+  }
+  return "";
+}
 
 export interface HealthStatus {
   status: string;
@@ -57,7 +70,9 @@ async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = typeof window !== "undefined" && path.startsWith("/") ? path : `${API_BASE}${path}`;
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  const base = getBaseUrl();
+  const url = `${base}${normalizedPath}`;
   const isMutation = ["POST", "PUT", "DELETE", "PATCH"].includes(
     (options.method || "GET").toUpperCase()
   );
@@ -624,7 +639,8 @@ export const api = {
       apiFetch("/api/auth/logout", { method: "POST" }),
     loginUrl: (redirectUrl?: string): string => {
       const q = redirectUrl ? `?redirect_url=${encodeURIComponent(redirectUrl)}` : "";
-      return `${API_BASE}/api/auth/google/authorize${q}`;
+      const base = getBaseUrl();
+      return `${base}/api/auth/google/authorize${q}`;
     },
     loginWithToken: async (
       idToken: string

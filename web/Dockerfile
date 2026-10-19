@@ -15,12 +15,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set Next.js standalone output mode
+# Set Next.js standalone output mode & memory safeguard for t3.small
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 
-# Accept build-time API URL for SSR
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+# Accept build-time API URL (defaults to empty string for same-origin browser calls)
+ARG NEXT_PUBLIC_API_URL=""
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
 RUN npm run build

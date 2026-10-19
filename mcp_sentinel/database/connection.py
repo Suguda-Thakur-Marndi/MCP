@@ -56,7 +56,7 @@ async def init_db_pool(custom_settings: Optional[Settings] = None) -> asyncpg.Po
         raise DatabaseOperationError(internal_details="Database pool offline (cooldown active)")
 
     settings = custom_settings or get_settings()
-    attempts = 2
+    attempts = 3
     last_exc = None
     for attempt in range(1, attempts + 1):
         try:
@@ -65,7 +65,7 @@ async def init_db_pool(custom_settings: Optional[Settings] = None) -> asyncpg.Po
                 dsn=settings.DATABASE_URL,
                 min_size=settings.DB_POOL_MIN_SIZE,
                 max_size=settings.DB_POOL_MAX_SIZE,
-                timeout=min(settings.DB_POOL_TIMEOUT_SECONDS, 4.0),
+                timeout=settings.DB_POOL_TIMEOUT_SECONDS,
                 command_timeout=settings.DB_COMMAND_TIMEOUT_SECONDS,
             )
             if pool is None:

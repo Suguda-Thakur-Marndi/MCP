@@ -26,13 +26,29 @@ class Settings(BaseSettings):
     )
 
     # Core Database & Real Data Integration Configuration
-    DATABASE_URL: str = Field(
-        ...,
-        description="PostgreSQL DSN string. Required. Must not be empty.",
+    DATABASE_URL: Optional[str] = Field(
+        default=None,
+        description="PostgreSQL DSN string. Single source of truth for database connections.",
     )
     SUPABASE_DATABASE_URL: Optional[str] = Field(
         default=None,
-        description="Supabase PostgreSQL connection string.",
+        description="Supabase PostgreSQL connection string (alias/fallback for DATABASE_URL).",
+    )
+    SUPABASE_URL: Optional[str] = Field(
+        default=None,
+        description="Supabase project URL (e.g. https://xyz.supabase.co).",
+    )
+    SUPABASE_ANON_KEY: Optional[str] = Field(
+        default=None,
+        description="Supabase anonymous API key.",
+    )
+    SUPABASE_PROJECT_REF: Optional[str] = Field(
+        default=None,
+        description="Supabase project reference ID.",
+    )
+    PRODUCTION_DOMAIN: Optional[str] = Field(
+        default=None,
+        description="Public domain name for production EC2 deployment (e.g. sentinel.yourdomain.com).",
     )
     NOTION_API_KEY: Optional[str] = Field(
         default=None,
@@ -321,22 +337,67 @@ class Settings(BaseSettings):
         description="Version string of the active security policy.",
     )
 
-    @field_validator("DATABASE_URL")
+    @field_validator("ALLOWED_CORS_ORIGINS", mode="before")
     @classmethod
-    def validate_database_url(cls, v: str) -> str:
-        if not v or not v.strip():
-            raise ValueError("DATABASE_URL cannot be empty.")
-        parsed = urllib.parse.urlparse(v)
-        if parsed.scheme not in ("postgresql", "postgres"):
-            raise ValueError(
-                f"Invalid database scheme '{parsed.scheme}'. Must be 'postgresql' or 'postgres'."
-            )
-        if not parsed.hostname:
-            raise ValueError("DATABASE_URL must specify a valid hostname.")
-        return v.strip()
+    def parse_cors_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                import json
+                try:
+                    return json.loads(v)
+                except Exception:
+                    pass
+            return [orig.strip() for orig in v.split(",") if orig.strip()]
+        return v
+
+    @field_validator("ALLOWED_GOOGLE_DOMAINS", mode="before")
+    @classmethod
+    def parse_google_domains(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                import json
+                try:
+                    return json.loads(v)
+                except Exception:
+                    pass
+            return [d.strip() for d in v.split(",") if d.strip()]
+        return v
 
     @model_validator(mode="after")
     def sync_session_and_cors(self) -> "Settings":
+        # 1. Establish single source of truth for database connection
+        if not self.DATABASE_URL and self.SUPABASE_DATABASE_URL:
+            self.DATABASE_URL = self.SUPABASE_DATABASE_URL
+        elif self.DATABASE_URL and not self.SUPABASE_DATABASE_URL:
+            self.SUPABASE_DATABASE_URL = self.DATABASE_URL
+
+        if not self.DATABASE_URL or not self.DATABASE_URL.strip():
+            raise ValueError("DATABASE_URL (or SUPABASE_DATABASE_URL) must be provided.")
+
+        self.DATABASE_URL = self.DATABASE_URL.strip()
+        parsed_db = urllib.parse.urlparse(self.DATABASE_URL)
+        if parsed_db.scheme not in ("postgresql", "postgres"):
+            raise ValueError(
+                f"Invalid database scheme '{parsed_db.scheme}'. Must be 'postgresql' or 'postgres'."
+            )
+        if not parsed_db.hostname:
+            raise ValueError("DATABASE_URL must specify a valid hostname.")
+
+        # Ensure sslmode=require is set for Supabase cloud connections if missing
+        if (
+            ("supabase.co" in (parsed_db.hostname or "") or "supabase.com" in (parsed_db.hostname or ""))
+            and "sslmode=" not in (parsed_db.query or "")
+        ):
+            sep = "&" if parsed_db.query else ""
+            new_query = f"{parsed_db.query}{sep}sslmode=require"
+            self.DATABASE_URL = urllib.parse.urlunparse(
+                (parsed_db.scheme, parsed_db.netloc, parsed_db.path, parsed_db.params, new_query, parsed_db.fragment)
+            )
+            self.SUPABASE_DATABASE_URL = self.DATABASE_URL
+
+        # 2. Synchronize JWT secret with session secret alias
         if self.SESSION_SECRET:
             default_keys = {
                 "sentinel-production-jwt-secret-key-change-me-32chars",
@@ -344,12 +405,40 @@ class Settings(BaseSettings):
             }
             if not self.JWT_SECRET_KEY or self.JWT_SECRET_KEY in default_keys:
                 self.JWT_SECRET_KEY = self.SESSION_SECRET
-        if self.FRONTEND_URL and self.FRONTEND_URL not in self.ALLOWED_CORS_ORIGINS:
-            self.ALLOWED_CORS_ORIGINS.append(self.FRONTEND_URL)
+
+        # 3. Synchronize Notion tokens
         if not self.NOTION_API_KEY and self.NOTION_API_TOKEN:
             self.NOTION_API_KEY = self.NOTION_API_TOKEN
         if self.NOTION_API_KEY and not self.NOTION_API_TOKEN:
             self.NOTION_API_TOKEN = self.NOTION_API_KEY
+
+        # 4. Propagate PRODUCTION_DOMAIN automatically to URLs and CORS
+        if self.PRODUCTION_DOMAIN and self.PRODUCTION_DOMAIN.strip():
+            raw_domain = self.PRODUCTION_DOMAIN.strip().replace("http://", "").replace("https://", "").rstrip("/")
+            if raw_domain and raw_domain != "sentinel.yourdomain.com":
+                https_url = f"https://{raw_domain}"
+                if self.FRONTEND_URL in ("http://localhost:3000", "https://sentinel.yourdomain.com"):
+                    self.FRONTEND_URL = https_url
+                if self.BACKEND_URL in ("http://localhost:8000", "https://sentinel.yourdomain.com"):
+                    self.BACKEND_URL = https_url
+                if self.GOOGLE_REDIRECT_URI in (
+                    "http://localhost:8000/api/auth/google/callback",
+                    "https://sentinel.yourdomain.com/api/auth/google/callback",
+                ):
+                    self.GOOGLE_REDIRECT_URI = f"{https_url}/api/auth/google/callback"
+                if self.NOTION_REDIRECT_URI in (
+                    "http://localhost:8000/api/integrations/notion/oauth/callback",
+                    "https://sentinel.yourdomain.com/api/integrations/notion/oauth/callback",
+                ):
+                    self.NOTION_REDIRECT_URI = f"{https_url}/api/integrations/notion/oauth/callback"
+                if https_url not in self.ALLOWED_CORS_ORIGINS:
+                    self.ALLOWED_CORS_ORIGINS.append(https_url)
+                if self.APP_ENV == "production":
+                    self.SESSION_COOKIE_SECURE = True
+
+        if self.FRONTEND_URL and self.FRONTEND_URL not in self.ALLOWED_CORS_ORIGINS:
+            self.ALLOWED_CORS_ORIGINS.append(self.FRONTEND_URL)
+
         return self
 
     @property
