@@ -1,5 +1,5 @@
 # ============================================================
-# Amazon ECR Repositories for MCP Sentinel
+# Amazon ECR Repositories for SentinelCore
 # ============================================================
 
 resource "aws_ecr_repository" "api" {

@@ -218,7 +218,7 @@ export default function IntegrationDetailPage({ params }: PageProps) {
             </div>
             <div>
               <span className="text-[10px] text-on-surface-variant uppercase block">Bot Identity</span>
-              <span className="font-bold text-cyan-400">{integration.workspace_info.bot_name || "MCP Sentinel"}</span>
+              <span className="font-bold text-cyan-400">{integration.workspace_info.bot_name || "SentinelCore"}</span>
             </div>
             <div>
               <span className="text-[10px] text-on-surface-variant uppercase block">API Version</span>
@@ -303,7 +303,7 @@ export default function IntegrationDetailPage({ params }: PageProps) {
             Bound FastMCP Tools ({tools.length})
           </h2>
           <span className="font-label-mono text-[11px] text-on-surface-variant">
-            Governed by Sentinel Policy Engine &amp; Gate
+            Governed by SentinelCore Policy Engine &amp; Gate
           </span>
         </div>
 

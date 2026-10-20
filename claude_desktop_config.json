@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "mcp-sentinel": {
+    "sentinelcore": {
       "command": "C:\\path\\to\\mcp-sentinel\\.venv\\Scripts\\python.exe",
       "args": [
         "-m",

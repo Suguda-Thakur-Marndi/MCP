@@ -138,7 +138,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="p-3 bg-zinc-950/50 rounded border border-zinc-800/80 space-y-1">
                     <span className="text-[10px] text-zinc-500 uppercase block font-semibold">Operator Principal</span>
-                    <div className="text-zinc-300 truncate">{user?.email || "admin@mcp-sentinel.local"}</div>
+                    <div className="text-zinc-300 truncate">{user?.email || "admin@sentinelcore.local"}</div>
                   </div>
                   <div className="p-3 bg-zinc-950/50 rounded border border-zinc-800/80 space-y-1">
                     <span className="text-[10px] text-zinc-500 uppercase block font-semibold">Assigned RBAC Role</span>
@@ -231,7 +231,7 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
                 <div className="p-3 bg-zinc-950/50 rounded border border-zinc-800/80 space-y-1">
                   <span className="text-[10px] text-zinc-500 uppercase block font-semibold">Server Name</span>
-                  <div className="text-zinc-200 font-bold">mcp-sentinel</div>
+                  <div className="text-zinc-200 font-bold">sentinelcore</div>
                 </div>
                 <div className="p-3 bg-zinc-950/50 rounded border border-zinc-800/80 space-y-1">
                   <span className="text-[10px] text-zinc-500 uppercase block font-semibold">Protocol Specification</span>
@@ -256,7 +256,7 @@ export default function SettingsPage() {
                   python -m mcp_sentinel.server.app
                 </pre>
                 <p className="text-[11px] text-zinc-500">
-                  Clients (Claude Desktop, Cursor, AI agents) communicate via JSON-RPC over stdio. Every tool call is intercepted by the authoritative Sentinel policy engine before dispatch.
+                  Clients (Claude Desktop, Cursor, AI agents) communicate via JSON-RPC over stdio. Every tool call is intercepted by the authoritative SentinelCore policy engine before dispatch.
                 </p>
               </div>
             </div>

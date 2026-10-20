@@ -1,5 +1,5 @@
 """
-MCP Sentinel — Comprehensive Notion Write-Security & Approval Architecture Verification.
+SentinelCore — Comprehensive Notion Write-Security & Approval Architecture Verification.
 
 This test script validates the 9-stage Zero-Trust security architecture for Notion:
 1. Capability Gating: archive_page cannot execute when write permissions are disabled.
@@ -272,7 +272,7 @@ class InMemoryApprovalStore:
 
 
 async def run_write_security_verification():
-    print_banner("MCP Sentinel — Notion Write-Security Verification Suite")
+    print_banner("SentinelCore — Notion Write-Security Verification Suite")
 
     checks = {}
     store = InMemoryApprovalStore()

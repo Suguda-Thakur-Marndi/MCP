@@ -1,5 +1,5 @@
 """
-Notion REST API Connector for MCP Sentinel.
+Notion REST API Connector for SentinelCore.
 Connects to official Notion API at https://api.notion.com/v1.
 Supports workspace page search, database querying, page metadata retrieval,
 and policy-governed page archiving.
@@ -52,7 +52,7 @@ def normalize_notion_id(val: str) -> str:
 
 class NotionConnector(BaseConnector):
     """
-    Official Notion REST API Connector for MCP Sentinel.
+    Official Notion REST API Connector for SentinelCore.
     Endpoint: https://api.notion.com/v1
     Version: 2022-06-28
     """
@@ -312,14 +312,14 @@ class NotionConnector(BaseConnector):
             d = self._last_test_result.details
             return {
                 "workspace_name": d.get("workspace_name", "Authorized Workspace"),
-                "bot_name": d.get("bot_name", "MCP Sentinel"),
+                "bot_name": d.get("bot_name", "SentinelCore"),
                 "bot_id": d.get("bot_id"),
                 "workspace_id": d.get("workspace_id"),
                 "api_version": self.NOTION_VERSION,
             }
         return {
             "workspace_name": "Notion Workspace",
-            "bot_name": "MCP Sentinel Integration",
+            "bot_name": "SentinelCore Integration",
             "api_version": self.NOTION_VERSION,
         }
 
@@ -358,7 +358,7 @@ class NotionConnector(BaseConnector):
                 user_data = resp.json()
                 bot_info = user_data.get("bot", {})
                 workspace_name = bot_info.get("workspace_name", "Authorized Workspace")
-                bot_name = user_data.get("name", "MCP Sentinel")
+                bot_name = user_data.get("name", "SentinelCore")
                 bot_id = user_data.get("id")
                 write_enabled = self.is_write_enabled()
 
@@ -715,7 +715,7 @@ class NotionConnector(BaseConnector):
 
                 if resp.status_code == 404:
                     err_msg = (
-                        f"Notion resource not found or not shared with MCP Sentinel: {raw_msg}"
+                        f"Notion resource not found or not shared with SentinelCore: {raw_msg}"
                         if raw_msg
                         else "Resource not found. Please ensure the target page or database is shared with the integration."
                     )

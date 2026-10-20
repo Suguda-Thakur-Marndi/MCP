@@ -18,7 +18,7 @@ provider "aws" {
 
   default_tags {
     tags = {
-      Project     = "MCP-Sentinel"
+      Project     = "SentinelCore"
       Environment = var.environment
       ManagedBy   = "Terraform"
     }

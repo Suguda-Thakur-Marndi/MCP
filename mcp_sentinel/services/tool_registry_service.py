@@ -1,5 +1,5 @@
 """
-Tool Registry Service for MCP Sentinel Multi-Software Gateway.
+Tool Registry Service for SentinelCore Multi-Software Gateway.
 Orchestrates tool discovery across all active connectors, synchronizes
 tools with the database, and enforces the tool state machine:
 DISCOVERED -> AVAILABLE -> AUTHORIZED -> APPROVED -> EXECUTED.

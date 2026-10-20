@@ -1,12 +1,12 @@
-# MCP Sentinel — Architecture Overview
+# SentinelCore — Architecture Overview
 
-MCP Sentinel provides a zero-trust enterprise gateway and Human-in-the-Loop (HITL) security perimeter for Model Context Protocol (MCP) tool execution.
+SentinelCore provides a zero-trust enterprise gateway and Human-in-the-Loop (HITL) security perimeter for Model Context Protocol (MCP) tool execution.
 
 ## Architectural Tiers
 
 1. **FastMCP Server Runtime (`mcp_sentinel/server/app.py`)**:
    - Implements the Model Context Protocol (MCP) interface over `stdio` or HTTP/SSE transports.
-   - Enforces the 10 MCP Sentinel Security Principles.
+   - Enforces the 10 SentinelCore Security Principles.
    - Declares read tools (`get_customer`, `get_order`, `query_customer_records`, `search_pages`, `get_page`, `query_database`) and destructive tools (`delete_customer`, `purge_inactive_customer_data`, `archive_page`).
    - Treats LLM inputs as untrusted and strips rogue security claims.
 

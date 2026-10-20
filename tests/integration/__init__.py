@@ -1,3 +1,3 @@
 """
-Integration test suite for MCP Sentinel FastAPI and subsystem integrations.
+Integration test suite for SentinelCore FastAPI and subsystem integrations.
 """

@@ -1,6 +1,6 @@
 # Docker Container Configurations (`docker/`)
 
-This directory contains container definitions and reverse proxy configurations for MCP Sentinel.
+This directory contains container definitions and reverse proxy configurations for SentinelCore.
 
 ## Container Files
 

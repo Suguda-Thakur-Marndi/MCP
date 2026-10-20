@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# MCP-Sentinel – EC2 Bootstrap User Data Script (Ubuntu 24.04 LTS / ap-southeast-2)
+# SentinelCore – EC2 Bootstrap User Data Script (Ubuntu 24.04 LTS / ap-southeast-2)
 # ==============================================================================
 set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
 
 echo "========================================================================"
-echo " Bootstrapping MCP-Sentinel Host on AWS EC2"
+echo " Bootstrapping SentinelCore Host on AWS EC2"
 echo "========================================================================"
 
 # 1. Configure Swapfile (2GB memory safeguard for t3.small instances)
@@ -85,4 +85,4 @@ if id "ubuntu" &>/dev/null; then
 fi
 chmod 755 "${DEPLOY_DIR}"
 
-echo "[+] MCP-Sentinel host bootstrap completed successfully."
+echo "[+] SentinelCore host bootstrap completed successfully."

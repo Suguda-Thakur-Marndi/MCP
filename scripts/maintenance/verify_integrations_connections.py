@@ -1,5 +1,5 @@
 """
-MCP Sentinel — Comprehensive Verification Suite for Google OAuth + Notion & Supabase Connections.
+SentinelCore — Comprehensive Verification Suite for Google OAuth + Notion & Supabase Connections.
 
 This automated test suite verifies:
 1. Google OAuth 2.0 / OIDC initiation, PKCE, claim checks, and anti-takeover defense.
@@ -88,7 +88,7 @@ class MockIntegrationRepository:
 
 async def main() -> None:
     print("\n" + "=" * 75)
-    print("MCP Sentinel — Google OAuth + Notion & Supabase Connections Test Suite")
+    print("SentinelCore — Google OAuth + Notion & Supabase Connections Test Suite")
     print("=" * 75)
 
     client = TestClient(app, base_url="http://localhost:8000")

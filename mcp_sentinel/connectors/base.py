@@ -1,5 +1,5 @@
 """
-Abstract Base Connector interface for MCP Sentinel Enterprise Data Connectors.
+Abstract Base Connector interface for SentinelCore Enterprise Data Connectors.
 Every data integration (Notion, Supabase PostgreSQL)
 inherits from BaseConnector and implements the 10 standard lifecycle methods.
 """
@@ -24,7 +24,7 @@ from mcp_sentinel.connectors.models import (
 
 class BaseConnector(abc.ABC):
     """
-    Standard interface for all software connectors in MCP Sentinel.
+    Standard interface for all software connectors in SentinelCore.
     Enforces uniform lifecycle, tool discovery, schema introspection,
     execution, and health checking while accommodating varied auth methods.
     """

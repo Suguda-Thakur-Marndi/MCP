@@ -1,5 +1,5 @@
 """
-MCP Sentinel — Live Supabase Database Workflows Verification Script.
+SentinelCore — Live Supabase Database Workflows Verification Script.
 
 Tests live database-backed operations using safe data:
 1. Configuration & Parameter Verification (Zero secret leak)
@@ -30,7 +30,7 @@ from mcp_sentinel.security.auth.models import AuthUser, UserRoleEnum
 
 async def run_live_database_verification():
     print("=" * 75)
-    print("MCP SENTINEL — LIVE DATABASE-BACKED WORKFLOWS VERIFICATION")
+    print("SENTINELCORE — LIVE DATABASE-BACKED WORKFLOWS VERIFICATION")
     print("=" * 75)
 
     settings = get_settings()

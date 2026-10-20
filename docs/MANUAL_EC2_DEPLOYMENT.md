@@ -1,4 +1,4 @@
-# MCP Sentinel — Manual AWS EC2 Production Deployment Guide
+# SentinelCore — Manual AWS EC2 Production Deployment Guide
 
 > [!NOTE]
 > This guide has been reorganized under [`docs/deployment/MANUAL_EC2_DEPLOYMENT.md`](file:///docs/deployment/MANUAL_EC2_DEPLOYMENT.md) as part of the production folder structure.

@@ -1,5 +1,5 @@
 """
-Integration Repository for MCP Sentinel Multi-Software Gateway.
+Integration Repository for SentinelCore Multi-Software Gateway.
 Manages database persistence for integrations, encrypted credentials,
 and external/custom MCP servers.
 """

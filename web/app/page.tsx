@@ -127,7 +127,7 @@ export default function OverviewPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.setAttribute("download", `mcp_sentinel_audit_${Date.now()}.csv`);
+    link.setAttribute("download", `sentinelcore_audit_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -185,7 +185,7 @@ export default function OverviewPage() {
               SECURITY OBSERVATORY // ACTIVE
             </span>
             <span className="font-mono text-[10px] text-[var(--on-surface-variant)] px-2 py-0.5 rounded bg-[var(--surface-container)] border border-[var(--border)]">
-              NODE: {health?.service || "mcp-sentinel"} • {health?.environment?.toUpperCase() || "DEVELOPMENT"}
+              NODE: {health?.service || "sentinelcore"} • {health?.environment?.toUpperCase() || "DEVELOPMENT"}
             </span>
           </div>
           <h1 className="font-headline-lg text-lg sm:text-xl font-bold tracking-tight text-[var(--on-surface)]">

@@ -106,7 +106,7 @@ export function NoAuditEventsEmptyState() {
   return (
     <EmptyState
       title="No governed actions have been recorded yet."
-      message="Audit logs are cryptographically sealed whenever an AI agent requests a tool execution through the MCP Sentinel gateway."
+      message="Audit logs are cryptographically sealed whenever an AI agent requests a tool execution through the SentinelCore gateway."
       icon={ShieldAlert}
     />
   );

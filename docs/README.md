@@ -1,6 +1,6 @@
-# MCP Sentinel — Documentation Portal
+# SentinelCore — Documentation Portal
 
-Welcome to the MCP Sentinel documentation. MCP Sentinel is a production-grade security gateway, policy evaluation engine, and Human-in-the-Loop (HITL) approval system for AI tool integrations.
+Welcome to the SentinelCore documentation. SentinelCore is an AI security and approval platform that protects MCP tool execution through policy enforcement, human-in-the-loop approvals, authentication, and comprehensive audit logging.
 
 ---
 

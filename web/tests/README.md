@@ -1,6 +1,6 @@
 # Next.js Frontend Testing & Quality Verification (`web/tests/`)
 
-This directory contains frontend verification specifications and automated quality checks for the MCP Sentinel Security Console.
+This directory contains frontend verification specifications and automated quality checks for the SentinelCore Security Console.
 
 ## Quality Gates
 

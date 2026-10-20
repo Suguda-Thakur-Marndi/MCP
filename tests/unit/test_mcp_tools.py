@@ -1,5 +1,5 @@
 """
-Unit tests for MCP-Sentinel FastMCP Server Tool Inventory and Security Boundaries.
+Unit tests for SentinelCore FastMCP Server Tool Inventory and Security Boundaries.
 Verifies:
 - All 12 canonical tools are discovered and registered
 - Tool annotations correctly reflect read_only and destructive hints

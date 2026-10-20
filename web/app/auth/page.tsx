@@ -34,7 +34,7 @@ function AuthContent() {
       case "unverified_email":
         return "Your Google account email is not verified. Please verify your email first.";
       case "domain_restricted":
-        return "Your email domain is not authorized for this MCP Sentinel workspace.";
+        return "Your email domain is not authorized for this SentinelCore workspace.";
       default:
         return `Authentication failed: ${errorParam}`;
     }
@@ -99,7 +99,7 @@ function AuthContent() {
           setHealth({
             status: "unreachable",
             database: "disconnected",
-            service: "mcp-sentinel",
+            service: "sentinelcore",
           });
         }
       });
@@ -186,10 +186,13 @@ function AuthContent() {
           </div>
 
           <h1 className="font-sans text-xl sm:text-2xl font-bold tracking-tight text-[var(--on-surface)]">
-            MCP SENTINEL
+            SENTINELCORE
           </h1>
           <p className="font-sans text-xs sm:text-sm text-[var(--on-surface-variant)] mt-1 max-w-[320px] leading-relaxed">
-            AI Model Context Protocol Security &amp; Governance Platform
+            AI Security &amp; Approval Platform
+          </p>
+          <p className="font-mono text-[10px] text-[var(--primary)] mt-1.5 uppercase tracking-wider">
+            Secure AI Agents. Controlled Actions. Trusted Execution.
           </p>
         </div>
 

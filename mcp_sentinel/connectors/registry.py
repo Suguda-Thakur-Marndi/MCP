@@ -1,5 +1,5 @@
 """
-Central Connector Registry for MCP Sentinel Multi-Software Gateway.
+Central Connector Registry for SentinelCore Multi-Software Gateway.
 Maintains active connector instances, routes tool execution,
 and discovers tools across all connected software systems.
 """

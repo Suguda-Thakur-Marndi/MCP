@@ -1,5 +1,5 @@
 # ============================================================
-# MCP-Sentinel Next.js Frontend – Production Multi-Stage Image
+# SentinelCore Next.js Frontend – Production Multi-Stage Image
 # ============================================================
 # Stage 1: Install dependencies
 FROM node:20-alpine AS deps

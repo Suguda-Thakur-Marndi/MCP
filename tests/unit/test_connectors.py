@@ -1,5 +1,5 @@
 """
-Unit tests for MCP-Sentinel Connectors and Registry.
+Unit tests for SentinelCore Connectors and Registry.
 Verifies:
 - Built-in connector discovery (Notion and Supabase)
 - Tool listing across connectors

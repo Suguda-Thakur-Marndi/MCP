@@ -1,5 +1,5 @@
 """
-Tools API Router for MCP Sentinel Multi-Software Gateway.
+Tools API Router for SentinelCore Multi-Software Gateway.
 Exposes the Central Tool Registry and handles live tool execution through
 the mandatory 9-stage Zero-Trust Security Pipeline.
 """

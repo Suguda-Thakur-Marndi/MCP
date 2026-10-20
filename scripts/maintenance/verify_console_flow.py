@@ -1,5 +1,5 @@
 """
-MCP-Sentinel: Full Human-in-the-Loop Approval Console Flow Verification.
+SentinelCore: Full Human-in-the-Loop Approval Console Flow Verification.
 Validates the complete 4-step out-of-band lifecycle:
 1. Agent attempts destructive operation without ticket -> Halt with REQUIRE_APPROVAL
 2. Human Approver authorizes ticket in console
@@ -43,7 +43,7 @@ def extract_data(res):
 
 async def test_full_console_lifecycle():
     print("=" * 80)
-    print("MCP-SENTINEL: FULL HUMAN-IN-THE-LOOP APPROVAL CONSOLE FLOW VERIFICATION")
+    print("SENTINELCORE: FULL HUMAN-IN-THE-LOOP APPROVAL CONSOLE FLOW VERIFICATION")
     print("=" * 80)
 
     # 0. Re-seed database

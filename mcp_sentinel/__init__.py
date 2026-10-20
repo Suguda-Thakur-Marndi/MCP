@@ -1,5 +1,5 @@
 """
-MCP-Sentinel: Production-grade secure MCP server with Human-in-the-Loop approval gating.
+SentinelCore: Production-grade secure MCP server with Human-in-the-Loop approval gating.
 Phase 1: Security Foundation.
 """
 

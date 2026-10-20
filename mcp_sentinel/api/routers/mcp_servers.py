@@ -1,5 +1,5 @@
 """
-MCP Servers API Router for MCP Sentinel Multi-Software Gateway.
+MCP Servers API Router for SentinelCore Multi-Software Gateway.
 Allows administrators to inspect and register custom/remote MCP servers:
 name, endpoint, transport, auth_method, and environment.
 """
@@ -58,7 +58,7 @@ async def register_mcp_server(
 ) -> dict[str, Any]:
     raise HTTPException(
         status_code=400,
-        detail="Custom remote MCP server registration is disabled. MCP Sentinel operates strictly with internal FastMCP tools, Notion, and Supabase PostgreSQL.",
+        detail="Custom remote MCP server registration is disabled. SentinelCore operates strictly with internal FastMCP tools, Notion, and Supabase PostgreSQL.",
     )
 
 

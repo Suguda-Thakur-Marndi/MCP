@@ -1,5 +1,5 @@
 # ============================================================
-# MCP-Sentinel FastAPI Backend – Production Multi-Stage Image
+# SentinelCore FastAPI Backend – Production Multi-Stage Image
 # ============================================================
 # Stage 1: Build dependencies in isolation
 FROM python:3.12-slim AS builder

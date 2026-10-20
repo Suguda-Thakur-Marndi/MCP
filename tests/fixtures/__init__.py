@@ -1,5 +1,5 @@
 """
-Reusable test fixtures and mock data payloads for MCP Sentinel test suites.
+Reusable test fixtures and mock data payloads for SentinelCore test suites.
 """
 
 from tests.fixtures.sample_payloads import (

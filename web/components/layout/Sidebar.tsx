@@ -157,10 +157,10 @@ export function Sidebar({
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
                 <span className="text-xs text-[var(--on-surface)] tracking-tight font-bold truncate leading-none">
-                  MCP SENTINEL
+                  SENTINELCORE
                 </span>
                 <span className="font-mono text-[9px] text-[var(--on-surface-variant)] uppercase tracking-wider mt-1 truncate">
-                  AI Security Gateway
+                  AI Security Platform
                 </span>
               </div>
             )}

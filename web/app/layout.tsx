@@ -16,10 +16,10 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MCP Sentinel — AI Security & Approval Platform",
+  title: "SentinelCore — AI Security & Approval Platform",
   description:
-    "Enterprise Model Context Protocol (MCP) server enforcing authentication, authorization, policy validation, human approval, and audit logging.",
-  keywords: ["MCP Sentinel", "mcp", "security", "AI", "governance", "HITL", "FastMCP", "Supabase"],
+    "SentinelCore is an AI security and approval platform that protects MCP tool execution through policy enforcement, human-in-the-loop approvals, authentication, and comprehensive audit logging.",
+  keywords: ["SentinelCore", "mcp", "security", "AI", "governance", "HITL", "FastMCP", "Supabase"],
 };
 
 export default function RootLayout({

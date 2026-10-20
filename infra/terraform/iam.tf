@@ -10,7 +10,7 @@ data "aws_caller_identity" "current" {}
 
 resource "aws_iam_role" "ec2_role" {
   name        = "${var.project_name}-ec2-role"
-  description = "IAM role attached to MCP-Sentinel EC2 instance for SSM and ECR pull"
+  description = "IAM role attached to SentinelCore EC2 instance for SSM and ECR pull"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -32,7 +32,7 @@ resource "aws_iam_role_policy_attachment" "ssm_core" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
-# Least-privilege policy for pulling images from Sentinel ECR repos
+# Least-privilege policy for pulling images from SentinelCore ECR repos
 resource "aws_iam_policy" "ecr_pull" {
   name        = "${var.project_name}-ecr-pull-policy"
   description = "Allows EC2 instance to authenticate and pull Docker images from private ECR"

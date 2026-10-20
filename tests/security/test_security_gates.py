@@ -1,5 +1,5 @@
 """
-Security Boundary and Access Control Tests for MCP Sentinel.
+Security Boundary and Access Control Tests for SentinelCore.
 Tests zero-trust boundaries, fail-closed approval gating, and parameter validation.
 """
 

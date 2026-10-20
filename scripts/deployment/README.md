@@ -1,6 +1,6 @@
 # Deployment Scripts (`scripts/deployment/`)
 
-This directory contains host initialization and manual deployment scripts for MCP Sentinel on AWS EC2.
+This directory contains host initialization and manual deployment scripts for SentinelCore on AWS EC2.
 
 ## Scripts Index
 

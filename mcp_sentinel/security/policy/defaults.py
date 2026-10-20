@@ -24,7 +24,7 @@ DEFAULT_POLICY = PolicyDefinition(
     policy_id=DEFAULT_POLICY_ID,
     policy_version=DEFAULT_POLICY_VERSION,
     description=(
-        "Core MCP-Sentinel security policy. Enforces strict fail-closed gating, "
+        "Core SentinelCore security policy. Enforces strict fail-closed gating, "
         "destructive action approval, production protection, and deterministic precedence."
     ),
     rules=[

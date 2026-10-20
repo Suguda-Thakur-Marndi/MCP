@@ -1,3 +1,3 @@
 """
-Security test suite for MCP Sentinel boundary enforcement and access controls.
+Security test suite for SentinelCore boundary enforcement and access controls.
 """

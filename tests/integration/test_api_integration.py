@@ -1,5 +1,5 @@
 """
-Integration tests for MCP Sentinel FastAPI application and subsystems.
+Integration tests for SentinelCore FastAPI application and subsystems.
 Verifies route registration, health probes, and security middleware responses.
 """
 

@@ -1,5 +1,5 @@
 # ==============================================================================
-# MCP-Sentinel — Prometheus Alert Rules Catalog
+# SentinelCore — Prometheus Alert Rules Catalog
 # Corresponds to monitoring/alerts.md
 # ==============================================================================
 
@@ -12,8 +12,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "MCP-Sentinel FastAPI Backend is down"
-          description: "Sentinel API has been unreachable for more than 1 minute."
+          summary: "SentinelCore FastAPI Backend is down"
+          description: "SentinelCore API has been unreachable for more than 1 minute."
 
       - alert: SentinelDatabaseDisconnected
         expr: sentinel_db_pool_connections{state="total"} == 0
@@ -21,7 +21,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "Sentinel Database connection pool is disconnected"
+          summary: "SentinelCore Database connection pool is disconnected"
           description: "Database connection pool has 0 total connections for > 1m."
 
       - alert: SentinelHighHttpErrorRate

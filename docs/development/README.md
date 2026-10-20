@@ -1,4 +1,4 @@
-# MCP Sentinel — Local Development Guide
+# SentinelCore — Local Development Guide
 
 ## Environment Setup
 

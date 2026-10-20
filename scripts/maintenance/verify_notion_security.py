@@ -1,6 +1,6 @@
 """
 Comprehensive End-to-End Notion Security & Integration Verification Script.
-MCP Sentinel Zero-Trust Architecture.
+SentinelCore Zero-Trust Architecture.
 
 Verifies:
 1. Configuration & Secret Safety (Zero-leakage, .env isolation, .env.example placeholders).
@@ -63,7 +63,7 @@ def extract_fastmcp_payload(res):
 
 
 async def main():
-    print_header("MCP Sentinel - Notion Integration End-to-End Security Verification")
+    print_header("SentinelCore - Notion Integration End-to-End Security Verification")
 
     results = {
         "config_check": False,

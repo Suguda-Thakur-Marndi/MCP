@@ -1,5 +1,5 @@
 """
-MCP Sentinel — Database Permissions & Least Privilege Verification Script.
+SentinelCore — Database Permissions & Least Privilege Verification Script.
 Inspects actual PostgreSQL grants and validates read-only & approval enforcement.
 Never prints passwords, tokens, or credentials.
 """
@@ -22,7 +22,7 @@ from mcp_sentinel.database.connection import close_db_pool, get_db_pool
 
 async def verify_permissions():
     print("=" * 70)
-    print("MCP SENTINEL — DATABASE PERMISSIONS & ROLE AUDIT")
+    print("SENTINELCORE — DATABASE PERMISSIONS & ROLE AUDIT")
     print("=" * 70)
 
     settings = get_settings()

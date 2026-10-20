@@ -1,6 +1,6 @@
 # Database Migrations Index (`migrations/`)
 
-MCP Sentinel utilizes sequential, idempotent SQL schema migrations to provision tables, indices, and least-privilege PostgreSQL roles.
+SentinelCore utilizes sequential, idempotent SQL schema migrations to provision tables, indices, and least-privilege PostgreSQL roles.
 
 > [!NOTE]
 > Canonical migration SQL files reside in [`mcp_sentinel/database/migrations/`](file:///mcp_sentinel/database/migrations/) to ensure zero-overhead packaging inside the Python module and compatibility with Docker build contexts.

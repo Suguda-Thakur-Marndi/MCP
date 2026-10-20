@@ -1,5 +1,5 @@
 """
-Pytest configuration and shared test fixtures for MCP-Sentinel test suite.
+Pytest configuration and shared test fixtures for SentinelCore test suite.
 """
 
 import os

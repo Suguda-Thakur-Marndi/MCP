@@ -1,5 +1,5 @@
 """
-Deterministic Enterprise Synthetic Data Generator for MCP-Sentinel Phase 2.
+Deterministic Enterprise Synthetic Data Generator for SentinelCore.
 Generates 500+ customers, 1000+ orders, and 100+ audit notes using only synthetic data.
 Zero real PII; uses 'example.test' domains.
 Usage:

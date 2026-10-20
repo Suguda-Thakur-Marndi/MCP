@@ -254,7 +254,7 @@ export default function IntegrationsPage() {
             Connected Software &amp; Boundary Registry
           </h1>
           <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
-            Zero-Trust enterprise data connections for Notion and Supabase. Every tool execution is evaluated by Sentinel&apos;s Policy Engine in real time.
+            Zero-Trust enterprise data connections for Notion and Supabase. Every tool execution is evaluated by SentinelCore&apos;s Policy Engine in real time.
           </p>
         </div>
 
@@ -389,7 +389,7 @@ export default function IntegrationsPage() {
               <div className="p-space-sm bg-surface-container-low rounded-lg border border-surface-container">
                 <span className="text-[10px] text-on-surface-variant uppercase block">Bot Identity</span>
                 <span className="font-bold text-cyan-400 mt-0.5 truncate block">
-                  {notionItem?.workspace_info?.bot_name || "MCP Sentinel"}
+                  {notionItem?.workspace_info?.bot_name || "SentinelCore"}
                 </span>
               </div>
 
@@ -722,7 +722,7 @@ export default function IntegrationsPage() {
             {notionTab === "oauth" ? (
               <div className="space-y-space-md font-body-sm text-body-sm">
                 <p className="text-on-surface-variant text-xs">
-                  Authorize MCP Sentinel to interact with pages and databases across your Notion workspace using Notion&apos;s official OAuth 2.0 consent flow.
+                  Authorize SentinelCore to interact with pages and databases across your Notion workspace using Notion&apos;s official OAuth 2.0 consent flow.
                 </p>
 
                 <div className="p-space-sm bg-surface-container-low rounded-lg border border-surface-container space-y-1 text-xs font-label-mono">

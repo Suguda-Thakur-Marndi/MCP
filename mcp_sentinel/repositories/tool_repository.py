@@ -1,5 +1,5 @@
 """
-Tool and Execution Repository for MCP Sentinel Multi-Software Gateway.
+Tool and Execution Repository for SentinelCore Multi-Software Gateway.
 Manages database persistence for the tool registry, permissions, policies,
 risk decisions, agent runs, and audited tool executions.
 """

@@ -1,3 +1,3 @@
 """
-Unit tests package for MCP-Sentinel components.
+Unit tests package for SentinelCore components.
 """

@@ -1,5 +1,5 @@
 # ============================================================
-# Terraform Outputs for MCP-Sentinel AWS Deployment
+# Terraform Outputs for SentinelCore AWS Deployment
 # ============================================================
 
 output "ec2_instance_id" {
@@ -8,7 +8,7 @@ output "ec2_instance_id" {
 }
 
 output "ec2_public_ip" {
-  description = "Elastic IP of the MCP-Sentinel EC2 instance (Point DNS A-record to this address)"
+  description = "Elastic IP of the SentinelCore EC2 instance (Point DNS A-record to this address)"
   value       = aws_eip.sentinel_eip.public_ip
 }
 

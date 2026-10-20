@@ -1,4 +1,4 @@
-# MCP Sentinel — Enterprise Security Gateway & Gated MCP Runtime
+# SentinelCore — AI Security & Approval Platform
 
 [![FastMCP](https://img.shields.io/badge/FastMCP-v4.0+-blue.svg)](https://github.com/jlowin/fastmcp)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com)
@@ -11,9 +11,11 @@
 [![Tests](https://img.shields.io/badge/Tests-46%20Passed-brightgreen.svg)](tests/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-**MCP Sentinel** is an enterprise-grade Security Gateway, Governance Proxy, and Tool Execution Runtime engineered specifically for the [Model Context Protocol (MCP)](https://modelcontextprotocol.io). It establishes a hardened **Zero-Trust Boundary** between autonomous AI agents (Claude Desktop, Cursor, LangChain, CrewAI, AutoGen) and enterprise production backends (PostgreSQL, Supabase, Notion API).
+> **Secure AI Agents. Controlled Actions. Trusted Execution.**
 
-MCP Sentinel ensures that autonomous AI agents cannot execute destructive mutations, alter customer lifecycles, or exfiltrate private records without strict server-side policy evaluation, multi-factor risk scoring, cryptographic parameter binding, and out-of-band **Human-in-the-Loop (HITL)** approval gating.
+**SentinelCore** is an AI security and approval platform that protects MCP tool execution through policy enforcement, human-in-the-loop approvals, authentication, and comprehensive audit logging. It establishes a hardened **Zero-Trust Boundary** between autonomous AI agents (Claude Desktop, Cursor, LangChain, CrewAI, AutoGen) and enterprise production backends (PostgreSQL, Supabase, Notion API).
+
+SentinelCore ensures that autonomous AI agents cannot execute destructive mutations, alter customer lifecycles, or exfiltrate private records without strict server-side policy evaluation, multi-factor risk scoring, cryptographic parameter binding, and out-of-band **Human-in-the-Loop (HITL)** approval gating.
 
 ---
 
@@ -51,13 +53,13 @@ Autonomous AI agents equipped with Model Context Protocol (MCP) clients can invo
 - **Parameter Tampering & Replay Attacks**: An approval granted for operation $A$ (e.g. deleting test customer #999) can be repurposed by an attacker to execute operation $B$ (deleting enterprise customer #1).
 - **Credential & PII Leakage**: Unsanitized database stack traces and error messages expose API tokens, connection strings, and sensitive customer records.
 
-**MCP Sentinel solves these challenges** by placing an authoritative, server-enforced security proxy directly at the tool gateway. Every tool call is intercepted, stripped of untrusted client assertions, evaluated through a deterministic risk matrix and declarative policy rulebook, and held in escrow when risk thresholds are exceeded.
+**SentinelCore solves these challenges** by placing an authoritative, server-enforced security proxy directly at the tool gateway. Every tool call is intercepted, stripped of untrusted client assertions, evaluated through a deterministic risk matrix and declarative policy rulebook, and held in escrow when risk thresholds are exceeded.
 
 ---
 
 ## The 10 Immutable Security Principles
 
-MCP Sentinel is governed by 10 immutable security principles, enforced at the compiler, middleware, database, and operational levels:
+SentinelCore is governed by 10 immutable security principles, enforced at the compiler, middleware, database, and operational levels:
 
 | # | Principle | Enforcement Mechanism |
 |---|---|---|
@@ -74,7 +76,7 @@ MCP Sentinel is governed by 10 immutable security principles, enforced at the co
 
 ### Role-Based Access Control (RBAC)
 
-MCP Sentinel enforces a 3-tier Role-Based Access Control model:
+SentinelCore enforces a 3-tier Role-Based Access Control model:
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -97,7 +99,7 @@ MCP Sentinel enforces a 3-tier Role-Based Access Control model:
 
 ## System Architecture & Runtime Flow
 
-MCP Sentinel is partitioned into five distinct, loosely coupled architectural tiers:
+SentinelCore is partitioned into five distinct, loosely coupled architectural tiers:
 
 ```mermaid
 graph TD
@@ -161,7 +163,7 @@ graph TD
 
 ## Dual Transport Modes: stdio vs HTTP/SSE
 
-MCP Sentinel natively supports two complementary transport mechanisms:
+SentinelCore natively supports two complementary transport mechanisms:
 
 ```
 ┌──────────────────────────────────┐      ┌──────────────────────────────────┐
@@ -175,7 +177,7 @@ MCP Sentinel natively supports two complementary transport mechanisms:
 └──────────────────────────────────┘      └──────────────────────────────────┘
 ```
 
-- **`stdio` Mode (Default)**: Optimized for local AI agent desktop environments (Claude Desktop, Cursor IDE). The agent spawns the MCP Sentinel Python process locally and communicates via stdin/stdout. No network sockets are opened, eliminating remote network attack vectors.
+- **`stdio` Mode (Default)**: Optimized for local AI agent desktop environments (Claude Desktop, Cursor IDE). The agent spawns the SentinelCore Python process locally and communicates via stdin/stdout. No network sockets are opened, eliminating remote network attack vectors.
 - **`sse` / HTTP Mode**: Configured by setting `MCP_TRANSPORT=sse`. Optimized for microservice clusters, Docker Compose topologies, and multi-agent orchestrators communicating over secured TLS networks.
 
 ---
@@ -227,7 +229,7 @@ Evaluated in strict priority order by [`PolicyEngine`](file:///mcp_sentinel/secu
 
 ## Dual-Custody Cryptographic Approval Protocol
 
-To prevent parameter tampering, token reuse, and replay attacks, MCP Sentinel implements a dual-custody cryptographic protocol:
+To prevent parameter tampering, token reuse, and replay attacks, SentinelCore implements a dual-custody cryptographic protocol:
 
 ```
 [Agent Invokes Destructive Tool]
@@ -317,7 +319,7 @@ The canonical FastMCP server runtime ([`mcp_sentinel/server/app.py`](file:///mcp
 
 ## Enterprise Connectors & Gateway Registry
 
-MCP Sentinel integrates directly with enterprise backends through modular, least-privilege connectors managed by [`ConnectorRegistry`](file:///mcp_sentinel/connectors/registry.py):
+SentinelCore integrates directly with enterprise backends through modular, least-privilege connectors managed by [`ConnectorRegistry`](file:///mcp_sentinel/connectors/registry.py):
 
 ### 1. Supabase & PostgreSQL Connection Pooler
 
@@ -403,7 +405,7 @@ The Dark Observatory Console ([`web/`](file:///web)) is a high-performance, real
 
 ## Database Schema & Sequential Migrations
 
-MCP Sentinel employs **12 sequential, forward-compatible SQL migrations** located in [`mcp_sentinel/database/migrations/`](file:///mcp_sentinel/database/migrations/):
+SentinelCore employs **12 sequential, forward-compatible SQL migrations** located in [`mcp_sentinel/database/migrations/`](file:///mcp_sentinel/database/migrations/):
 
 ```
 001_initial_schema.sql                      # Base customers table & audit timestamps
@@ -509,8 +511,8 @@ scripts/
 ### 1. Clone & Configure Environment
 
 ```bash
-git clone https://github.com/your-org/mcp-sentinel.git
-cd mcp-sentinel
+git clone https://github.com/Suguda-Thakur-Marndi/MCP.git
+cd MCP
 
 # Copy environment template
 cp .env.example .env
@@ -562,7 +564,7 @@ Open `http://localhost:3000` in your browser to access the Dark Observatory Cons
 
 ## Claude Desktop & Cursor IDE Integration
 
-Connect your local AI assistant to MCP Sentinel by adding it to your MCP client configuration:
+Connect your local AI assistant to SentinelCore by adding it to your MCP client configuration:
 
 ### 1. Claude Desktop Configuration
 
@@ -574,10 +576,10 @@ Edit your Claude Desktop configuration file:
 ```json
 {
   "mcpServers": {
-    "mcp-sentinel": {
-      "command": "/absolute/path/to/mcp-sentinel/.venv/bin/python",
+    "sentinelcore": {
+      "command": "/absolute/path/to/sentinelcore/.venv/bin/python",
       "args": ["-m", "mcp_sentinel.server.app"],
-      "cwd": "/absolute/path/to/mcp-sentinel",
+      "cwd": "/absolute/path/to/sentinelcore",
       "env": {
         "DATABASE_URL": "postgresql://postgres:postgres@localhost:5432/mcp_sentinel_db",
         "APP_ENV": "development",
@@ -589,7 +591,7 @@ Edit your Claude Desktop configuration file:
 }
 ```
 
-*(On Windows, replace `/absolute/path/to/...` with `C:\\path\\to\\mcp-sentinel\\.venv\\Scripts\\python.exe`)*
+*(On Windows, replace `/absolute/path/to/...` with `C:\\path\\to\\sentinelcore\\.venv\\Scripts\\python.exe`)*
 
 ### 2. Cursor IDE Configuration
 
@@ -598,7 +600,7 @@ Add to your workspace `.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "mcp-sentinel": {
+    "sentinelcore": {
       "command": "python",
       "args": ["-m", "mcp_sentinel.server.app"],
       "env": {
@@ -614,7 +616,7 @@ Add to your workspace `.cursor/mcp.json`:
 
 ## Automated Testing & Code Quality Assurance
 
-MCP Sentinel maintains strict automated testing and static analysis standards:
+SentinelCore maintains strict automated testing and static analysis standards:
 
 ### 1. Pytest Unit, Security & Integration Suite
 
@@ -653,7 +655,7 @@ npm run build
 
 ## Production Deployment & Cloud Operations
 
-MCP Sentinel supports both local multi-container development and automated AWS production deployment:
+SentinelCore supports both local multi-container development and automated AWS production deployment:
 
 ### 1. Local Development Stack (Docker Compose)
 
@@ -664,8 +666,8 @@ docker compose up --build
 ```
 
 - **`sentinel-postgres`**: PostgreSQL 16 on internal network (`127.0.0.1:5432`).
-- **`sentinel-api`**: FastAPI REST backend on port `8000` with `/health/live` probe.
-- **`sentinel-web`**: Dark Observatory Console on port `3000`.
+- **`sentinelcore-api`**: FastAPI REST backend on port `8000` with `/health/live` probe.
+- **`sentinelcore-web`**: Dark Observatory Console on port `3000`.
 
 ### 2. AWS EC2 Production Architecture
 
@@ -682,7 +684,7 @@ In production, PostgreSQL is hosted externally on Supabase (connecting over TLS)
  (Port 8000)      (Port 3000)
        │               │
        v               v
- [sentinel-api]   [sentinel-web]
+ [sentinelcore-api] [sentinelcore-web]
        │
    (TLS Pooler)
        │
@@ -729,7 +731,7 @@ All settings are strongly typed and validated at application startup using Pydan
 |---|---|---|---|
 | `APP_ENV` | string | `development` | Runtime environment: `development`, `staging`, `production`, `test`. |
 | `LOG_LEVEL` | string | `INFO` | Logging verbosity: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`. |
-| `MCP_SERVER_NAME` | string | `MCP-Sentinel` | Human-readable name announced by the FastMCP server. |
+| `MCP_SERVER_NAME` | string | `SentinelCore` | Human-readable name announced by the FastMCP server. |
 | `MCP_TRANSPORT` | string | `stdio` | MCP transport mode: `stdio` or `sse`. |
 | `API_PORT` | int | `8000` | Port bound by the FastAPI REST server. |
 | `WEB_PORT` | int | `3000` | Port bound by the Next.js web console. |
@@ -875,10 +877,10 @@ All settings are strongly typed and validated at application startup using Pydan
 
 ## License & Governance
 
-MCP Sentinel is open-source software licensed under the **[Apache License 2.0](LICENSE)**.
+SentinelCore is open-source software licensed under the **[Apache License 2.0](LICENSE)**.
 
 ```
-Copyright 2026 MCP Sentinel Authors
+Copyright 2026 SentinelCore Authors
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

@@ -1,5 +1,5 @@
 """
-Supabase PostgreSQL Connector for MCP Sentinel.
+Supabase PostgreSQL Connector for SentinelCore.
 Provides secure database pool telemetry, connection testing, and governed tool operations.
 """
 

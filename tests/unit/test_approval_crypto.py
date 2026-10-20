@@ -1,5 +1,5 @@
 """
-Unit tests for MCP-Sentinel Cryptographic Parameter Hashing and HMAC Signatures.
+Unit tests for SentinelCore Cryptographic Parameter Hashing and HMAC Signatures.
 Verifies:
 - Deterministic canonical parameter hashing (key-order invariance)
 - Parameter tampering detection (altered arguments produce mismatching hash)

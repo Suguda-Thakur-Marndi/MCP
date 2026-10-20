@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# MCP-Sentinel – Safe Production EC2 Deployment Script (Ubuntu 24.04 LTS)
+# SentinelCore – Safe Production EC2 Deployment Script (Ubuntu 24.04 LTS)
 # Manual deployment: Git + Local Docker Build + Docker Compose + Supabase
 # ==============================================================================
 # Operating Rules:
@@ -221,14 +221,14 @@ MAX_ATTEMPTS=24 # 24 * 5s = 120s
 ATTEMPT=0
 ALL_HEALTHY=false
 
-log_info "Awaiting healthy status for sentinel-api and sentinel-web..."
+log_info "Awaiting healthy status for sentinelcore-api and sentinelcore-web..."
 
 while [ ${ATTEMPT} -lt ${MAX_ATTEMPTS} ]; do
   ATTEMPT=$((ATTEMPT + 1))
   sleep 5
 
-  API_STATUS=$(docker inspect --format='{{json .State.Health.Status}}' sentinel-api 2>/dev/null || echo '"not_running"')
-  WEB_STATUS=$(docker inspect --format='{{json .State.Health.Status}}' sentinel-web 2>/dev/null || echo '"not_running"')
+  API_STATUS=$(docker inspect --format='{{json .State.Health.Status}}' sentinelcore-api 2>/dev/null || docker inspect --format='{{json .State.Health.Status}}' sentinel-api 2>/dev/null || echo '"not_running"')
+  WEB_STATUS=$(docker inspect --format='{{json .State.Health.Status}}' sentinelcore-web 2>/dev/null || docker inspect --format='{{json .State.Health.Status}}' sentinel-web 2>/dev/null || echo '"not_running"')
 
   # Remove quotes
   API_STATUS=$(echo "${API_STATUS}" | tr -d '"')
@@ -252,7 +252,7 @@ echo ""
 docker compose -f "${COMPOSE_FILE}" ps
 
 if [ "${ALL_HEALTHY}" = true ]; then
-  log_ok "All MCP-Sentinel production services are HEALTHY and serving traffic!"
+  log_ok "All SentinelCore production services are HEALTHY and serving traffic!"
   echo ""
   echo "Endpoints:"
   echo "  - Backend Live:   http://127.0.0.1:8000/health/live"

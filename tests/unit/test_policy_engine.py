@@ -1,5 +1,5 @@
 """
-Unit tests for MCP-Sentinel Policy Engine.
+Unit tests for SentinelCore Policy Engine.
 Verifies:
 - Read-only queries evaluate to ALLOW with LOW risk
 - Destructive operations evaluate to REQUIRE_APPROVAL with HIGH/CRITICAL risk

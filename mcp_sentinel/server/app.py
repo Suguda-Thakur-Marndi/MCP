@@ -1,5 +1,5 @@
 """
-MCP-Sentinel Server Application.
+SentinelCore Server Application.
 Production-grade FastMCP server with Human-in-the-Loop approval gating.
 Complies with:
 - Security Rule #1: Never trust the AI agent.
@@ -52,7 +52,7 @@ def create_app(
     server = FastMCP(
         name=settings.MCP_SERVER_NAME,
         instructions=(
-            "MCP-Sentinel Secure Enterprise Gateway. Provides controlled, minimized access "
+            "SentinelCore Secure Enterprise Gateway. Provides controlled, minimized access "
             "to enterprise customers, orders, and audit notes. Destructive operations strictly "
             "require verified server-side Human-in-the-Loop authorization tickets."
         ),
@@ -745,7 +745,7 @@ def create_app(
     )
     def prompt_customer_investigation_brief(customer_id: str) -> str:
         return (
-            f"You are the MCP-Sentinel AI Enterprise Assistant. Please investigate customer '{customer_id}'.\n"
+            f"You are the SentinelCore AI Enterprise Assistant. Please investigate customer '{customer_id}'.\n"
             "Execution Instructions:\n"
             f"1. Call `get_customer` with customer_id='{customer_id}' to retrieve profile status.\n"
             f"2. Call `get_customer_orders` with customer_id='{customer_id}' to inspect transaction history.\n"
@@ -782,7 +782,7 @@ app = create_app()
 
 def run(transport: Optional[str] = None) -> None:
     """
-    Standard entrypoint for MCP-Sentinel server.
+    Standard entrypoint for SentinelCore server.
     Defaults to stdio transport, or configurable via transport argument or MCP_TRANSPORT env var.
     """
     import os

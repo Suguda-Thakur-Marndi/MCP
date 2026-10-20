@@ -293,7 +293,7 @@ export function GlobalSearchModal({
             <span>↵ Select</span>
             <span>ESC Dismiss</span>
           </div>
-          <span>MCP Sentinel Core</span>
+          <span>SentinelCore</span>
         </div>
       </div>
     </div>

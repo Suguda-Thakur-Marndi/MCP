@@ -1,6 +1,6 @@
 # Maintenance & Verification Scripts (`scripts/maintenance/`)
 
-This directory contains standalone security test harnesses, verification suites, and diagnostic tools for MCP Sentinel.
+This directory contains standalone security test harnesses, verification suites, and diagnostic tools for SentinelCore.
 
 ## Verification Suites Index
 

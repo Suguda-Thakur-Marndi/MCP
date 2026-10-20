@@ -1,6 +1,6 @@
-# MCP Sentinel — Manual AWS EC2 Production Deployment Guide
+# SentinelCore — Manual AWS EC2 Production Deployment Guide
 
-This guide describes the complete procedure for deploying **MCP Sentinel** manually to an **AWS EC2 Ubuntu** server using **SSH**, **Git**, and **Docker Compose**.
+This guide describes the complete procedure for deploying **SentinelCore** manually to an **AWS EC2 Ubuntu** server using **SSH**, **Git**, and **Docker Compose**.
 
 All automated CI/CD pipelines (GitHub Actions, ECR publishing, SSM push scripts) have been removed from this project. Deployment is executed manually by system operators directly on the EC2 host.
 
@@ -32,7 +32,7 @@ All automated CI/CD pipelines (GitHub Actions, ECR publishing, SSM push scripts)
 |             /api/*, /health/*                          /*                        |
 |                        v                               v                         |
 |  +---------------------+------+              +---------+------------+            |
-|  | sentinel-api (FastAPI)     |              | sentinel-web         |            |
+|  | sentinelcore-api (FastAPI) |              | sentinelcore-web     |            |
 |  | Port: 127.0.0.1:8000       |              | (Next.js Console)    |            |
 |  | Health: /health/live       |              | Port: 127.0.0.1:3000 |            |
 |  | User: sentinel (UID 10001) |              | User: nextjs (1001)  |            |
@@ -268,7 +268,7 @@ python3 scripts/init_db.py --check-only
 ```
 
 ### Applying Schema Migrations Safely:
-MCP Sentinel migrations (001-012) are idempotent and tracked in the `schema_migrations` table. In production, synthetic test data seeding is strictly disabled by default to preserve production records.
+SentinelCore migrations (001-012) are idempotent and tracked in the `schema_migrations` table. In production, synthetic test data seeding is strictly disabled by default to preserve production records.
 
 ```bash
 # Apply pending migrations safely without seeding test data
@@ -282,7 +282,7 @@ python3 scripts/init_db.py --no-seed
 
 ## 6. One-Step Safe Production Deployment (Recommended)
 
-To deploy or update MCP Sentinel safely adhering to all 14 DevOps and security best practices, run the provided deployment script:
+To deploy or update SentinelCore safely adhering to all 14 DevOps and security best practices, run the provided deployment script:
 
 ```bash
 # Ensure script is executable
@@ -343,10 +343,10 @@ docker compose -f docker-compose.prod.yml ps
 
 Expected status:
 ```
-NAME             IMAGE                     COMMAND                  SERVICE   CREATED         STATUS                   PORTS
-sentinel-api     mcp-sentinel-api:latest   "python -m uvicorn m…"   api       1 minute ago    Up 1 minute (healthy)    127.0.0.1:8000->8000/tcp
-sentinel-web     mcp-sentinel-web:latest   "node server.js"         web       1 minute ago    Up 1 minute (healthy)    127.0.0.1:3000->3000/tcp
-sentinel-caddy   caddy:2.8-alpine          "caddy run --config …"   caddy     1 minute ago    Up 1 minute              0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp
+NAME                 IMAGE                         COMMAND                  SERVICE   CREATED         STATUS                   PORTS
+sentinelcore-api     sentinelcore-api:latest       "python -m uvicorn m…"   api       1 minute ago    Up 1 minute (healthy)    127.0.0.1:8000->8000/tcp
+sentinelcore-web     sentinelcore-web:latest       "node server.js"         web       1 minute ago    Up 1 minute (healthy)    127.0.0.1:3000->3000/tcp
+sentinelcore-caddy   caddy:2.8-alpine              "caddy run --config …"   caddy     1 minute ago    Up 1 minute              0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp
 ```
 
 ### Inspecting Service Logs:

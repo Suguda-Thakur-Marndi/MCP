@@ -1,5 +1,5 @@
 """
-Unit tests for MCP-Sentinel Audit Logger and Secret Redaction.
+Unit tests for SentinelCore Audit Logger and Secret Redaction.
 Verifies:
 - Complete scrubbing of sensitive credentials from log strings
 - Masking of PostgreSQL DSN passwords

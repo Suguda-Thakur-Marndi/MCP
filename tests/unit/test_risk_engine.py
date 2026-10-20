@@ -1,5 +1,5 @@
 """
-Unit tests for MCP-Sentinel Risk Engine and Risk Scoring.
+Unit tests for SentinelCore Risk Engine and Risk Scoring.
 Verifies:
 - Deterministic risk assessment by tool name
 - Risk tier boundaries (LOW, MEDIUM, HIGH, CRITICAL)

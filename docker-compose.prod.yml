@@ -1,5 +1,5 @@
 # ============================================================
-# MCP-Sentinel – Production Container Composition (AWS EC2)
+# SentinelCore – Production Container Composition (AWS EC2)
 #
 # Services:
 #   api: FastAPI Security Gateway & Runtime (Local Docker Build)
@@ -12,20 +12,20 @@
 
 services:
   # ----------------------------------------------------------
-  # FastAPI Backend API (MCP-Sentinel Core)
+  # FastAPI Backend API (SentinelCore API)
   # ----------------------------------------------------------
   api:
     build:
       context: .
       dockerfile: docker/Dockerfile.api
-    image: mcp-sentinel-api:${IMAGE_TAG:-latest}
-    container_name: sentinel-api
+    image: sentinelcore-api:${IMAGE_TAG:-latest}
+    container_name: sentinelcore-api
     restart: unless-stopped
     environment:
       APP_ENV: production
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       PORT: 8000
-      MCP_SERVER_NAME: MCP-Sentinel
+      MCP_SERVER_NAME: SentinelCore
       MCP_SERVER_VERSION: 1.0.0
       DATABASE_URL: ${DATABASE_URL:-}
       SUPABASE_DATABASE_URL: ${SUPABASE_DATABASE_URL:-}
@@ -90,8 +90,8 @@ services:
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
-    image: mcp-sentinel-web:${IMAGE_TAG:-latest}
-    container_name: sentinel-web
+    image: sentinelcore-web:${IMAGE_TAG:-latest}
+    container_name: sentinelcore-web
     restart: unless-stopped
     depends_on:
       api:
@@ -132,7 +132,7 @@ services:
   # ----------------------------------------------------------
   caddy:
     image: caddy:2.8-alpine
-    container_name: sentinel-caddy
+    container_name: sentinelcore-caddy
     restart: unless-stopped
     profiles:
       - tls-proxy

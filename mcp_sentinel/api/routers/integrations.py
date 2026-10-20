@@ -1,5 +1,5 @@
 """
-Integrations API Router for MCP Sentinel.
+Integrations API Router for SentinelCore.
 Exposes endpoints to inspect, test, and manage the two permitted enterprise data integrations:
 1. Notion (Official REST API)
 2. Supabase (PostgreSQL Database Pool)

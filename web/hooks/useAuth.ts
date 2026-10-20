@@ -22,7 +22,7 @@ export interface UseAuthResult {
 
 /**
  * useAuth
- * Centralized authentication and RBAC authorization hook for MCP-Sentinel console.
+ * Centralized authentication and RBAC authorization hook for SentinelCore console.
  */
 export function useAuth(): UseAuthResult {
   const [user, setUser] = useState<CurrentUser | null>(null);

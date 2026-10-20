@@ -1,5 +1,5 @@
 """
-Unit tests for MCP-Sentinel Authentication, RBAC, and JWT tokens.
+Unit tests for SentinelCore Authentication, RBAC, and JWT tokens.
 Verifies:
 - Role permission mapping (ADMIN, OPERATOR, AUDITOR, VIEWER)
 - Permission validation checks

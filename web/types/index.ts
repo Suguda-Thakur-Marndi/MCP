@@ -1,5 +1,5 @@
 /**
- * MCP-Sentinel Shared TypeScript Types
+ * SentinelCore Shared TypeScript Types
  * Centralized type definitions for frontend components, hooks, and API integrations.
  */
 

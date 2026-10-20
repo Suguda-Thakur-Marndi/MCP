@@ -1,3 +1,3 @@
 """
-Automated tests package for MCP-Sentinel.
+Automated tests package for SentinelCore.
 """

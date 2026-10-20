@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# MCP-Sentinel – Production EC2 Host Initialization Script (Ubuntu 24.04 LTS)
+# SentinelCore – Production EC2 Host Initialization Script (Ubuntu 24.04 LTS)
 # Target Architecture: AWS EC2 (t3.small / 2 vCPUs / 2GB RAM / ap-southeast-2)
 # ==============================================================================
 set -euo pipefail
 
 echo "========================================================================"
-echo " Starting MCP-Sentinel Host Initialization on Ubuntu 24.04 LTS"
+echo " Starting SentinelCore Host Initialization on Ubuntu 24.04 LTS"
 echo "========================================================================"
 
 # 1. Require sudo / root
@@ -124,7 +124,7 @@ chmod 755 "${DEPLOY_DIR}"
 
 # 11. Security Audit & Status Summary
 echo "========================================================================"
-echo " MCP-Sentinel Host Initialization Completed!"
+echo " SentinelCore Host Initialization Completed!"
 echo "========================================================================"
 echo "Docker Version:  $(docker --version)"
 echo "Compose Version: $(docker compose version)"

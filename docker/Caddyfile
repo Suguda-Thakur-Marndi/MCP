@@ -1,5 +1,5 @@
 # ============================================================
-# Caddyfile – Production TLS Reverse Proxy for MCP Sentinel
+# Caddyfile – Production TLS Reverse Proxy for SentinelCore
 # ============================================================
 # Automatically provisions and renews Let's Encrypt certificates.
 # Routes /api/* to FastAPI Backend (port 8000).

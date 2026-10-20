@@ -1,5 +1,5 @@
 """
-Database Initialization and Migration Script for MCP-Sentinel.
+Database Initialization and Migration Script for SentinelCore.
 - Establishes a schema_migrations tracking table for repeatable, safe migrations.
 - Safely detects already-applied migrations without modifying existing schema.
 - Bypasses administrative database creation on managed cloud databases (e.g. Supabase).
@@ -149,7 +149,7 @@ async def init_single_db(
 
 
 async def main() -> None:
-    parser = argparse.ArgumentParser(description="Initialize and migrate MCP-Sentinel database safely.")
+    parser = argparse.ArgumentParser(description="Initialize and migrate SentinelCore database safely.")
     parser.add_argument(
         "--check-only",
         "--status",
@@ -172,7 +172,7 @@ async def main() -> None:
 
     settings = get_settings()
     print("=================================================================")
-    print(" MCP-Sentinel — Production-Safe Database Migration Utility")
+    print(" SentinelCore — Production-Safe Database Migration Utility")
     print("=================================================================")
     print(f"Environment : {settings.APP_ENV}")
 

@@ -1,6 +1,6 @@
-# MCP Sentinel — Operational & Verification Scripts
+# SentinelCore — Operational & Verification Scripts
 
-This directory contains database lifecycle management scripts, production deployment automation, end-to-end security verification suites, and runtime diagnostic tools for MCP Sentinel.
+This directory contains database lifecycle management scripts, production deployment automation, end-to-end security verification suites, and runtime diagnostic tools for SentinelCore.
 
 ---
 

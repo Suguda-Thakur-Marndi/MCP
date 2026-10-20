@@ -1,5 +1,5 @@
 # ============================================================
-# AWS Security Group for MCP-Sentinel EC2 Host
+# AWS Security Group for SentinelCore EC2 Host
 # ============================================================
 # Security Policy:
 # 1. Inbound 80 (HTTP) & 443 (HTTPS) permitted from public internet (or ALB).
@@ -17,7 +17,7 @@ data "aws_vpc" "default" {
 
 resource "aws_security_group" "sentinel_sg" {
   name        = "${var.project_name}-host-sg"
-  description = "Hardened security group for MCP-Sentinel EC2 host"
+  description = "Hardened security group for SentinelCore EC2 host"
   vpc_id      = data.aws_vpc.default.id
 
   # Inbound HTTP (Port 80) -> Caddy ACME challenge & HTTPS redirection

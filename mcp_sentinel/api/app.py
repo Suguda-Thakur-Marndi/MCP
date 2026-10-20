@@ -1,5 +1,5 @@
 """
-Root FastAPI Application for MCP-Sentinel Security Platform.
+Root FastAPI Application for SentinelCore Security Platform.
 Provides production REST API endpoints for agent interaction, human approvals,
 authentication, security evaluation, audit event log inspection, and system metrics.
 Phase 9 Hardened:
@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
     Ensures clean termination of connection pools on shutdown.
     """
     settings = get_settings()
-    logger.info("Initializing MCP-Sentinel API in %s environment...", settings.APP_ENV)
+    logger.info("Initializing SentinelCore API in %s environment...", settings.APP_ENV)
 
     # 1. Fail-fast validation if running in production
     if settings.APP_ENV == "production":
@@ -83,7 +83,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # 3. Graceful shutdown: close database pool
-    logger.info("Shutting down MCP-Sentinel API and closing database pool.")
+    logger.info("Shutting down SentinelCore API and closing database pool.")
     try:
         await close_db_pool()
         logger.info("Database connection pool closed successfully.")
@@ -98,8 +98,8 @@ def create_app() -> FastAPI:
     settings = get_settings()
 
     app = FastAPI(
-        title="MCP-Sentinel Security Platform",
-        description="Production MCP Security, Policy Governance, and Human Approval Platform",
+        title="SentinelCore Security Platform",
+        description="SentinelCore: AI Security & Approval Platform",
         version="1.0.0",
         docs_url="/docs" if settings.APP_ENV != "production" else None,
         redoc_url="/redoc" if settings.APP_ENV != "production" else None,

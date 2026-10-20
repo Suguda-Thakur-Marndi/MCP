@@ -1,6 +1,6 @@
 # Database Lifecycle Scripts (`scripts/database/`)
 
-This directory contains database initialization, migration, status, and seeding scripts for MCP Sentinel.
+This directory contains database initialization, migration, status, and seeding scripts for SentinelCore.
 
 ## Scripts Index
 

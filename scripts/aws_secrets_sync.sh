@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# MCP-Sentinel – AWS Secrets Manager Production Sync Helper
+# SentinelCore – AWS Secrets Manager Production Sync Helper
 # ==============================================================================
 # Retrieves sensitive production credentials (JWT secrets, Supabase credentials,
 # Google OAuth, Notion API keys) from AWS Secrets Manager and safely writes them
@@ -48,7 +48,7 @@ chmod 600 "${TARGET_ENV}"
 
 # Parse key-value pairs into environment format
 echo "# ============================================================" > "${TARGET_ENV}"
-echo "# MCP-Sentinel Production Environment (Synced from Secrets Manager)" >> "${TARGET_ENV}"
+echo "# SentinelCore Production Environment (Synced from Secrets Manager)" >> "${TARGET_ENV}"
 echo "# Generated: $(date -u)" >> "${TARGET_ENV}"
 echo "# ============================================================" >> "${TARGET_ENV}"
 

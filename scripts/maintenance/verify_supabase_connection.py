@@ -1,5 +1,5 @@
 """
-MCP Sentinel — Supabase PostgreSQL Connection & Health Verification Script.
+SentinelCore — Supabase PostgreSQL Connection & Health Verification Script.
 
 Strict adherence to:
 - No plain credentials printed in logs or outputs.
@@ -30,7 +30,7 @@ load_dotenv(ROOT_DIR / ".env")
 
 async def verify_supabase():
     print("=" * 70)
-    print("MCP SENTINEL — SUPABASE POSTGRESQL VERIFICATION")
+    print("SENTINELCORE — SUPABASE POSTGRESQL VERIFICATION")
     print("=" * 70)
 
     settings = get_settings()

@@ -173,7 +173,7 @@ export function TopBar({
                   {currentUser?.name || "Security Operator"}
                 </p>
                 <p className="text-[10px] text-[var(--on-surface-variant)] truncate mt-0.5">
-                  {currentUser?.email || "operator@mcp-sentinel.local"}
+                  {currentUser?.email || "operator@sentinelcore.local"}
                 </p>
                 <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
                   ROLE: {currentUser?.role || "ADMIN"}

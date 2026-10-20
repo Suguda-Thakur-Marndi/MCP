@@ -1,5 +1,5 @@
 """
-MCP Sentinel — Comprehensive Google OAuth 2.0 / OIDC Verification Suite.
+SentinelCore — Comprehensive Google OAuth 2.0 / OIDC Verification Suite.
 
 Automated verification covering:
 1. OAuth initiation with PKCE (code_challenge S256, sealed state).
@@ -181,7 +181,7 @@ class InMemorySessionRepository:
 
 async def run_oauth_verification():
     print("=" * 80)
-    print("MCP SENTINEL — GOOGLE OAUTH 2.0 / OIDC VERIFICATION SUITE")
+    print("SENTINELCORE — GOOGLE OAUTH 2.0 / OIDC VERIFICATION SUITE")
     print("=" * 80)
 
     settings = get_settings()

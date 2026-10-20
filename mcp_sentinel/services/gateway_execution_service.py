@@ -1,5 +1,5 @@
 """
-Gateway Execution Service for MCP Sentinel Multi-Software Platform.
+Gateway Execution Service for SentinelCore Multi-Software Platform.
 Enforces the mandatory 9-stage zero-trust security pipeline:
 1. Identity verification
 2. Integration authorization
@@ -206,7 +206,7 @@ class GatewayExecutionService:
                 run_id=run_id,
                 risk_level="CRITICAL",
                 risk_score=100,
-                error=f"Integration '{integration_id}' is not registered in MCP Sentinel",
+                error=f"Integration '{integration_id}' is not registered in SentinelCore",
                 stages_completed=stages_completed,
             )
         if not integration.get("is_enabled", True):

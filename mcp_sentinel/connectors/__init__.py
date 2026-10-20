@@ -1,5 +1,5 @@
 """
-Enterprise Data Connectors for MCP Sentinel.
+Enterprise Data Connectors for SentinelCore.
 Focuses strictly on:
 1. Notion REST API (workspace pages, database querying, page archival)
 2. Supabase PostgreSQL (database connection pool, customer, order, and audit persistence)

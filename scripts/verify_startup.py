@@ -1,4 +1,4 @@
-"""Complete Application Startup Verification Script for MCP-Sentinel Release Candidate."""
+"""Complete Application Startup Verification Script for SentinelCore Release Candidate."""
 
 import asyncio
 import pathlib
@@ -29,7 +29,7 @@ from mcp_sentinel.server.app import create_app as create_mcp_app
 async def verify_all():
     results = {}
     print("==================================================")
-    print("MCP-Sentinel Component Startup Verification (v1.0.0-rc.1)")
+    print("SentinelCore Component Startup Verification (v1.0.0-rc.1)")
     print("==================================================")
 
     # 1. Database

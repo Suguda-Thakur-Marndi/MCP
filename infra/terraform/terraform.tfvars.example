@@ -1,5 +1,5 @@
 # ============================================================
-# MCP-Sentinel Terraform Variables Configuration Example
+# SentinelCore Terraform Variables Configuration Example
 # ============================================================
 aws_region        = "ap-southeast-2"
 environment       = "production"

@@ -1,5 +1,5 @@
 /**
- * MCP-Sentinel Frontend API Client
+ * SentinelCore Frontend API Client
  * All calls proxy to the FastAPI backend at NEXT_PUBLIC_API_URL.
  * Zero mock data — every function issues a real HTTP request.
  */

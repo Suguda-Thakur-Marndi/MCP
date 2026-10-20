@@ -1,5 +1,5 @@
 """
-Centralized Configuration and Secret Management for MCP-Sentinel.
+Centralized Configuration and Secret Management for SentinelCore.
 Adheres to Security Rule #5: Never store secrets in source code.
 Uses Pydantic Settings for strongly-typed, environment-driven configuration.
 """
@@ -88,7 +88,7 @@ class Settings(BaseSettings):
 
     # Server Metadata
     MCP_SERVER_NAME: str = Field(
-        default="MCP-Sentinel",
+        default="SentinelCore",
         description="Name of the MCP server instance.",
     )
     MCP_SERVER_VERSION: str = Field(

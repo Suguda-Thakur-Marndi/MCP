@@ -27,7 +27,7 @@ async def liveness_probe() -> dict[str, Any]:
     Liveness probe: Indicates that the FastAPI server process is running and accepting connections.
     Does not depend on external services (per SRE best practices).
     """
-    return {"status": "healthy", "alive": True, "service": "mcp-sentinel"}
+    return {"status": "healthy", "alive": True, "service": "sentinelcore"}
 
 
 @router.get("/health/ready", summary="Service Readiness Probe")
@@ -67,7 +67,7 @@ async def readiness_probe(response: Response) -> dict[str, Any]:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {
             "status": "unready",
-            "service": "mcp-sentinel",
+            "service": "sentinelcore",
             "environment": settings.APP_ENV,
             "database": "disconnected",
             "dependencies": {
@@ -80,7 +80,7 @@ async def readiness_probe(response: Response) -> dict[str, Any]:
 
     return {
         "status": "ready",
-        "service": "mcp-sentinel",
+        "service": "sentinelcore",
         "environment": settings.APP_ENV,
         "server_name": settings.MCP_SERVER_NAME,
         "database": "connected",

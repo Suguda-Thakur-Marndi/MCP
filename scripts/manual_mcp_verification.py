@@ -1,5 +1,5 @@
 """
-Manual Verification Script for MCP-Sentinel Phase 2.
+Manual Verification Script for SentinelCore.
 Connects to the FastMCP server instance and verifies:
 1. Tools can be discovered.
 2. Tool schemas are visible.
@@ -38,7 +38,7 @@ def extract_data(res):
 
 async def main():
     print("=" * 65)
-    print("MCP-SENTINEL PHASE 2 — MANUAL SERVER VERIFICATION")
+    print("SENTINELCORE — MANUAL SERVER VERIFICATION")
     print("=" * 65)
 
     server = create_app()

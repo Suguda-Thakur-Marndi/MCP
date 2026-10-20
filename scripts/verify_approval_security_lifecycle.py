@@ -1,5 +1,5 @@
 """
-MCP Sentinel — Human Approval Lifecycle & Tamper-Resistance Verification.
+SentinelCore — Human Approval Lifecycle & Tamper-Resistance Verification.
 Validates the full 6-step lifecycle and all security defenses:
 - Policy engine approval requirement
 - Parameter hash cryptographic binding
@@ -33,7 +33,7 @@ from mcp_sentinel.services.approval_service import ApprovalService
 
 async def verify_approval_lifecycle():
     print("=" * 80)
-    print("MCP SENTINEL — HUMAN-IN-THE-LOOP APPROVAL LIFECYCLE SECURITY GATE")
+    print("SENTINELCORE — HUMAN-IN-THE-LOOP APPROVAL LIFECYCLE SECURITY GATE")
     print("=" * 80)
 
     pool = None

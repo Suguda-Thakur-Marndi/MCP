@@ -1,5 +1,5 @@
 # ============================================================
-# EC2 Instance & Elastic IP Configuration for MCP-Sentinel
+# EC2 Instance & Elastic IP Configuration for SentinelCore
 # ============================================================
 
 # Fetch latest official Ubuntu 24.04 LTS AMI for ap-southeast-2

@@ -1,4 +1,4 @@
-# MCP Sentinel — Security Model & Governance
+# SentinelCore — Security Model & Governance
 
 ## 10 Immutable Security Principles
 

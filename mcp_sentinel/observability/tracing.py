@@ -100,7 +100,7 @@ class SentinelTracer:
         try:
             from opentelemetry import trace
 
-            service_name = os.environ.get("OTEL_SERVICE_NAME", "mcp-sentinel")
+            service_name = os.environ.get("OTEL_SERVICE_NAME", "sentinelcore")
             self._tracer = trace.get_tracer(service_name, "1.0.0")
         except ImportError:
             logger.info(
@@ -124,7 +124,7 @@ class SentinelTracer:
         self._init_tracer()
 
         attrs = {
-            "service.name": "mcp-sentinel",
+            "service.name": "sentinelcore",
             "request.id": get_request_id(),
             "trace.id": get_trace_id(),
             **(attributes or {}),
