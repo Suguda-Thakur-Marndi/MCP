@@ -503,8 +503,43 @@ class NotionConnector(BaseConnector):
         """
         Executes a Notion operation with strict input validation,
         capability checks, and sanitized structured responses.
+        Input validation is performed before credential checks (defense-in-depth).
         """
         start = time.perf_counter()
+
+        # -----------------------------------------------------------------
+        # Pre-authentication input validation (defense-in-depth).
+        # Reject structurally invalid inputs before any credential access.
+        # -----------------------------------------------------------------
+        if tool_id in ("notion.get_page", "get_page"):
+            page_id = parameters.get("page_id")
+            if not page_id or not is_valid_notion_id(page_id):
+                return ToolExecutionResult(
+                    success=False,
+                    error=(
+                        f"Invalid or missing page_id: '{page_id}'. "
+                        "Must be a valid 32-character hex or 36-character hyphenated UUID."
+                    ),
+                    latency_ms=0,
+                    status="FAILED",
+                    tool_id=tool_id,
+                    integration_id=self.integration_id,
+                )
+
+        if tool_id in ("notion.query_database", "query_database"):
+            database_id = parameters.get("database_id")
+            if not database_id or not is_valid_notion_id(database_id):
+                return ToolExecutionResult(
+                    success=False,
+                    error=(
+                        f"Invalid or missing database_id: '{database_id}'. "
+                        "Must be a valid 32-character hex or 36-character hyphenated UUID."
+                    ),
+                    latency_ms=0,
+                    status="FAILED",
+                    tool_id=tool_id,
+                    integration_id=self.integration_id,
+                )
 
         if not self._credentials:
             self._credentials = self._resolve_credentials()
@@ -570,23 +605,10 @@ class NotionConnector(BaseConnector):
                     )
 
                 # -----------------------------------------------------------------
-                # Tool 2: get_page
+                # Tool 2: get_page (UUID already validated above pre-auth)
                 # -----------------------------------------------------------------
                 elif tool_id in ("notion.get_page", "get_page"):
-                    page_id = parameters.get("page_id")
-                    if not page_id or not is_valid_notion_id(page_id):
-                        return ToolExecutionResult(
-                            success=False,
-                            error=(
-                                f"Invalid or missing page_id: '{page_id}'. "
-                                "Must be a valid 32-character hex or 36-character hyphenated UUID."
-                            ),
-                            latency_ms=0,
-                            status="FAILED",
-                            tool_id=tool_id,
-                            integration_id=self.integration_id,
-                        )
-
+                    page_id = parameters.get("page_id")  # guaranteed valid UUID by pre-auth check
                     clean_page_id = normalize_notion_id(page_id)
                     resp = await client.get(
                         f"{self.endpoint}/pages/{clean_page_id}",
@@ -594,23 +616,10 @@ class NotionConnector(BaseConnector):
                     )
 
                 # -----------------------------------------------------------------
-                # Tool 3: query_database
+                # Tool 3: query_database (UUID already validated above pre-auth)
                 # -----------------------------------------------------------------
                 elif tool_id in ("notion.query_database", "query_database"):
-                    database_id = parameters.get("database_id")
-                    if not database_id or not is_valid_notion_id(database_id):
-                        return ToolExecutionResult(
-                            success=False,
-                            error=(
-                                f"Invalid or missing database_id: '{database_id}'. "
-                                "Must be a valid 32-character hex or 36-character hyphenated UUID."
-                            ),
-                            latency_ms=0,
-                            status="FAILED",
-                            tool_id=tool_id,
-                            integration_id=self.integration_id,
-                        )
-
+                    database_id = parameters.get("database_id")  # guaranteed valid UUID by pre-auth check
                     clean_db_id = normalize_notion_id(database_id)
 
                     raw_page_size = parameters.get("page_size", 50)

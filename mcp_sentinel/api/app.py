@@ -21,6 +21,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 
+from mcp_sentinel.api.middleware import RateLimitMiddleware, SecurityHeadersMiddleware
 from mcp_sentinel.api.routers import (
     approvals,
     audit,
@@ -51,8 +52,6 @@ from mcp_sentinel.security.exceptions import (
     SecurityViolationError,
     SentinelError,
 )
-from mcp_sentinel.security.headers import SecurityHeadersMiddleware
-from mcp_sentinel.security.rate_limiter import RateLimitMiddleware
 
 logger = logging.getLogger("mcp_sentinel.api")
 

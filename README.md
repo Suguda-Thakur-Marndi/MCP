@@ -80,6 +80,7 @@ graph TD
 ├── mcp_sentinel/              # Canonical Backend Python Package
 │   ├── api/                   # FastAPI application & route controllers
 │   │   ├── app.py             # Root FastAPI application & lifecycle
+│   │   ├── middleware/        # Security headers, rate limiting, and correlation middleware
 │   │   └── routers/           # Sub-routers (approvals, audit, auth, health, integrations, tools)
 │   ├── config/                # Centralized settings & secrets management
 │   │   ├── secrets.py         # Secret masking and credential isolation
@@ -132,33 +133,39 @@ graph TD
 │   └── tools/                 # Tool handlers, schemas, and implementations
 ├── tests/                     # Automated Test Suite (Pytest)
 │   ├── conftest.py            # Test fixtures and isolated test environment setup
+│   ├── fixtures/              # Reusable test payloads and entity fixtures
+│   ├── integration/           # Subsystem and FastAPI endpoint integration tests
+│   ├── security/              # Access control, zero-trust gating, and boundary tests
 │   └── unit/                  # Component-organized unit tests
-│       ├── test_approval_crypto.py
-│       ├── test_audit_logger.py
-│       ├── test_auth_rbac.py
-│       ├── test_connectors.py
-│       ├── test_mcp_tools.py
-│       ├── test_policy_engine.py
-│       └── test_risk_engine.py
 ├── scripts/                   # Operational and verification test harnesses
-│   ├── README.md              # Detailed guide for all 14 operational scripts
-│   ├── init_db.py             # Schema migration runner
-│   ├── seed_database.py       # Test data seeder
-│   └── verify_*.py            # End-to-end security & integration verification suites
+│   ├── README.md              # Categorized index and operational documentation
+│   ├── deployment/            # Production host initialization and deployment scripts
+│   ├── database/              # Schema migration runner (init_db.py) and data seeder
+│   └── maintenance/           # End-to-end security & integration verification suites
+├── docs/                      # Central Documentation Portal
+│   ├── architecture/          # System design, data flows, and runtime components
+│   ├── security/              # Security principles, threat model, and cryptographic verification
+│   ├── development/           # Local environment setup, test execution, and coding standards
+│   └── deployment/            # Manual EC2 deployment guide and production runbooks
+├── migrations/                # Database migrations manifest and documentation
 ├── web/                       # Dark Observatory Security Console (Next.js 16)
 │   ├── app/                   # App Router pages and layouts
 │   ├── components/            # Reusable UI and layout components
 │   ├── hooks/                 # React data-fetching hooks (useAuth, useApiQuery)
 │   ├── lib/                   # API client and formatting utilities
 │   ├── types/                 # Shared TypeScript interfaces & types
+│   ├── tests/                 # Frontend verification and quality checks
 │   └── Dockerfile             # Multi-stage production container for frontend
 ├── docker/                    # Docker infrastructure
 │   ├── Dockerfile             # FastMCP runtime container
-│   └── Dockerfile.api         # FastAPI backend container
+│   ├── Dockerfile.api         # FastAPI backend container
+│   └── Caddyfile              # TLS reverse proxy configuration
 ├── monitoring/                # Observability configuration (Prometheus & Grafana)
 ├── .env.example               # Root environment configuration template
-├── docker-compose.yml         # Production multi-container composition
-└── pyproject.toml             # Python packaging and tool configuration
+├── docker-compose.prod.yml    # Production multi-container composition
+├── docker-compose.yml         # Local development stack
+├── pyproject.toml             # Python packaging and tool configuration
+└── requirements.txt           # Production Python dependencies
 ```
 
 ---
@@ -346,7 +353,7 @@ MCP Sentinel is deployed manually on AWS EC2 Ubuntu instances using SSH, Git, an
                                [External Supabase (TLS)]
 ```
 
-For step-by-step instructions—including instance initialization, host `.env` configuration, health verification, rollbacks, and Caddy TLS setup—see the [Manual EC2 Deployment Guide](file:///docs/MANUAL_EC2_DEPLOYMENT.md).
+For step-by-step instructions—including instance initialization, host `.env` configuration, health verification, rollbacks, and Caddy TLS setup—see the [Manual EC2 Deployment Guide](file:///docs/deployment/MANUAL_EC2_DEPLOYMENT.md).
 
 ---
 
